@@ -36,7 +36,7 @@ public class SNDModeData : CustomModeData
         var mapConfig = FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
         
-        var mpConfigMoby = mapConfig.GetMobys().FirstOrDefault(x => x.OClass == 0x106a);
+        var mpConfigMoby = mapConfig.GetMobys().FirstOrDefault(x => x.RCVersion == 4 && x.OClass == 0x106a);
         if (mpConfigMoby)
         {
             CopyTransform(mpConfigMoby.PVarMobyRefs[384 / 4] ? mpConfigMoby.PVarMobyRefs[384 / 4].transform : null, sndData.BombSite1);

@@ -154,7 +154,7 @@ public static class ForgeBuilder
                 }
             }
 
-            if (PackerHelper.Patch(binFolder, isoPath, cleanIsoPath, baseMap) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+            if (PackerHelper.Patch(binFolder, isoPath, cleanIsoPath, baseMap, racVersion) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
                 Debug.LogError($"Unable to patch {isoPath}. Please make sure PCSX2 is paused/closed.");
             else
                 Debug.Log($"{isoPath} patched!");
@@ -327,6 +327,7 @@ public static class ForgeBuilder
 
         // copy files
         if (File.Exists(wadPath)) File.Copy(wadPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.wad"), true);
+        if (File.Exists(worldPath)) File.Copy(worldPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.world"), true);
         if (File.Exists(soundPath)) File.Copy(soundPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}.sound"), true);
 
         // build version file
@@ -1029,9 +1030,9 @@ public static class ForgeBuilder
         // build list of mobys to export
         // start with default list of mobys
         // then add the mobys in the scene that aren't already in the list
-        var mobysToExport = mapConfig.DLMobysIncludedInExport.ToList();
+        var mobysToExport = ctx.RacVersion == 4 ? mapConfig.DLMobysIncludedInExport.ToList() : mapConfig.UYAMobysIncludedInExport.ToList();
         var mobys = mapConfig.GetMobys();
-        foreach (var moby in mobys)
+        foreach (var moby in mobys.Where(x => x.RCVersion == ctx.RacVersion))
             if (!mobysToExport.Contains(moby.OClass))
                 mobysToExport.Add(moby.OClass);
 
@@ -1410,7 +1411,8 @@ public static class ForgeBuilder
         var mobyOcclusionFile = Path.Combine(occlusionFolder, "moby.bin");
 
         // build list of mobys in scene
-        var mobys = mapConfig.GetMobys();
+        var mobys = mapConfig.GetMobys().Where(x => x.OClass == ctx.RacVersion);
+        var mobysCount = mobys.Count();
 
         // clear moby instance dir
         if (Directory.Exists(mobyInstancesFolder)) Directory.Delete(mobyInstancesFolder, true);
@@ -1420,7 +1422,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var moby in mobys)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Mobys ({i+1}/{mobys.Length})", (float)i / mobys.Length))
+            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Mobys ({i+1}/{mobysCount})", (float)i / mobysCount))
                 return;
 
             var mobyDir = Path.Combine(mobyInstancesFolder, $"{i:D4}_{moby.OClass:00000}_{moby.OClass:X4}");

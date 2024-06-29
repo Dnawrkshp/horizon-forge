@@ -538,9 +538,10 @@ public class Moby : RenderSelectionBase, IAsset
         var areas = mapConfig.GetAreas();
 
         // handle special moby class pvars
-        switch (OClass)
+        switch ((RCVersion, OClass))
         {
-            case 0x106a: // mp config
+            //case (3, 0x106a): // mp config
+            case (4, 0x106a): // mp config
                 UpdateMPConfigPVars(cuboids);
                 break;
         }

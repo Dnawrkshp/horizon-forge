@@ -407,9 +407,9 @@ public static class PackerHelper
         return PACKER_STATUS_CODES.SUCCESS;
     }
 
-    public static PACKER_STATUS_CODES Patch(string inFolder, string targetIsoPath, string cleanIsoPath, int baseLevelId)
+    public static PACKER_STATUS_CODES Patch(string inFolder, string targetIsoPath, string cleanIsoPath, int baseLevelId, int racVersion)
     {
-        return RunPacker(out _, "patch-old", "--input", inFolder, "--id", baseLevelId.ToString(), "-i", targetIsoPath, "--cleaniso", cleanIsoPath);
+        return RunPacker(out _, "patch-old", "--input", inFolder, "--id", baseLevelId.ToString(), "-i", targetIsoPath, "--cleaniso", cleanIsoPath, "-v", racVersion.ToString());
     }
 
     public static PACKER_STATUS_CODES PatchMinimap(string isoPath, string cleanIsoPath, string mapFilePath, int levelId, int racVersion)

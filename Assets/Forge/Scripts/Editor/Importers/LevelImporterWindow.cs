@@ -900,8 +900,8 @@ public class LevelImporterWindow : EditorWindow
         var scResult = PackerHelper.DecompressAndUnpackLevelWad(wadPath, workingDir);
         if (!CheckResult(scResult, $"Failed to unpack level wad: {scResult}.")) return false;
 
-        // unpack sounds -- DL only supported atm
-        if (racVersion == 4)
+        // unpack sounds
+        if (racVersion == 4 || racVersion == 3)
         {
             UpdateImportProgressBar(ImportStage.Unpacking_Sounds);
             scResult = PackerHelper.UnpackSounds(Path.Combine(workingDir, "sound.bnk"), soundsFolder, racVersion);

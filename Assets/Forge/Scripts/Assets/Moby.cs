@@ -179,29 +179,72 @@ public class Moby : RenderSelectionBase, IAsset
     public void Read(BinaryReader reader)
     {
         var dataSize = reader.ReadInt32();
-        Mission = reader.ReadInt32();
-        Uid = reader.ReadInt32();
-        Bolts = reader.ReadInt32();
-        OClass = reader.ReadInt32();
-        var scale = reader.ReadSingle();
-        DrawDistance = reader.ReadInt32();
-        UpdateDistance = reader.ReadInt32();
-        _ = reader.ReadInt32();
-        _ = reader.ReadInt32();
-        this.transform.position = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).SwizzleXZY();
-        this.transform.rotation = Quaternion.Euler(new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).SwizzleXZY() * -Mathf.Rad2Deg);
-        GroupId = reader.ReadInt32();
-        IsRooted = reader.ReadInt32();
-        RootedDistance = reader.ReadSingle();
-        _ = reader.ReadInt32();
-        PvarIndex = reader.ReadInt32();
-        Occlusion = reader.ReadInt32();
-        ModeBits = reader.ReadInt32();
-        Color = new Color(reader.ReadInt32() / 128f, reader.ReadInt32() / 128f, reader.ReadInt32() / 128f, 1);
-        Light1 = reader.ReadByte();
-        Light2 = reader.ReadByte();
-        Light3 = reader.ReadInt16();
-        _ = reader.ReadInt32();
+        var scale = 1f;
+
+        switch (RCVersion)
+        {
+            case 3:
+                {
+                    Mission = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    Uid = reader.ReadInt32();
+                    Bolts = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    OClass = reader.ReadInt32();
+                    scale = reader.ReadSingle();
+                    DrawDistance = reader.ReadInt32();
+                    UpdateDistance = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    this.transform.position = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).SwizzleXZY();
+                    this.transform.rotation = Quaternion.Euler(new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).SwizzleXZY() * -Mathf.Rad2Deg);
+                    GroupId = reader.ReadInt32();
+                    IsRooted = reader.ReadInt32();
+                    RootedDistance = reader.ReadSingle();
+                    _ = reader.ReadInt32();
+                    PvarIndex = reader.ReadInt32();
+                    Occlusion = reader.ReadInt32();
+                    ModeBits = reader.ReadInt32();
+                    Color = new Color(reader.ReadInt32() / 128f, reader.ReadInt32() / 128f, reader.ReadInt32() / 128f, 1);
+                    Light1 = reader.ReadByte();
+                    Light2 = reader.ReadByte();
+                    Light3 = reader.ReadInt16();
+                    _ = reader.ReadInt32();
+                    break;
+                }
+            case 4:
+                {
+                    Mission = reader.ReadInt32();
+                    Uid = reader.ReadInt32();
+                    Bolts = reader.ReadInt32();
+                    OClass = reader.ReadInt32();
+                    scale = reader.ReadSingle();
+                    DrawDistance = reader.ReadInt32();
+                    UpdateDistance = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    _ = reader.ReadInt32();
+                    this.transform.position = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).SwizzleXZY();
+                    this.transform.rotation = Quaternion.Euler(new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).SwizzleXZY() * -Mathf.Rad2Deg);
+                    GroupId = reader.ReadInt32();
+                    IsRooted = reader.ReadInt32();
+                    RootedDistance = reader.ReadSingle();
+                    _ = reader.ReadInt32();
+                    PvarIndex = reader.ReadInt32();
+                    Occlusion = reader.ReadInt32();
+                    ModeBits = reader.ReadInt32();
+                    Color = new Color(reader.ReadInt32() / 128f, reader.ReadInt32() / 128f, reader.ReadInt32() / 128f, 1);
+                    Light1 = reader.ReadByte();
+                    Light2 = reader.ReadByte();
+                    Light3 = reader.ReadInt16();
+                    _ = reader.ReadInt32();
+                    break;
+                }
+            default: throw new NotImplementedException();
+        }
 
         this.transform.localScale = Vector3.one * scale;
     }
@@ -210,36 +253,85 @@ public class Moby : RenderSelectionBase, IAsset
     {
         var euler = this.transform.rotation.eulerAngles * -Mathf.Deg2Rad;
 
-        writer.Write(0x70); // datasize
-        writer.Write(Mission);
-        writer.Write(Uid);
-        writer.Write(Bolts);
-        writer.Write(OClass);
-        writer.Write(this.transform.localScale.x);
-        writer.Write(DrawDistance);
-        writer.Write(UpdateDistance);
-        writer.Write(0);
-        writer.Write(0);
-        writer.Write(this.transform.position.x);
-        writer.Write(this.transform.position.z);
-        writer.Write(this.transform.position.y);
-        writer.Write(euler.x);
-        writer.Write(euler.z);
-        writer.Write(euler.y);
-        writer.Write(GroupId);
-        writer.Write(IsRooted);
-        writer.Write(RootedDistance);
-        writer.Write(0);
-        writer.Write(PvarIndex);
-        writer.Write(Occlusion);
-        writer.Write(ModeBits);
-        writer.Write((int)(Color.r * 128));
-        writer.Write((int)(Color.g * 128));
-        writer.Write((int)(Color.b * 128));
-        writer.Write((byte)Light1);
-        writer.Write((byte)Light2);
-        writer.Write(Light3);
-        writer.Write(0);
+        switch (RCVersion)
+        {
+            case 3:
+                {
+                    writer.Write(0x88); // datasize
+                    writer.Write(Mission);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(Uid);
+                    writer.Write(Bolts);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(OClass);
+                    writer.Write(this.transform.localScale.x);
+                    writer.Write(DrawDistance);
+                    writer.Write(UpdateDistance);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(this.transform.position.x);
+                    writer.Write(this.transform.position.z);
+                    writer.Write(this.transform.position.y);
+                    writer.Write(euler.x);
+                    writer.Write(euler.z);
+                    writer.Write(euler.y);
+                    writer.Write(GroupId);
+                    writer.Write(IsRooted);
+                    writer.Write(RootedDistance);
+                    writer.Write(0);
+                    writer.Write(PvarIndex);
+                    writer.Write(Occlusion);
+                    writer.Write(ModeBits);
+                    writer.Write((int)(Color.r * 128));
+                    writer.Write((int)(Color.g * 128));
+                    writer.Write((int)(Color.b * 128));
+                    writer.Write((byte)Light1);
+                    writer.Write((byte)Light2);
+                    writer.Write(Light3);
+                    writer.Write(0);
+                    break;
+                }
+            case 4:
+                {
+                    writer.Write(0x70); // datasize
+                    writer.Write(Mission);
+                    writer.Write(Uid);
+                    writer.Write(Bolts);
+                    writer.Write(OClass);
+                    writer.Write(this.transform.localScale.x);
+                    writer.Write(DrawDistance);
+                    writer.Write(UpdateDistance);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(this.transform.position.x);
+                    writer.Write(this.transform.position.z);
+                    writer.Write(this.transform.position.y);
+                    writer.Write(euler.x);
+                    writer.Write(euler.z);
+                    writer.Write(euler.y);
+                    writer.Write(GroupId);
+                    writer.Write(IsRooted);
+                    writer.Write(RootedDistance);
+                    writer.Write(0);
+                    writer.Write(PvarIndex);
+                    writer.Write(Occlusion);
+                    writer.Write(ModeBits);
+                    writer.Write((int)(Color.r * 128));
+                    writer.Write((int)(Color.g * 128));
+                    writer.Write((int)(Color.b * 128));
+                    writer.Write((byte)Light1);
+                    writer.Write((byte)Light2);
+                    writer.Write(Light3);
+                    writer.Write(0);
+                    break;
+                }
+            default: throw new NotImplementedException();
+        }
+
     }
 
     #region Occlusion Bake
@@ -604,21 +696,21 @@ public class Moby : RenderSelectionBase, IAsset
     {
         GameObject prefab = null;
 
-        switch (OClass)
+        switch ((RCVersion, OClass))
         {
-            case 9278:
+            case (4, 9278):
                 {
                     prefab = GetGadgetPickupPrefab();
                     break;
                 }
-            case 9838:
+            case (4, 9838):
                 {
                     prefab = GetFlagBasePrefab();
                     break;
                 }
             default:
                 {
-                    var prefabPath = Path.Combine(FolderNames.GetGlobalPrefabFolder(FolderNames.MobyFolder), $"{OClass}", $"{OClass}.prefab");
+                    var prefabPath = Path.Combine(FolderNames.GetGlobalPrefabFolder(FolderNames.MobyFolder), $"rc{RCVersion}", $"{OClass}", $"{OClass}.prefab");
                     prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
                     break;
                 }

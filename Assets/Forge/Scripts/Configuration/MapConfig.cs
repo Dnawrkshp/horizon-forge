@@ -14,11 +14,17 @@ public class MapConfig : MonoBehaviour
     public string MapFilename;
 
     [Header("Deadlocked")]
-    [ReadOnly] public DLMapIds DLBaseMap = DLMapIds.MP_Battledome;
+    [ReadOnly] public DLMapIds DLBaseMap = DLMapIds.SP_Battledome;
     public DLCustomModeIds DLForceCustomMode = DLCustomModeIds.None;
     public Texture2D DLLoadingScreen;
     public Texture2D DLMinimap;
     public int[] DLMobysIncludedInExport;
+
+    [Header("UYA")]
+    [ReadOnly] public UYAMapIds UYABaseMap = UYAMapIds.SP_Veldin;
+    public Texture2D UYALoadingScreen;
+    public Texture2D UYAMinimap;
+    public int[] UYAMobysIncludedInExport;
 
     [Header("Render Settings")]
     [Min(0)] public int ShrubMinRenderDistance = 0;
@@ -37,6 +43,11 @@ public class MapConfig : MonoBehaviour
 
     private int sceneCameraCount = -1;
     private ForgeSettings forgeSettings;
+
+    public bool HasDeadlockedBaseMap() => DLBaseMap >= DLMapIds.MP_Battledome;
+    public bool HasUYABaseMap() => UYABaseMap >= UYAMapIds.MP_Bakisi_Isles;
+    public int FirstRacVersion => HasDeadlockedBaseMap() ? 4 : (HasUYABaseMap() ? 3 : -1);
+    public int SecondRacVersion => (HasDeadlockedBaseMap() && HasUYABaseMap()) ? 3 : -1;
 
     private void OnEnable()
     {

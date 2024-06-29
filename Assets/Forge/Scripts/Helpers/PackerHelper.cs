@@ -321,40 +321,45 @@ public static class PackerHelper
     {
         PACKER_STATUS_CODES result;
 
-        var levelWadFilename = FolderNames.GetLevelWadFilename(baseLevelId);
-        var soundWadFilename = FolderNames.GetSoundWadFilename(baseLevelId);
+        var levelWadFilename = FolderNames.GetLevelWadFilename(baseLevelId, racVersion);
+        var worldWadFilename = FolderNames.GetWorldWadFilename(baseLevelId, racVersion);
+        var soundWadFilename = FolderNames.GetSoundWadFilename(baseLevelId, racVersion);
+        var worldInstanceFolder = FolderNames.GetWorldInstanceFolder(racVersion);
 
         // world instances
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_WORLD_INSTANCES))
         {
             // pack shrubs
-            result = RunPacker(out _, "pack-world-instance-shrubs", "-i", Path.Combine(inFolder, FolderNames.BinaryWorldInstanceShrubFolder), "-o", Path.Combine(inFolder, FolderNames.BinaryWorldInstancesFolder));
+            result = RunPacker(out _, "pack-world-instance-shrubs", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceShrubsFolder(racVersion)), "-o", Path.Combine(inFolder, worldInstanceFolder));
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.1f);
 
             // pack ties
-            result = RunPacker(out _, "pack-world-instance-ties", "-i", Path.Combine(inFolder, FolderNames.BinaryWorldInstanceTieFolder), "-o", Path.Combine(inFolder, FolderNames.BinaryWorldInstancesFolder));
+            result = RunPacker(out _, "pack-world-instance-ties", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceTiesFolder(racVersion)), "-o", Path.Combine(inFolder, worldInstanceFolder));
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.2f);
 
             // pack occlusion before world instances
             if (ops.HasFlag(PACKER_PACK_OPS.PACK_OCCLUSION))
             {
-                result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.BinaryWorldInstanceOcclusionFolder), "--out-mapping", Path.Combine(inFolder, FolderNames.BinaryWorldInstancesFolder, "28.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
+                result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion)), "--out-mapping", Path.Combine(inFolder, worldInstanceFolder, racVersion == 4 ? "28.bin" : "144.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
                 if (result != PACKER_STATUS_CODES.SUCCESS) return result;
                 onProgressCallback?.Invoke(0.3f);
             }
 
             // pack world instances
-            result = RunPacker(out _, "pack-world-instances", "-i", Path.Combine(inFolder, FolderNames.BinaryWorldInstancesFolder), "-o", Path.Combine(inFolder, "58.wad"));
-            if (result != PACKER_STATUS_CODES.SUCCESS) return result;
-            onProgressCallback?.Invoke(0.4f);
+            if (racVersion == 4)
+            {
+                result = RunPacker(out _, "pack-world-instances", "-i", Path.Combine(inFolder, worldInstanceFolder), "-o", Path.Combine(inFolder, "58.wad"));
+                if (result != PACKER_STATUS_CODES.SUCCESS) return result;
+                onProgressCallback?.Invoke(0.4f);
+            }
         }
 
         // occlusion
         else if (ops.HasFlag(PACKER_PACK_OPS.PACK_OCCLUSION))
         {
-            result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.BinaryWorldInstanceOcclusionFolder), "--out-mapping", Path.Combine(inFolder, FolderNames.BinaryWorldInstancesFolder, "28.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
+            result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion)), "--out-mapping", Path.Combine(inFolder, worldInstanceFolder, racVersion == 4 ? "28.bin" : "144.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.3f);
         }
@@ -362,7 +367,7 @@ public static class PackerHelper
         // code
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_CODE))
         {
-            result = RunPacker(out _, "pack-code", "-i", Path.Combine(inFolder, FolderNames.BinaryCodeFolder), "-o", Path.Combine(inFolder, "08.bin"));
+            result = RunPacker(out _, "pack-code", "-i", Path.Combine(inFolder, FolderNames.BinaryCodeFolder), "-o", Path.Combine(inFolder, racVersion == 4 ? "08.bin" : "00.bin"));
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.5f);
         }
@@ -370,7 +375,7 @@ public static class PackerHelper
         // gameplay
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_GAMEPLAY))
         {
-            result = RunPacker(out _, "pack-gameplay", "-i", Path.Combine(inFolder, FolderNames.BinaryGameplayFolder), "-o", Path.Combine(inFolder, "60.wad"));
+            result = RunPacker(out _, "pack-gameplay", "-i", Path.Combine(inFolder, FolderNames.BinaryGameplayFolder), "-o", Path.Combine(inFolder, racVersion == 4 ? "60.wad" : worldWadFilename), "-v", racVersion.ToString());
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.6f);
         }
@@ -378,7 +383,7 @@ public static class PackerHelper
         // assets
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_ASSETS))
         {
-            result = RunPacker(out _, "pack-assets", "-i", Path.Combine(inFolder, FolderNames.AssetsFolder), "-o", inFolder);
+            result = RunPacker(out _, "pack-assets", "-i", Path.Combine(inFolder, FolderNames.AssetsFolder), "-o", inFolder, "-v", racVersion.ToString());
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.7f);
         }
@@ -394,7 +399,7 @@ public static class PackerHelper
         // sound wad
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_SOUND_WAD))
         {
-            result = RunPacker(out _, "pack-sounds", "-i", Path.Combine(inFolder, FolderNames.BinarySoundsFolder), "-o", Path.Combine(inFolder, soundWadFilename), "-v", Constants.GameVersion.ToString());
+            result = RunPacker(out _, "pack-sounds", "-i", Path.Combine(inFolder, FolderNames.BinarySoundsFolder), "-o", Path.Combine(inFolder, soundWadFilename), "-v", racVersion.ToString());
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.9f);
         }

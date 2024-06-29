@@ -309,8 +309,6 @@ public static class Constants
 {
     public static readonly string ForgeVersion = "v1.1.8";
 
-    public static readonly int GameVersion = 4;
-
     public static readonly string RepoUrl = "https://github.com/Horizon-Private-Server/horizon-forge";
     public static readonly string WikiUrl = $"{RepoUrl}/wiki";
     public static readonly string DiscordInviteUrl = "https://discord.gg/invite/horizonps";

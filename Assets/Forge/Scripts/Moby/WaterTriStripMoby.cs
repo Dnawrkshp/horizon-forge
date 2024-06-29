@@ -46,7 +46,7 @@ public class WaterTriStripMoby : MonoBehaviour, IRenderHandlePrefab
         var overlayDirX = BitConverter.ToSingle(m_Moby.PVars, 24);
         var overlayDirY = BitConverter.ToSingle(m_Moby.PVars, 28);
 
-        var levelDir = FolderNames.GetMapBinFolder(SceneManager.GetActiveScene().name, Constants.GameVersion);
+        var levelDir = FolderNames.GetMapBinFolder(SceneManager.GetActiveScene().name, m_Moby.RCVersion);
         var overlayFxFile = Path.Combine(levelDir, FolderNames.AssetsFolder, "fx", $"tex.{overlayTexIdx:0000}.png");
         if (File.Exists(overlayFxFile))
         {

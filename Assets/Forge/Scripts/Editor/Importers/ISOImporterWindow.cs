@@ -281,8 +281,7 @@ public class ISOImporterWindow : EditorWindow
                 if (CancelProgressBar(ref cancel, $"Gathering {isoLabelStr} Level Assets ({assetImports.Count} total assets to import)", level.ToString(), i / (float)levelsToImport.Length))
                     return false;
 
-                // moby conversion not yet supported between games
-                if (racVersion == Constants.GameVersion && importMobys)
+                if (importMobys)
                 {
                     var mobyAssetDir = Path.Combine(assetsFolder, FolderNames.MobyFolder);
                     var mobyGlobalDir = FolderNames.GetGlobalAssetFolder(FolderNames.MobyFolder);

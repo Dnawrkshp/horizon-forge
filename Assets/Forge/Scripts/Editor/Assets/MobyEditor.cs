@@ -418,10 +418,11 @@ public class MobyEditor : Editor
             {
                 if (!childMoby) continue;
                 if (!selected.Contains(childMoby.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childMoby.gameObject;
-                SelectChildren(childMoby, ref selected);
+                    selected[selected.Length - 1] = childMoby.gameObject;
+                    SelectChildren(childMoby, ref selected);
+                }
             }
         }
 
@@ -438,10 +439,11 @@ public class MobyEditor : Editor
             {
                 if (!childMoby) continue;
                 if (!selected.Contains(childMoby.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childMoby.gameObject;
-                SelectMobyChildren(childMoby, ref selected);
+                    selected[selected.Length - 1] = childMoby.gameObject;
+                    SelectMobyChildren(childMoby, ref selected);
+                }
             }
         }
     }
@@ -454,9 +456,10 @@ public class MobyEditor : Editor
             {
                 if (!childCuboid) continue;
                 if (!selected.Contains(childCuboid.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childCuboid.gameObject;
+                    selected[selected.Length - 1] = childCuboid.gameObject;
+                }
             }
         }
     }
@@ -469,9 +472,10 @@ public class MobyEditor : Editor
             {
                 if (!childSpline) continue;
                 if (!selected.Contains(childSpline.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childSpline.gameObject;
+                    selected[selected.Length - 1] = childSpline.gameObject;
+                }
             }
         }
     }
@@ -484,9 +488,10 @@ public class MobyEditor : Editor
             {
                 if (!childArea) continue;
                 if (!selected.Contains(childArea.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childArea.gameObject;
+                    selected[selected.Length - 1] = childArea.gameObject;
+                }
             }
         }
     }

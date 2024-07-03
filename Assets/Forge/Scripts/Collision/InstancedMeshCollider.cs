@@ -6,7 +6,7 @@ using UnityEditor;
 using UnityEngine;
 
 [ExecuteInEditMode]
-[RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshFilter)), DisallowMultipleComponent]
 public class InstancedMeshCollider : RenderSelectionBase, IAsset, IInstancedCollider
 {
     public MeshFilter m_MeshFilter;
@@ -26,6 +26,23 @@ public class InstancedMeshCollider : RenderSelectionBase, IAsset, IInstancedColl
     private void OnEnable()
     {
         m_MeshFilter = GetComponent<MeshFilter>();
+
+        // check for conflicting components
+        if (GetComponent<Tie>() || GetComponent<Shrub>())
+        {
+            Dispatcher.RunOnMainThread(() =>
+            {
+                if (!this || !this.gameObject) return;
+
+                if (EditorUtility.DisplayDialog($"{this.gameObject.name} cannot have an InstancedMeshCollider", "Tie and Shrubs may not have InstancedMeshColliders. Please use the built in InstancedCollider toggle.\n\nThe InstancedMeshCollider will be removed.", "Okay"))
+                {
+                    DestroyImmediate(this);
+                    if (m_MeshFilter) DestroyImmediate(m_MeshFilter);
+                    return;
+                }
+            });
+        }
+
         AssetUpdater.RegisterAsset(this);
         UpdateAsset();
         collisionRenderHandle?.UpdateMaterials();

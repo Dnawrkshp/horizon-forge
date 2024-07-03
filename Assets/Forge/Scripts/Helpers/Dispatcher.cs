@@ -2,17 +2,13 @@
 using System.Threading;
 using System;
 using UnityEngine;
+using UnityEditor;
 
-public class Dispatcher : MonoBehaviour
+public static class Dispatcher
 {
-    static Dispatcher _instance;
     static volatile bool _queued = false;
     static List<Action> _backlog = new List<Action>(8);
     static List<Action> _actions = new List<Action>(8);
-
-    static volatile bool _coQueued = false;
-    static List<System.Collections.IEnumerator> _coBacklog = new List<System.Collections.IEnumerator>(8);
-    static List<System.Collections.IEnumerator> _coroutines = new List<System.Collections.IEnumerator>(8);
 
     public static void RunAsync(Action action)
     {
@@ -33,26 +29,14 @@ public class Dispatcher : MonoBehaviour
         }
     }
 
-    public static void StartCoroutineOnMainThread(System.Collections.IEnumerator routine)
-    {
-        lock (_coBacklog)
-        {
-            _coBacklog.Add(routine);
-            _coQueued = true;
-        }
-    }
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    [InitializeOnLoadMethod]
     private static void Initialize()
     {
-        if (_instance == null)
-        {
-            _instance = new GameObject("Dispatcher").AddComponent<Dispatcher>();
-            DontDestroyOnLoad(_instance.gameObject);
-        }
+        EditorApplication.update -= Update;
+        EditorApplication.update += Update;
     }
 
-    private void Update()
+    private static void Update()
     {
         if (_queued)
         {
@@ -69,24 +53,6 @@ public class Dispatcher : MonoBehaviour
 
 
             _actions.Clear();
-        }
-
-        if (_coQueued)
-        {
-            lock (_coBacklog)
-            {
-                var tmp = _coroutines;
-                _coroutines = _coBacklog;
-                _coBacklog = tmp;
-                _coQueued = false;
-            }
-
-            foreach (var routine in _coroutines)
-            {
-                StartCoroutine(routine);
-            }
-
-            _coroutines.Clear();
         }
     }
 }

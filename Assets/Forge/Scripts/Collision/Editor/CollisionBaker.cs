@@ -145,7 +145,7 @@ public static class CollisionBaker
             }
             else
             {
-                GameObject.DestroyImmediate(collisionResultsVisualizer.gameObject);
+                if (collisionResultsVisualizer) GameObject.DestroyImmediate(collisionResultsVisualizer.gameObject);
             }
 
             Debug.Log("Collision successfully baked!");
@@ -280,7 +280,7 @@ public static class CollisionBaker
         Dictionary<int, List<MeshFilterSubMesh>> colIdToMeshFilterList = new Dictionary<int, List<MeshFilterSubMesh>>();
         List<GameObject> combinedObjects = new List<GameObject>();
 
-        MeshFilter[] meshFilters = gameObjects.SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).ToArray();
+        MeshFilter[] meshFilters = gameObjects.Where(x => x).SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).ToArray();
 
         // Go through all mesh filters and establish the mapping between the materials and all mesh filters using it.
         foreach (var meshFilter in meshFilters)

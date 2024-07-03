@@ -138,7 +138,7 @@ public static class CollisionBaker
                     go.transform.SetParent(collisionResultsVisualizer.transform, false);
                     var node = go.AddComponent<CollisionResultsVisualizerNode>();
                     node.transform.position = new Vector3(float.Parse(x) + 0.5f, float.Parse(y) + 0.5f, float.Parse(z) + 0.5f) * 4;
-                    Debug.Log($"{reason}: {node.transform.position}");
+                    //Debug.Log($"{reason}: {node.transform.position}");
                 }
 
                 collisionResultsVisualizer.UpdateShaderGlobals();

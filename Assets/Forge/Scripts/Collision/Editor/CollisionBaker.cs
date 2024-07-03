@@ -138,14 +138,14 @@ public static class CollisionBaker
                     go.transform.SetParent(collisionResultsVisualizer.transform, false);
                     var node = go.AddComponent<CollisionResultsVisualizerNode>();
                     node.transform.position = new Vector3(float.Parse(x) + 0.5f, float.Parse(y) + 0.5f, float.Parse(z) + 0.5f) * 4;
-                    Debug.Log($"{reason}: {node.transform.position}");
+                    //Debug.Log($"{reason}: {node.transform.position}");
                 }
 
                 collisionResultsVisualizer.UpdateShaderGlobals();
             }
             else
             {
-                GameObject.DestroyImmediate(collisionResultsVisualizer.gameObject);
+                if (collisionResultsVisualizer) GameObject.DestroyImmediate(collisionResultsVisualizer.gameObject);
             }
 
             Debug.Log("Collision successfully baked!");
@@ -280,7 +280,7 @@ public static class CollisionBaker
         Dictionary<int, List<MeshFilterSubMesh>> colIdToMeshFilterList = new Dictionary<int, List<MeshFilterSubMesh>>();
         List<GameObject> combinedObjects = new List<GameObject>();
 
-        MeshFilter[] meshFilters = gameObjects.SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).ToArray();
+        MeshFilter[] meshFilters = gameObjects.Where(x => x).SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).ToArray();
 
         // Go through all mesh filters and establish the mapping between the materials and all mesh filters using it.
         foreach (var meshFilter in meshFilters)

@@ -79,7 +79,7 @@ public class CollisionRenderHandle
 
     public void Update(GameObject parent, GameObject prefab)
     {
-        if (_mesh || prefab != _prefab || !AssetInstance || PrefabUtility.GetCorrespondingObjectFromSource(AssetInstance) != _prefab)
+        if (_mesh || prefab != _prefab || !AssetInstance || PrefabUtility.GetCorrespondingObjectFromOriginalSource(AssetInstance) != _prefab)
         {
             _prefab = prefab;
             _mesh = null;

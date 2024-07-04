@@ -126,6 +126,15 @@ if bpy.context.mode != 'OBJECT':
 #Deselect all
 bpy.ops.object.select_all(action='DESELECT')
 
+# select all
+for ob in bpy.data.objects:
+    if ob.type == 'MESH' and not ob.name.endswith('_collider'):
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+
+# join all
+bpy.ops.object.join()
+
 # apply all modifiers
 for obj in bpy.data.objects:
     print(f'{obj.name} {obj.type}')

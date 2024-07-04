@@ -505,7 +505,7 @@ public static class ForgeBuilder
         var terrainBinFile = Path.Combine(binFolder, FolderNames.BinaryTerrainBinFile);
         var occlusionFolder = Path.Combine(binFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
         var tfragOcclusionBinFile = Path.Combine(occlusionFolder, "tfrag.bin");
-        var chunks = GameObject.FindObjectsOfType<TfragChunk>();
+        var chunks = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<TfragChunk>());
         var materials = new List<Material>();
 
         if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Tfrags", 0.5f))
@@ -578,7 +578,7 @@ public static class ForgeBuilder
                     fs.Position = packetStart + (0x40 * i);
                     writer.Write(defCopy);
                     fs.Position = packetStart + (0x40 * i) + 0x3a;
-                    writer.Write((short)chunk.OcclusionId);
+                    writer.Write((short)i);
 
                     // write data buffer and save start/end positions
                     fs.Position = dataOff;
@@ -650,7 +650,9 @@ public static class ForgeBuilder
                     var i = 0;
                     foreach (var chunk in chunks)
                     {
-                        PackerHelper.WriteOcclusionBlock(writer, i, chunk.OcclusionId, chunk.Octants);
+                        var size = chunk.HeaderBytes[0x3D];
+
+                        PackerHelper.WriteOcclusionBlock(writer, i, size, chunk.Octants);
                         ++i;
                     }
                 }

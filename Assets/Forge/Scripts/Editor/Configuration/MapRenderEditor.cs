@@ -82,7 +82,7 @@ public class MapRenderEditor : Editor
 
         RenderTexture rt = new RenderTexture(width, (int)(width * aspectRatio), 0, RenderTextureFormat.ARGB64, 0);
 
-        var mapRenderLayers = FindObjectsOfType<MapRenderLayer>();
+        var mapRenderLayers = HierarchicalSorting.Sort(FindObjectsOfType<MapRenderLayer>());
 
         try
         {

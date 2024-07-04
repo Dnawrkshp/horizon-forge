@@ -55,7 +55,7 @@ public static class BlenderHelper
         inBlendFile = Path.GetFullPath(inBlendFile).Replace("\\", "/");
         outDaeFile = Path.GetFullPath(outDaeFile).Replace("\\", "/");
 
-        var additionalMeshesArgs = String.Join(" ", additionalMeshes.Select(x => "\"" + Path.GetFullPath(x).Replace("\\", "/") + "\""));
+        var additionalMeshesArgs = String.Join(" ", additionalMeshes.Where(x => !string.IsNullOrEmpty(x)).Select(x => "\"" + Path.GetFullPath(x).Replace("\\", "/") + "\""));
 
         return RunBlender("export-collision.py", "\"" + outDaeFile + "\" " + additionalMeshesArgs, blendFile: inBlendFile);
     }

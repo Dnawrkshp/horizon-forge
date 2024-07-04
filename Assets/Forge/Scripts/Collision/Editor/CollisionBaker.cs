@@ -28,6 +28,7 @@ public static class CollisionBaker
         var collisionAssetFile = Path.Combine(binFolder, FolderNames.BinaryCollisionAssetFile);
         var collisionBinFile = Path.Combine(binFolder, FolderNames.BinaryCollisionBinFile);
         var affectedInstancedColliders = new List<CollisionRenderHandle>();
+        string outInstancedCollisionGlbFile = null;
         GameObject combinedRootGo = null;
 
         var exportSettings = new ExportSettings
@@ -70,25 +71,28 @@ public static class CollisionBaker
                 }
             }
 
-            // export and merge instanced collision
-            EditorUtility.DisplayProgressBar("Baking Collision", "Merging Colliders", 0.5f);
-            var export = new GameObjectExport(exportSettings, gameObjectExportSettings);
-
-            // merge
-            combinedRootGo = CombineMeshes(affectedInstancedColliders.Select(x => x.AssetInstance).ToArray());
-
-            // export scene
-            combinedRootGo.transform.rotation = Quaternion.AngleAxis(180f, Vector3.up);
-            export.AddScene(new GameObject[] { combinedRootGo });
-
-            // save glb file
-            var outInstancedCollisionGlbFile = Path.Combine(FolderNames.GetTempFolder(), $"instanced-collision.glb");
-            if (File.Exists(outInstancedCollisionGlbFile)) File.Delete(outInstancedCollisionGlbFile);
-            using (var fs = File.Create(outInstancedCollisionGlbFile))
+            if (affectedInstancedColliders.Any())
             {
-                if (!await export.SaveToStreamAndDispose(fs))
+                // export instanced collision
+                EditorUtility.DisplayProgressBar("Baking Collision", "Merging Colliders", 0.5f);
+                var export = new GameObjectExport(exportSettings, gameObjectExportSettings);
+
+                // merge
+                combinedRootGo = CombineMeshes(affectedInstancedColliders.Select(x => x.AssetInstance).ToArray());
+
+                // export scene
+                combinedRootGo.transform.rotation = Quaternion.AngleAxis(180f, Vector3.up);
+                export.AddScene(new GameObject[] { combinedRootGo });
+
+                // save glb file
+                outInstancedCollisionGlbFile = Path.Combine(FolderNames.GetTempFolder(), $"instanced-collision.glb");
+                if (File.Exists(outInstancedCollisionGlbFile)) File.Delete(outInstancedCollisionGlbFile);
+                using (var fs = File.Create(outInstancedCollisionGlbFile))
                 {
-                    return false;
+                    if (!await export.SaveToStreamAndDispose(fs))
+                    {
+                        return false;
+                    }
                 }
             }
 

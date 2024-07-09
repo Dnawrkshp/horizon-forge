@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEditor;
 using UnityEngine;
 
 public static class TerrainHelper
@@ -254,11 +256,13 @@ public static class TerrainHelper
     class TerrainTextureDatabase
     {
         private Terrain _terrain;
+        private Texture2D _noiseTexture;
         private Dictionary<string, Texture2D> _classificationTexCache = new Dictionary<string, Texture2D>();
 
         public TerrainTextureDatabase(Terrain terrain)
         {
             _terrain = terrain;
+            _noiseTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(Path.Combine(FolderNames.ForgeFolder, "Textures", "terrain_noise.asset"));
         }
 
         public Texture2D GetTexture(Rect face)
@@ -330,6 +334,7 @@ public static class TerrainHelper
             try
             {
                 var mat = new Material(shader);
+                mat.SetTexture("_NoiseMap", _noiseTexture);
                 mat.SetTexture("_SplatMap", splatmap);
                 mat.SetVector("_SplatMap_ST", new Vector4(QUANTIZATION_RESOLUTION, QUANTIZATION_RESOLUTION, QUANTIZATION_BUFFER, QUANTIZATION_BUFFER) / QUANTIZATION_RESOLUTION_WITH_BUFFER);
                 mat.SetTexture("_Splat0", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 0)?.diffuseTexture);

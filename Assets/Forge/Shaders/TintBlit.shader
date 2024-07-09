@@ -4,6 +4,7 @@ Shader "Horizon Forge/TintBlit"
         _In("_In", 2D) = "white" {}
         _Out("_Out", 2D) = "white" {}
         _Color("_Color", Color) = (1,1,1,1)
+        _Alpha("_Alpha", Color) = (1,1,1,1)
     }
 
         SubShader {
@@ -13,7 +14,11 @@ Shader "Horizon Forge/TintBlit"
                 }
                 SetTexture[_Out] {
                     constantColor[_Color]
-                    combine constant * previous
+                    combine constant * previous, constant * previous
+                }
+                SetTexture[_Out] {
+                    constantColor[_Alpha]
+                    combine previous, constant lerp(constant) previous
                 }
             }
         }

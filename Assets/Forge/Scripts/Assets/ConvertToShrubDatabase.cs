@@ -16,6 +16,7 @@ public class ConvertToShrubDatabase : ScriptableObject
     const int SHRUB_CLASS_START = 50000;
 
     public List<ConvertToShrubData> Shrubs = new List<ConvertToShrubData>();
+    private object _lockObject = new object();
 
     #region Accessors
 
@@ -43,8 +44,15 @@ public class ConvertToShrubDatabase : ScriptableObject
             Parent = child.PrefabOrObject,
         };
 
-        Shrubs.Add(data);
-        EditorUtility.SetDirty(this);
+        lock (_lockObject)
+        {
+            Shrubs.Add(data);
+        }
+
+        Dispatcher.RunOnMainThread(() =>
+        {
+            EditorUtility.SetDirty(this);
+        });
         return data;
     }
 
@@ -57,7 +65,10 @@ public class ConvertToShrubDatabase : ScriptableObject
 
     public void Clean()
     {
-        Shrubs.RemoveAll(x => !x.Parent);
+        lock (_lockObject)
+        {
+            Shrubs.RemoveAll(x => !x.Parent);
+        }
     }
 
     private int GetFreeShrubClass()
@@ -299,13 +310,12 @@ public class ConvertToShrubDatabase : ScriptableObject
                     var tex = mat.mainTexture as Texture2D; //mat.GetTexture("baseColorTexture") as Texture2D;
                     if (matData.TextureOverride) tex = matData.TextureOverride;
                     if (!tex) tex = new Texture2D(32, 32, TextureFormat.ARGB32, false);
-                    var textAssetPath = AssetDatabase.GetAssetPath(tex);
 
                     var tint = matData.TintColor * mat.color;
                     if (matData.CorrectForAlphaBloom)
                         tint.a *= 0.5f;
 
-                    ExportTexture(tex, texPath, tint);
+                    UnityHelper.SaveTexture(tex, texPath, tint: tint);
                     textures.Add(tex);
 
                     // reconfigure texture size per tex
@@ -478,6 +488,14 @@ public class ConvertToShrubDatabase : ScriptableObject
             if (srcPrefab && srcPrefab != srcT.gameObject)
                 return false;
 
+            // handle terrain
+            var terrain = srcT.GetComponent<Terrain>();
+            if (terrain)
+            {
+                terrain.ToMesh(dstT.gameObject);
+                return true;
+            }
+
             // copy renderers/meshfilters
             var renderer = srcT.GetComponent<Renderer>();
             var meshFilter = srcT.GetComponent<MeshFilter>();
@@ -534,52 +552,6 @@ public class ConvertToShrubDatabase : ScriptableObject
         //return cancel;
     }
 
-    static bool ExportTexture(Texture2D tex, string texPath, Color tint)
-    {
-        if (tex)
-        {
-            if (tex.isReadable)
-            {
-                var bytes = tex.EncodeToPNG();
-                File.WriteAllBytes(texPath, bytes);
-                return true;
-            }
-
-            var width = tex.width;
-            var height = tex.height;
-            var rt = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            rt.Create();
-            try
-            {
-                var mat = new Material(AssetDatabase.LoadAssetAtPath<Material>(Path.Combine(FolderNames.ForgeFolder, "Shaders", "TintBlit.mat")));
-                mat.SetColor("_Color", tint);
-                mat.SetTexture("_In", tex);
-                mat.SetTexture("_Out", rt);
-                Graphics.Blit(tex, rt, mat);
-
-                var oldRt = RenderTexture.active;
-                RenderTexture.active = rt;
-                var tex2 = new Texture2D(width, height, TextureFormat.ARGB32, false);
-                tex2.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-                tex2.Apply();
-                RenderTexture.active = oldRt;
-
-                var bytes = tex2.EncodeToPNG();
-                File.WriteAllBytes(texPath, bytes);
-                return true;
-            }
-            finally
-            {
-                if (RenderTexture.active == rt)
-                    RenderTexture.active = null;
-
-                rt.Release();
-            }
-        }
-
-        return false;
-    }
-
     #endregion
 
     #region Hash
@@ -589,6 +561,11 @@ public class ConvertToShrubDatabase : ScriptableObject
         Hash128 hash = new Hash128();
 
         var data = Get(parent);
+
+        // terrain has its own hash function
+        var terrain = parent.GetComponent<Terrain>();
+        if (terrain)
+            hash = terrain.terrainData.ComputeHash();
 
         // hash is computed on textures, meshes and material data
         var renderers = parent.GetComponentsInChildren<Renderer>();

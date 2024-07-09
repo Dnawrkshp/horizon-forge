@@ -4,8 +4,8 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(UnityColliderToForgeCollider)), CanEditMultipleObjects]
-public class UnityColliderToForgeColliderEditor : Editor
+[CustomEditor(typeof(UnityColliderToInstancedCollider)), CanEditMultipleObjects]
+public class UnityColliderToInstancedColliderEditor : Editor
 {
     private SerializedProperty m_ColliderProperty;
     private SerializedProperty m_MaterialIdProperty;
@@ -45,7 +45,7 @@ public class UnityColliderToForgeColliderEditor : Editor
 
         EditorGUILayout.PropertyField(m_RenderProperty);
 
-        if (targets.Select(x => x as UnityColliderToForgeCollider).Any(x => x.HasInstancedCollider() && !x.GetInstancedCollider()?.AssetInstance))
+        if (targets.Select(x => x as UnityColliderToInstancedCollider).Any(x => x.HasInstancedCollider() && !x.GetInstancedCollider()?.AssetInstance))
         {
             EditorGUILayout.HelpBox("One or more instances have no configured collider. No collision will be built for those instances.", MessageType.Warning);
         }
@@ -62,7 +62,7 @@ public class UnityColliderToForgeColliderEditor : Editor
         if (changed)
         {
             foreach (var target in targets)
-                if (target is UnityColliderToForgeCollider collider)
+                if (target is UnityColliderToInstancedCollider collider)
                     collider.UpdateAsset();
         }
     }

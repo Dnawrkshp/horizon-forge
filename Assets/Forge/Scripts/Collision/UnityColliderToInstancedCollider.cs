@@ -7,7 +7,7 @@ using UnityEngine;
 
 [ExecuteInEditMode]
 [DisallowMultipleComponent]
-public class UnityColliderToForgeCollider : RenderSelectionBase, IAsset, IInstancedCollider
+public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IInstancedCollider
 {
     public Collider m_Collider;
     public string m_MaterialId = "2f";

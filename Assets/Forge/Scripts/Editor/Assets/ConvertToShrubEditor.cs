@@ -112,20 +112,17 @@ public class ConvertToShrubEditor : Editor
             }
         }
 
-        if (!invalid.Any() && m_MapConfig && GUILayout.Button("Test"))
-        {
-            var terrain = (target as ConvertToShrub).GetComponent<Terrain>();
-            if (terrain)
-            {
-                var mesh = terrain.transform.Find("terrain_mesh");
-                if (!mesh)
-                {
-                    mesh = new GameObject("terrain_mesh").transform;
-                    mesh.SetParent(terrain.transform, false);
-                }
+        //var terrain = (target as ConvertToShrub).GetComponent<Terrain>();
+        //if (!invalid.Any() && m_MapConfig && terrain && GUILayout.Button("Test Terrain"))
+        //{
+        //    var mesh = terrain.transform.Find("terrain_mesh");
+        //    if (!mesh)
+        //    {
+        //        mesh = new GameObject("terrain_mesh").transform;
+        //        mesh.SetParent(terrain.transform, false);
+        //    }
 
-                terrain.ToMesh(mesh.gameObject);
-            }
-        }
+        //    terrain.ToMesh(mesh.gameObject);
+        //}
     }
 }

@@ -30,6 +30,9 @@ Shader "Horizon Forge/SplatBlit"
         
         sampler2D _SplatMap;
         float4 _SplatMap_ST;
+        
+        sampler2D _NoiseMap;
+        float4 _NoiseMap_ST;
 
         float2 _CurvatureCenter;
 
@@ -58,9 +61,9 @@ Shader "Horizon Forge/SplatBlit"
 
         half4 FragBlit(v2f i) : SV_Target
         {
-            float noise = pow(1 + PerlinNoise(float3(i.uv * 7, 0))*0.5, 3);
-            float2 center = noise*_CurvatureCenter + 0.5;
-            float2 splatUV = ((i.uv - center) * 1.8) + center;
+            float4 noise = tex2D(_NoiseMap, TRANSFORM_TEX(i.uv, _NoiseMap));
+            float2 center = noise.r*_CurvatureCenter + 0.5;
+            float2 splatUV = ((i.uv - center) * (2+noise.g*4)) + center;
 
             float4 col = tex2D(_SplatMap, TRANSFORM_TEX(splatUV, _SplatMap));
             //col = normalize_splat(pow(col, 2));

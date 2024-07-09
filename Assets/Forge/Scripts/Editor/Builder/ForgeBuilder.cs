@@ -577,7 +577,7 @@ public static class ForgeBuilder
         var terrainBinFile = Path.Combine(binFolder, FolderNames.BinaryTerrainBinFile);
         var occlusionFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceOcclusionFolder(ctx.RacVersion));
         var tfragOcclusionBinFile = Path.Combine(occlusionFolder, "tfrag.bin");
-        var chunks = GameObject.FindObjectsOfType<TfragChunk>();
+        var chunks = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<TfragChunk>());
         var materials = new List<Material>();
 
         if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Tfrags", 0.5f))
@@ -650,7 +650,7 @@ public static class ForgeBuilder
                     fs.Position = packetStart + (0x40 * i);
                     writer.Write(defCopy);
                     fs.Position = packetStart + (0x40 * i) + 0x3a;
-                    writer.Write((short)chunk.OcclusionId);
+                    writer.Write((short)i);
 
                     // write data buffer and save start/end positions
                     fs.Position = dataOff;
@@ -722,7 +722,9 @@ public static class ForgeBuilder
                     var i = 0;
                     foreach (var chunk in chunks)
                     {
-                        PackerHelper.WriteOcclusionBlock(writer, i, chunk.OcclusionId, chunk.Octants);
+                        var size = chunk.HeaderBytes[0x3D];
+
+                        PackerHelper.WriteOcclusionBlock(writer, i, size, chunk.Octants);
                         ++i;
                     }
                 }
@@ -896,13 +898,13 @@ public static class ForgeBuilder
         if (db && dynamicShrubs.Any())
         {
             await db.ConvertMany(force: false, silent: false, dynamicShrubs);
-
+            
             foreach (var shrub in dynamicShrubs)
             {
                 var data = db.Get(shrub);
                 if (data != null)
                 {
-                    shrubClasses.AddRange(data.ShrubClasses);
+                    shrubClasses.AddRange(data.SelectMany(x => x.ShrubClasses));
                 }
             }
         }
@@ -1264,7 +1266,7 @@ public static class ForgeBuilder
         var dynamicShrubs = GameObject.FindObjectsOfType<ConvertToShrub>(includeInactive: false) ?? new ConvertToShrub[0];
 
         var totalShrubInstances = shrubs.Length + dynamicShrubs.Length;
-        var shrubClasses = shrubs.Select(x => x.OClass).Union(dynamicShrubs.SelectMany(x => db.Get(x)?.ShrubClasses) ?? new List<int>()).Distinct().OrderBy(x => x).ToList();
+        var shrubClasses = shrubs.Select(x => x.OClass).Union(dynamicShrubs.SelectMany(x => db.GetShrubClasses(x) ?? new List<int>())).Distinct().OrderBy(x => x).ToList();
         var shrubClassCount = new Dictionary<int, int>();
 
         // clear shrub instances dir
@@ -1340,61 +1342,65 @@ public static class ForgeBuilder
             if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
                 return;
 
-            var data = db.Get(shrub);
-            if (data == null) continue;
-
-            foreach (var shrubSubClass in data.ShrubClasses)
+            var children = shrub.GetChildren();
+            foreach (var child in children)
             {
-                var classIdx = shrubClasses.IndexOf(shrubSubClass);
-                if (!shrubClassCount.ContainsKey(classIdx)) shrubClassCount[classIdx] = 0;
-                var classCountIdx = shrubClassCount[classIdx];
-                shrubClassCount[classIdx]++;
+                var data = db.Get(child);
+                if (data == null) continue;
 
-                var shrubDir = Path.Combine(shrubInstancesFolder, $"{shrubSubClass:00000}_{shrubSubClass:X4}/{classCountIdx:D4}");
-                if (!Directory.Exists(shrubDir)) Directory.CreateDirectory(shrubDir);
-
-                // write group
-                File.WriteAllBytes(Path.Combine(shrubDir, "group.bin"), BitConverter.GetBytes(shrub.GroupId));
-
-                // create shrub.bin
-                using (var fs = File.Create(Path.Combine(shrubDir, "shrub.bin")))
+                foreach (var shrubSubClass in data.ShrubClasses)
                 {
-                    using (var writer = new BinaryWriter(fs))
+                    var classIdx = shrubClasses.IndexOf(shrubSubClass);
+                    if (!shrubClassCount.ContainsKey(classIdx)) shrubClassCount[classIdx] = 0;
+                    var classCountIdx = shrubClassCount[classIdx];
+                    shrubClassCount[classIdx]++;
+
+                    var shrubDir = Path.Combine(shrubInstancesFolder, $"{shrubSubClass:00000}_{shrubSubClass:X4}/{classCountIdx:D4}");
+                    if (!Directory.Exists(shrubDir)) Directory.CreateDirectory(shrubDir);
+
+                    // write group
+                    File.WriteAllBytes(Path.Combine(shrubDir, "group.bin"), BitConverter.GetBytes(shrub.GroupId));
+
+                    // create shrub.bin
+                    using (var fs = File.Create(Path.Combine(shrubDir, "shrub.bin")))
                     {
-                        writer.Write((int)shrubSubClass);
-                        writer.Write((float)shrub.RenderDistance);
-                        writer.Write((int)0);
-                        writer.Write((int)0);
+                        using (var writer = new BinaryWriter(fs))
+                        {
+                            writer.Write((int)shrubSubClass);
+                            writer.Write((float)shrub.RenderDistance);
+                            writer.Write((int)0);
+                            writer.Write((int)0);
 
-                        // write matrix back in respective order
-                        var m = shrub.transform.localToWorldMatrix * Matrix4x4.Rotate(Quaternion.Euler(0, -90f, 0));
-                        writer.Write(m[0 + 0]);
-                        writer.Write(m[0 + 2]);
-                        writer.Write(m[0 + 1]);
-                        writer.Write(m[0 + 3]);
-                        writer.Write(m[8 + 0]);
-                        writer.Write(m[8 + 2]);
-                        writer.Write(m[8 + 1]);
-                        writer.Write(m[8 + 3]);
-                        writer.Write(m[4 + 0]);
-                        writer.Write(m[4 + 2]);
-                        writer.Write(m[4 + 1]);
-                        writer.Write(m[4 + 3]);
-                        writer.Write(m[12 + 0]);
-                        writer.Write(m[12 + 2]);
-                        writer.Write(m[12 + 1]);
-                        writer.Write(m[12 + 3]);
+                            // write matrix back in respective order
+                            var m = child.InstanceRootTransform.localToWorldMatrix * Matrix4x4.Rotate(Quaternion.Euler(0, -90f, 0));
+                            writer.Write(m[0 + 0]);
+                            writer.Write(m[0 + 2]);
+                            writer.Write(m[0 + 1]);
+                            writer.Write(m[0 + 3]);
+                            writer.Write(m[8 + 0]);
+                            writer.Write(m[8 + 2]);
+                            writer.Write(m[8 + 1]);
+                            writer.Write(m[8 + 3]);
+                            writer.Write(m[4 + 0]);
+                            writer.Write(m[4 + 2]);
+                            writer.Write(m[4 + 1]);
+                            writer.Write(m[4 + 3]);
+                            writer.Write(m[12 + 0]);
+                            writer.Write(m[12 + 2]);
+                            writer.Write(m[12 + 1]);
+                            writer.Write(m[12 + 3]);
 
-                        // write rgb
-                        writer.Write((int)(shrub.Tint.r * 255));
-                        writer.Write((int)(shrub.Tint.g * 255));
-                        writer.Write((int)(shrub.Tint.b * 255));
+                            // write rgb
+                            writer.Write((int)(shrub.Tint.r * 255));
+                            writer.Write((int)(shrub.Tint.g * 255));
+                            writer.Write((int)(shrub.Tint.b * 255));
 
-                        writer.Write((int)0);
-                        writer.Write((int)0);
-                        writer.Write((int)0);
-                        writer.Write((int)0);
-                        writer.Write((int)0);
+                            writer.Write((int)0);
+                            writer.Write((int)0);
+                            writer.Write((int)0);
+                            writer.Write((int)0);
+                            writer.Write((int)0);
+                        }
                     }
                 }
             }

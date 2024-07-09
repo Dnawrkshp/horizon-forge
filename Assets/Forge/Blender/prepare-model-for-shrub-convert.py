@@ -137,19 +137,32 @@ bpy.ops.object.convert(target='MESH')
 #for obj in bpy.context.scene.objects:
 #    triangulate_object(obj)
 
-#
-bpy.ops.object.mode_set(mode='EDIT')
-bpy.ops.mesh.select_all(action='SELECT')
-bpy.ops.mesh.remove_doubles(threshold = 0.001)
-bpy.ops.object.mode_set(mode='OBJECT')
-
 #Deselect all
 bpy.ops.object.select_all(action='DESELECT')
 
-# apply all transforms
-root_objs = (o for o in bpy.data.objects if not o.parent)
-for obj in root_objs:
-    apply_all_transforms_in_hierarchy(obj)
+if len(obj_names) == 0:
+  # select all
+  for ob in bpy.data.objects:
+      if ob.type == 'MESH' and not ob.name.endswith('_collider'):
+          ob.select_set(True)
+          bpy.context.view_layer.objects.active = ob
+
+  # join all
+  bpy.ops.object.join()
+
+  #
+  bpy.ops.object.mode_set(mode='EDIT')
+  bpy.ops.mesh.select_all(action='SELECT')
+  bpy.ops.mesh.remove_doubles(threshold = 0.001)
+  bpy.ops.object.mode_set(mode='OBJECT')
+
+  #Deselect all
+  bpy.ops.object.select_all(action='DESELECT')
+
+  # apply all transforms
+  root_objs = (o for o in bpy.data.objects if not o.parent)
+  for obj in root_objs:
+      apply_all_transforms_in_hierarchy(obj)
 
 # iterate every object and move uv shapes to (0,0)
 if len(obj_names) == 0 and bpy.data.objects != []:
@@ -234,11 +247,11 @@ if len(obj_names) == 0 and bpy.data.objects != []:
 # export as glb
 bpy.ops.object.select_all(action='DESELECT')
 if out_filepath:
-    if objs_to_export:
-        obj_names = objs_to_export.split(';')
+    if len(obj_names) > 0:
+        print('selecting ' + ','.join(obj_names))
         active_object = None
         for ob in bpy.data.objects:
-            print(ob.name)
+            print('selected ' + ob.name)
             if ob.name in obj_names:
                 if not active_object:
                     active_object = ob

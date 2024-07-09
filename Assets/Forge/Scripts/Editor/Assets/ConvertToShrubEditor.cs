@@ -111,5 +111,18 @@ public class ConvertToShrubEditor : Editor
                 _ = db.ConvertMany(force: true, silent: false, targets.Select(x => x as ConvertToShrub).ToArray());
             }
         }
+
+        //var terrain = (target as ConvertToShrub).GetComponent<Terrain>();
+        //if (!invalid.Any() && m_MapConfig && terrain && GUILayout.Button("Test Terrain"))
+        //{
+        //    var mesh = terrain.transform.Find("terrain_mesh");
+        //    if (!mesh)
+        //    {
+        //        mesh = new GameObject("terrain_mesh").transform;
+        //        mesh.SetParent(terrain.transform, false);
+        //    }
+
+        //    terrain.ToMesh(mesh.gameObject);
+        //}
     }
 }

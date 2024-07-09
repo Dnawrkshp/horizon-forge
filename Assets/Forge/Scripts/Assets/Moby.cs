@@ -95,17 +95,7 @@ public class Moby : RenderSelectionBase, IAsset
 
     private void OnDrawGizmosSelected()
     {
-        if (PVarMobyRefs != null)
-        {
-            foreach (var moby in PVarMobyRefs)
-            {
-                if (!moby) continue;
-
-                UnityHelper.DrawLine(transform.position, moby.transform.position, mobyLinkColor, 5);
-
-                moby.OnDrawGizmosSelected();
-            }
-        }
+        DrawMobyRefs(new HashSet<Moby>());
 
         if (PVarCuboidRefs != null)
         {
@@ -142,6 +132,23 @@ public class Moby : RenderSelectionBase, IAsset
                 }
             }
         }
+    }
+
+    private void DrawMobyRefs(HashSet<Moby> visited)
+    {
+        if (PVarMobyRefs != null)
+        {
+            foreach (var moby in PVarMobyRefs)
+            {
+                if (!moby) continue;
+                if (visited.Contains(moby)) continue;
+
+                visited.Add(moby);
+                UnityHelper.DrawLine(transform.position, moby.transform.position, mobyLinkColor, 5);
+                moby.DrawMobyRefs(visited);
+            }
+        }
+
     }
 
     public void UpdateAsset()

@@ -16,31 +16,43 @@ public class ConvertToShrubDatabase : ScriptableObject
     const int SHRUB_CLASS_START = 50000;
 
     public List<ConvertToShrubData> Shrubs = new List<ConvertToShrubData>();
+    private object _lockObject = new object();
 
     #region Accessors
 
-    public ConvertToShrubData Get(ConvertToShrub shrub)
+    public IEnumerable<int> GetShrubClasses(ConvertToShrub shrub)
     {
-        var prefab = PrefabUtility.GetCorrespondingObjectFromSource(shrub.gameObject);
-        if (prefab)
-            return Shrubs.FirstOrDefault(x => x.Parent == prefab);
-
-        return Shrubs.FirstOrDefault(x => x.Parent == shrub.gameObject);
+        var children = shrub.GetChildren();
+        return children?.Select(x => Get(x))?.SelectMany(x => x.ShrubClasses);
     }
 
-    public ConvertToShrubData Create(ConvertToShrub shrub)
+    public IEnumerable<ConvertToShrubData> Get(ConvertToShrub shrub)
     {
-        var parent = shrub.gameObject;
-        var prefab = PrefabUtility.GetCorrespondingObjectFromSource(shrub.gameObject);
-        if (prefab)
-            parent = prefab;
+        var children = shrub.GetChildren();
+        return children?.Select(x => Get(x));
+    }
 
+    public ConvertToShrubData Get(ConvertToShrubChild child)
+    {
+        return Shrubs.FirstOrDefault(x => x.Parent == child.PrefabOrObject);
+    }
+
+    public ConvertToShrubData Create(ConvertToShrubChild child)
+    {
         var data = new ConvertToShrubData()
         {
-            Parent = parent,
+            Parent = child.PrefabOrObject,
         };
 
-        Shrubs.Add(data);
+        lock (_lockObject)
+        {
+            Shrubs.Add(data);
+        }
+
+        Dispatcher.RunOnMainThread(() =>
+        {
+            EditorUtility.SetDirty(this);
+        });
         return data;
     }
 
@@ -53,7 +65,10 @@ public class ConvertToShrubDatabase : ScriptableObject
 
     public void Clean()
     {
-        Shrubs.RemoveAll(x => !x.Parent);
+        lock (_lockObject)
+        {
+            Shrubs.RemoveAll(x => !x.Parent);
+        }
     }
 
     private int GetFreeShrubClass()
@@ -72,81 +87,95 @@ public class ConvertToShrubDatabase : ScriptableObject
     {
         if (shrubs == null) return false;
 
-        var shrubsToConvert = new List<ConvertToShrub>();
+        List<PackerImporterWindow.PackerAssetImport> assetImports = new List<PackerImporterWindow.PackerAssetImport>();
+        List<Action> postImportActions = new List<Action>();
+        var shrubChildrenToConvert = new List<ConvertToShrubChild>();
         var shrubsToConvertDatas = new List<ConvertToShrubData>();
         foreach (var shrub in shrubs)
         {
-            var data = Get(shrub);
-            if (data != null && shrubsToConvertDatas.Contains(data))
-                continue;
-
-            if (data != null && !force)
+            var children = shrub.GetChildren();
+            foreach (var child in children)
             {
-                var hash = ComputeHash(data.Parent);
-                if (hash.Equals(data.Hash))
+                var data = Get(child);
+                if (data != null && shrubsToConvertDatas.Contains(data))
                     continue;
+
+                if (data != null && !force)
+                {
+                    var hash = ComputeHash(data.Parent);
+                    if (hash.Equals(data.Hash))
+                        continue;
+                }
+
+                // reset
+                if (data != null)
+                    data.ShrubClasses.Clear();
+
+                shrubChildrenToConvert.Add(child);
+                shrubsToConvertDatas.Add(data);
             }
-
-            // reset
-            if (data != null)
-                data.ShrubClasses.Clear();
-
-            shrubsToConvert.Add(shrub);
-            shrubsToConvertDatas.Add(data);
         }
 
         var successful = true;
-        foreach (var shrub in shrubsToConvert)
-            if (await Convert(shrub, silent: silent) == null)
+        for (int i = 0; i < shrubChildrenToConvert.Count; ++i)
+        {
+            var child = shrubChildrenToConvert[i];
+            var data = shrubsToConvertDatas[i];
+
+            // if two shrubs share a prefab but aren't yet converted, they will be converted here twice
+            // so check if we've already added this shrub data in this loop
+            if (data == null && Get(child) != null)
+                continue;
+
+            if (!await Convert(child, assetImports, postImportActions, silent: silent))
                 successful = false;
+        }
+
+        // import
+        PackerImporterWindow.Import(assetImports, true);
+
+        // find all existing instance of updated shrubs and refresh asset
+        var shrubInstances = FindObjectsOfType<Shrub>();
+        var shrubClasses = shrubChildrenToConvert.Select(x => Get(x)).Where(x => x != null).SelectMany(x => x.ShrubClasses).ToHashSet();
+        foreach (var s in shrubInstances)
+            if (shrubClasses.Contains(s.OClass))
+                s.ResetAsset();
+
+        //
+        postImportActions.ForEach(x => x());
 
         return successful;
     }
 
-    public async Task<ConvertToShrubData> Convert(ConvertToShrub shrub, bool silent = false)
+    private async Task<bool> Convert(ConvertToShrubChild child, List<PackerImporterWindow.PackerAssetImport> assetImports, List<Action> postImportActions, bool silent = false)
     {
-        if (shrub == null) return null;
-        if (!shrub.GetGeometry(out var modelGo)) return null;
+        if (child == null) return false;
+        if (!child.PrefabOrObject) return false;
 
         // get data
-        var data = Get(shrub);
+        var data = Get(child);
         if (data == null)
-            data = Create(shrub);
-
-        var assetImports = new List<PackerImporterWindow.PackerAssetImport>();
-        var postImportActions = new List<Action>();
+            data = Create(child);
 
         try
         {
-            if (!await Convert(shrub, data, modelGo.name, assetImports, postImportActions, silent: silent))
+            if (!await Convert(child, data, child.PrefabOrObject.name, assetImports, postImportActions, silent: silent))
             {
                 data.ShrubClasses.Clear();
-                return null;
+                return false;
             }
-
-            // import
-            PackerImporterWindow.Import(assetImports, true);
 
             // update hash
             data.Hash = ComputeHash(data.Parent);
-
-            // find all existing instance of updated shrubs and refresh asset
-            var shrubs = FindObjectsOfType<Shrub>();
-            foreach (var s in shrubs)
-                if (data.ShrubClasses.Contains(s.OClass))
-                    s.ResetAsset();
-
-            //
-            postImportActions.ForEach(x => x());
         }
         finally
         {
         }
 
-        return data;
+        return true;
     }
 
-    private async Task<bool> Convert(ConvertToShrub shrub, ConvertToShrubData data, string name, List<PackerImporterWindow.PackerAssetImport> assetImports, List<Action> postImportActions, bool silent = false)
+    private async Task<bool> Convert(ConvertToShrubChild child, ConvertToShrubData data, string name, List<PackerImporterWindow.PackerAssetImport> assetImports, List<Action> postImportActions, bool silent = false)
     {
         var shrubsCreated = 0;
         var mapConfig = FindObjectOfType<MapConfig>();
@@ -244,7 +273,7 @@ public class ConvertToShrubDatabase : ScriptableObject
                 var meshes = new List<string>();
                 Action onImportActions = () => { };
 
-                if (!silent && CancelProgressBar(ref cancel, "Shrub Converter", $"Processing shrub chunk {i} (class {outShrubClass})...", i / (float)shrubsToCreate)) return false;
+                if (!silent && CancelProgressBar(ref cancel, "Shrub Converter", $"Processing shrub chunk {i}/{shrubsToCreate} (class {outShrubClass})...", i / (float)shrubsToCreate)) return false;
 
                 // clear output shrub dir
                 if (Directory.Exists(workingDir)) Directory.Delete(workingDir, true);
@@ -281,13 +310,12 @@ public class ConvertToShrubDatabase : ScriptableObject
                     var tex = mat.mainTexture as Texture2D; //mat.GetTexture("baseColorTexture") as Texture2D;
                     if (matData.TextureOverride) tex = matData.TextureOverride;
                     if (!tex) tex = new Texture2D(32, 32, TextureFormat.ARGB32, false);
-                    var textAssetPath = AssetDatabase.GetAssetPath(tex);
 
                     var tint = matData.TintColor * mat.color;
                     if (matData.CorrectForAlphaBloom)
                         tint.a *= 0.5f;
 
-                    ExportTexture(tex, texPath, tint);
+                    UnityHelper.SaveTexture(tex, texPath, tint: tint);
                     textures.Add(tex);
 
                     // reconfigure texture size per tex
@@ -415,6 +443,10 @@ public class ConvertToShrubDatabase : ScriptableObject
                 ++shrubsCreated;
             }
         }
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
+        }
         finally
         {
             if (!silent) EditorUtility.ClearProgressBar();
@@ -450,6 +482,19 @@ public class ConvertToShrubDatabase : ScriptableObject
             // skip inactive or hidden objects
             if (!srcT.gameObject.activeSelf || srcT.gameObject.hideFlags.HasFlag(HideFlags.HideInHierarchy))
                 return false;
+
+            // skip objects that belong to another prefab
+            var srcPrefab = PrefabUtility.GetCorrespondingObjectFromOriginalSource(srcT.gameObject);
+            if (srcPrefab && srcPrefab != srcT.gameObject)
+                return false;
+
+            // handle terrain
+            var terrain = srcT.GetComponent<Terrain>();
+            if (terrain)
+            {
+                terrain.ToMesh(dstT.gameObject);
+                return true;
+            }
 
             // copy renderers/meshfilters
             var renderer = srcT.GetComponent<Renderer>();
@@ -507,52 +552,6 @@ public class ConvertToShrubDatabase : ScriptableObject
         //return cancel;
     }
 
-    static bool ExportTexture(Texture2D tex, string texPath, Color tint)
-    {
-        if (tex)
-        {
-            if (tex.isReadable)
-            {
-                var bytes = tex.EncodeToPNG();
-                File.WriteAllBytes(texPath, bytes);
-                return true;
-            }
-
-            var width = tex.width;
-            var height = tex.height;
-            var rt = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            rt.Create();
-            try
-            {
-                var mat = new Material(AssetDatabase.LoadAssetAtPath<Material>(Path.Combine(FolderNames.ForgeFolder, "Shaders", "TintBlit.mat")));
-                mat.SetColor("_Color", tint);
-                mat.SetTexture("_In", tex);
-                mat.SetTexture("_Out", rt);
-                Graphics.Blit(tex, rt, mat);
-
-                var oldRt = RenderTexture.active;
-                RenderTexture.active = rt;
-                var tex2 = new Texture2D(width, height, TextureFormat.ARGB32, false);
-                tex2.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-                tex2.Apply();
-                RenderTexture.active = oldRt;
-
-                var bytes = tex2.EncodeToPNG();
-                File.WriteAllBytes(texPath, bytes);
-                return true;
-            }
-            finally
-            {
-                if (RenderTexture.active == rt)
-                    RenderTexture.active = null;
-
-                rt.Release();
-            }
-        }
-
-        return false;
-    }
-
     #endregion
 
     #region Hash
@@ -562,6 +561,11 @@ public class ConvertToShrubDatabase : ScriptableObject
         Hash128 hash = new Hash128();
 
         var data = Get(parent);
+
+        // terrain has its own hash function
+        var terrain = parent.GetComponent<Terrain>();
+        if (terrain)
+            hash = terrain.terrainData.ComputeHash();
 
         // hash is computed on textures, meshes and material data
         var renderers = parent.GetComponentsInChildren<Renderer>();
@@ -642,4 +646,10 @@ public class ConvertToShrubMaterialData
     public Color TintColor = Color.white;
     public bool CorrectForAlphaBloom = true;
     public Texture2D TextureOverride;
+}
+
+public class ConvertToShrubChild
+{
+    public GameObject PrefabOrObject;
+    public Transform InstanceRootTransform;
 }

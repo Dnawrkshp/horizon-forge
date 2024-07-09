@@ -51,6 +51,8 @@ public class MobyEditor : Editor
 
     public override void OnInspectorGUI()
     {
+        var updateAsset = false;
+
         serializedObject.Update();
 
         // draw oclass
@@ -111,6 +113,26 @@ public class MobyEditor : Editor
             }
         }
 
+        updateAsset = serializedObject.hasModifiedProperties;
+        serializedObject.ApplyModifiedProperties();
+
+        // refresh asset
+        GUILayout.Space(20);
+        if (GUILayout.Button("Refresh Asset"))
+        {
+            updateAsset = true;
+        }
+
+        // view in project window
+        if (HasOneTarget && GUILayout.Button("Select in Project Window"))
+        {
+            var asset = UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, (target as Moby).OClass.ToString());
+            if (asset)
+            {
+                EditorGUIUtility.PingObject(asset);
+            }
+        }
+
         if (TargetsShareOClass)
         { 
             // selection
@@ -144,7 +166,18 @@ public class MobyEditor : Editor
             }
         }
 
-        serializedObject.ApplyModifiedProperties();
+        // update asset
+        if (updateAsset)
+        {
+            foreach (var obj in targets)
+            {
+                if (obj is Moby moby)
+                {
+                    moby.UpdateAsset();
+                    moby.UpdateMaterials();
+                }
+            }
+        }
     }
 
     private void OverlayField(MapConfig mapConfig, Moby moby, PvarOverlayDef def)
@@ -385,10 +418,11 @@ public class MobyEditor : Editor
             {
                 if (!childMoby) continue;
                 if (!selected.Contains(childMoby.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childMoby.gameObject;
-                SelectChildren(childMoby, ref selected);
+                    selected[selected.Length - 1] = childMoby.gameObject;
+                    SelectChildren(childMoby, ref selected);
+                }
             }
         }
 
@@ -405,10 +439,11 @@ public class MobyEditor : Editor
             {
                 if (!childMoby) continue;
                 if (!selected.Contains(childMoby.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childMoby.gameObject;
-                SelectMobyChildren(childMoby, ref selected);
+                    selected[selected.Length - 1] = childMoby.gameObject;
+                    SelectMobyChildren(childMoby, ref selected);
+                }
             }
         }
     }
@@ -421,9 +456,10 @@ public class MobyEditor : Editor
             {
                 if (!childCuboid) continue;
                 if (!selected.Contains(childCuboid.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childCuboid.gameObject;
+                    selected[selected.Length - 1] = childCuboid.gameObject;
+                }
             }
         }
     }
@@ -436,9 +472,10 @@ public class MobyEditor : Editor
             {
                 if (!childSpline) continue;
                 if (!selected.Contains(childSpline.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childSpline.gameObject;
+                    selected[selected.Length - 1] = childSpline.gameObject;
+                }
             }
         }
     }
@@ -451,9 +488,10 @@ public class MobyEditor : Editor
             {
                 if (!childArea) continue;
                 if (!selected.Contains(childArea.gameObject))
+                {
                     Array.Resize(ref selected, selected.Length + 1);
-
-                selected[selected.Length - 1] = childArea.gameObject;
+                    selected[selected.Length - 1] = childArea.gameObject;
+                }
             }
         }
     }

@@ -19,6 +19,12 @@ public static class ForgeUpdater
     [InitializeOnLoadMethod]
     static void Initialize()
     {
+        if (!SessionState.GetBool("ForgeUpdateChecked", false))
+        {
+            if (!HasGitRepo()) CheckForUpdate();
+            SessionState.SetBool("ForgeUpdateChecked", true);
+        }
+
         EditorApplication.update -= EditorTick;
         EditorApplication.update += EditorTick;
     }

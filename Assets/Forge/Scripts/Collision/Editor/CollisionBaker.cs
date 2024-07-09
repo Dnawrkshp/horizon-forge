@@ -54,6 +54,7 @@ public static class CollisionBaker
             instancedColliders.AddRange(GameObject.FindObjectsOfType<Tie>(includeInactive: false) ?? new Tie[0]);
             instancedColliders.AddRange(GameObject.FindObjectsOfType<Shrub>(includeInactive: false) ?? new Shrub[0]);
             instancedColliders.AddRange(GameObject.FindObjectsOfType<InstancedMeshCollider>(includeInactive: false) ?? new InstancedMeshCollider[0]);
+            instancedColliders.AddRange(GameObject.FindObjectsOfType<UnityColliderToInstancedCollider>(includeInactive: false) ?? new UnityColliderToInstancedCollider[0]);
 
             foreach (var instance in instancedColliders)
             {
@@ -218,6 +219,7 @@ public static class CollisionBaker
                 instancedColliders.AddRange(selectedGameObject.GetComponentsInChildren<Tie>(includeInactive: false) ?? new Tie[0]);
                 instancedColliders.AddRange(selectedGameObject.GetComponentsInChildren<Shrub>(includeInactive: false) ?? new Shrub[0]);
                 instancedColliders.AddRange(selectedGameObject.GetComponentsInChildren<InstancedMeshCollider>(includeInactive: false) ?? new InstancedMeshCollider[0]);
+                instancedColliders.AddRange(selectedGameObject.GetComponentsInChildren<UnityColliderToInstancedCollider>(includeInactive: false) ?? new UnityColliderToInstancedCollider[0]);
             }
 
             foreach (var instance in instancedColliders)

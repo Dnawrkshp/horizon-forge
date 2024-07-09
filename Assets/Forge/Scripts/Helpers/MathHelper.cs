@@ -116,4 +116,23 @@ public static class MathHelper
 
         return sum;
     }
+
+    public static Vector3 PolarToCartesian(float theta, float phi, float radius)
+    {
+        return new Vector3(
+            radius * Mathf.Sin(theta) * Mathf.Cos(phi),
+            radius * Mathf.Sin(theta) * Mathf.Sin(phi),
+            radius * Mathf.Cos(theta)
+            );
+    }
+
+    public static float Max(this Vector3 v)
+    {
+        return Mathf.Max(v.x, v.y, v.z);
+    }
+
+    public static float Max(this Vector4 v)
+    {
+        return Mathf.Max(v.x, v.y, v.z, v.w);
+    }
 }

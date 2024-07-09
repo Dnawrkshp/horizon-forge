@@ -213,7 +213,7 @@ public static class UnityHelper
         AssetDatabase.ImportAsset(path);
     }
 
-    public static bool SaveTexture(Texture2D tex, string path, bool forcePowerOfTwo = false, int? maxTexSize = null)
+    public static bool SaveTexture(Texture2D tex, string path, Color? tint = null, bool hasAlpha = true, bool forcePowerOfTwo = false, int? maxTexSize = null)
     {
         if (tex)
         {
@@ -261,9 +261,10 @@ public static class UnityHelper
             try
             {
                 var mat = new Material(AssetDatabase.LoadAssetAtPath<Material>(Path.Combine(FolderNames.ForgeFolder, "Shaders", "TintBlit.mat")));
-                mat.SetColor("_Color", Color.white);
+                mat.SetColor("_Color", tint ?? Color.white);
                 mat.SetTexture("_In", tex);
                 mat.SetTexture("_Out", rt);
+                mat.SetColor("_Alpha", hasAlpha ? Color.clear : Color.white);
                 Graphics.Blit(tex, rt, mat);
 
                 var oldRt = RenderTexture.active;
@@ -303,6 +304,53 @@ public static class UnityHelper
         return result;
     }
 
+    public static Texture2D CloneTexture(Texture2D src, bool hasAlpha = true, Color? tint = null)
+    {
+        if (!src) return null;
+
+        var width = src.width;
+        var height = src.height;
+        var rt = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
+        rt.Create();
+        try
+        {
+            var mat = new Material(AssetDatabase.LoadAssetAtPath<Material>(Path.Combine(FolderNames.ForgeFolder, "Shaders", "TintBlit.mat")));
+            mat.SetColor("_Color", tint ?? Color.white);
+            mat.SetTexture("_In", src);
+            mat.SetTexture("_Out", rt);
+            mat.SetColor("_Alpha", hasAlpha ? Color.clear : Color.white);
+            Graphics.Blit(src, rt, mat);
+
+            var oldRt = RenderTexture.active;
+            RenderTexture.active = rt;
+            var tex2 = new Texture2D(width, height, TextureFormat.ARGB32, false);
+            tex2.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+            tex2.Apply();
+            RenderTexture.active = oldRt;
+
+            return tex2;
+        }
+        finally
+        {
+            if (RenderTexture.active == rt)
+                RenderTexture.active = null;
+
+            rt.Release();
+        }
+    }
+
+    public static Hash128 GetHash(this Texture2D tex)
+    {
+        if (tex.imageContentsHash.isValid)
+            return tex.imageContentsHash;
+
+        if (!tex.isReadable)
+            return new Hash128();
+
+        var pixels = tex.GetPixelData<Color>(0);
+        return Hash128.Compute(pixels);
+    }
+
     public static Color32 GetColor(this uint rgba)
     {
         return new Color32(
@@ -329,6 +377,11 @@ public static class UnityHelper
         if (exp == (int)exp) return dimension;
 
         return (int)Mathf.Pow(2, Mathf.CeilToInt(exp));
+    }
+
+    public static void Append(this Hash128 hash, Color color)
+    {
+        hash.Append(color.ToString());
     }
 
     public static int ComputeHash(this Mesh mesh)

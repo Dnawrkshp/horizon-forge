@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
+[RequireComponent(typeof(UnityColliderToInstancedCollider))]
 public class UnityTerrainToTfrags : BaseAssetGenerator
 {
     [Range(4f, 8f)] public float m_TfragSize = 4f;
@@ -268,14 +269,18 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
 
     #region Bake
 
-    public override void OnPreBake()
+    public override void OnPreBake(BakeType type)
     {
+        if (type != BakeType.OCCLUSION && type != BakeType.BUILD) return;
+
         // render tfrags
         SetVisible(true);
     }
 
-    public override void OnPostBake()
+    public override void OnPostBake(BakeType type)
     {
+        if (type != BakeType.OCCLUSION && type != BakeType.BUILD) return;
+
         // return to normal render mode
         SetVisible(m_RenderGenerated);
     }

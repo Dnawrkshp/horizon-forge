@@ -171,7 +171,7 @@ public static class ForgeBuilder
             foreach (var assetGenerator in assetGenerators)
             {
                 assetGenerator.Generate();
-                assetGenerator.OnPreBake();
+                assetGenerator.OnPreBake(BakeType.BUILD);
             }
 
             //RebuildSky(ref ctx.Cancel, resourcesFolder, binFolder); if (cancel) return;
@@ -222,7 +222,7 @@ public static class ForgeBuilder
         {
             // cleanup generators
             foreach (var assetGenerator in assetGenerators)
-                assetGenerator.OnPostBake();
+                assetGenerator.OnPostBake(BakeType.BUILD);
 
             EditorUtility.ClearProgressBar();
         }
@@ -519,8 +519,6 @@ public static class ForgeBuilder
         var tfragOcclusionBinFile = Path.Combine(occlusionFolder, "tfrag.bin");
         var materials = new List<Material>();
         var chunks = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<TfragChunk>());
-
-        Debug.Log(chunks.Length);
 
         if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Tfrags", 0.5f))
             return;

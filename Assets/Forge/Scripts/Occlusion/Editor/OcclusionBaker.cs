@@ -73,7 +73,7 @@ public static class OcclusionBaker
             foreach (var assetGenerator in assetGenerators)
             {
                 assetGenerator.Generate();
-                assetGenerator.OnPreBake();
+                assetGenerator.OnPreBake(BakeType.OCCLUSION);
             }
 
             // pass pre event to OcclusionData
@@ -247,7 +247,7 @@ public static class OcclusionBaker
         {
             // cleanup generators
             foreach (var assetGenerator in assetGenerators)
-                assetGenerator.OnPostBake();
+                assetGenerator.OnPostBake(BakeType.OCCLUSION);
 
             Shader.DisableKeyword("_OCCLUSION");
             rtColor.Release();

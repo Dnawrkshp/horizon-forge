@@ -6,6 +6,13 @@ public abstract class BaseAssetGenerator : MonoBehaviour
 {
     public abstract void Generate();
 
-    public virtual void OnPreBake() { }
-    public virtual void OnPostBake() { }
+    public virtual void OnPreBake(BakeType type) { }
+    public virtual void OnPostBake(BakeType type) { }
+}
+
+public enum BakeType
+{
+    BUILD,
+    OCCLUSION,
+    COLLISION
 }

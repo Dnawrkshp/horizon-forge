@@ -9,9 +9,8 @@ using UnityEngine;
 
 public static class TerrainHelper
 {
-    public static Vector4 OFFSET_SCALE = new Vector4(-0.5f, -0.5f, 1, 1);
-    public static float SAMPLE_WEIGHT_RAMP = 0.5f;
-    static readonly RectInt? DEBUG_RENDER_SUBMESH = null; // new RectInt(6, 10, 2, 2);
+    public static Vector4 OFFSET_SCALE = new Vector4(-1, -1, 1, 1);
+    static readonly RectInt? DEBUG_RENDER_SUBMESH = null; // new RectInt(9, 13, 4, 4);
     const bool DEBUG_RENDER_SPLAT_POINT_FILTER = false;
     const int QUANTIZATION_RESOLUTION = 1;
     const int QUANTIZATION_BUFFER = 1;
@@ -103,7 +102,7 @@ public static class TerrainHelper
         return mesh;
     }
 
-    public static void ToMesh(this Terrain terrain, GameObject targetGameObject, float faceSize = 4f, TextureSize textureSize = TextureSize._64)
+    public static void ToMesh(this Terrain terrain, GameObject targetGameObject, float faceSize = 4f, float splatRamp = 1f, TextureSize textureSize = TextureSize._64)
     {
 
         var universalShader = Shader.Find("Horizon Forge/Universal");
@@ -170,7 +169,7 @@ public static class TerrainHelper
                         var tx = x / (float)facePerRow;
                         var ty = y / (float)facePerColumn;
                         var face = new Rect(tx - 0.5f * iFacePerRow, ty - 0.5f * iFacePerColumn, iFacePerRow, iFacePerColumn);
-                        var classification = texDb.Classify(terrain.terrainData, face, 0);
+                        var classification = texDb.Classify(terrain.terrainData, face, 0, ramp: splatRamp);
 
                         var ci = 0;
                         for (int cy = 0; cy < QUANTIZATION_RESOLUTION_WITH_BUFFER; cy++)
@@ -252,7 +251,7 @@ public static class TerrainHelper
         meshRenderer.sharedMaterials = materials.ToArray();
     }
 
-    public static void ToMesh(this Terrain terrain, out Vector3[] vertices, out Vector3[] normals, out Vector2[] uvs, out int[] triangles, out Texture2D[] textures, float faceSize = 4f, TextureSize textureSize = TextureSize._64)
+    public static void ToMesh(this Terrain terrain, out Vector3[] vertices, out Vector3[] normals, out Vector2[] uvs, out int[] triangles, out Texture2D[] textures, float faceSize = 4f, float splatRamp = 1f, TextureSize textureSize = TextureSize._64)
     {
         var uvCenter = Vector2.one * 0.5f;
 
@@ -311,7 +310,7 @@ public static class TerrainHelper
                         var tx = x / (float)facePerRow;
                         var ty = y / (float)facePerColumn;
                         var face = new Rect(tx + (OFFSET_SCALE.x * iFacePerRow * OFFSET_SCALE.z), ty + (OFFSET_SCALE.y * iFacePerRow * OFFSET_SCALE.w), iFacePerRow * OFFSET_SCALE.z, iFacePerColumn * OFFSET_SCALE.w);
-                        var classification = texDb.Classify(terrain.terrainData, face, 0);
+                        var classification = texDb.Classify(terrain.terrainData, face, 0, ramp: splatRamp);
 
                         var ci = 0;
                         for (int cy = 0; cy < QUANTIZATION_RESOLUTION_WITH_BUFFER; cy++)
@@ -508,7 +507,7 @@ public static class TerrainHelper
             return splatmap;
         }
 
-        public int[] Classify(TerrainData terrainData, Rect face, int splatmapIdx)
+        public int[] Classify(TerrainData terrainData, Rect face, int splatmapIdx, float ramp = 1f)
         {
             var alphamapRect = new RectInt((int)(face.x * terrainData.alphamapResolution), (int)(face.y * terrainData.alphamapResolution), (int)(face.width * terrainData.alphamapResolution), (int)(face.height * terrainData.alphamapResolution));
             var alphamap = terrainData.GetAlphamapTexture(splatmapIdx);
@@ -531,7 +530,7 @@ public static class TerrainHelper
                             var yDisp = scale * (j - 4f) / 5f;
                             var xOff = (xDisp + (x - QUANTIZATION_BUFFER)) / QUANTIZATION_RESOLUTION;
                             var yOff = (yDisp + (y - QUANTIZATION_BUFFER)) / QUANTIZATION_RESOLUTION;
-                            var weight = Mathf.Pow(Mathf.Exp(-Mathf.Sqrt(Mathf.Pow(xDisp, 2) + Mathf.Pow(yDisp, 2))), SAMPLE_WEIGHT_RAMP);
+                            var weight = Mathf.Pow(Mathf.Exp(-Mathf.Sqrt(Mathf.Pow(xOff, 2) + Mathf.Pow(yOff, 2))), ramp);
 
                             var sample = (Vector4)alphamap.GetPixelBilinear(face.x + (xOff * face.width), face.y + (yOff * face.height));
                             weights += sample * weight;
@@ -588,37 +587,6 @@ public static class TerrainHelper
                     // edge
                     if ((sx == 0 || sx == resMax) || (sy == 0 || sy == resMax))
                     {
-                        //var counts = new int[4];
-                        //for (int m = 0; m < 3; ++m)
-                        //{
-                        //    for (int n = 0; n < 3; ++n)
-                        //    {
-                        //        var msx = sx + (m - 1);
-                        //        var msy = sy + (m - 1);
-
-                        //        if (msx < 0) continue;
-                        //        if (msx > resMax) continue;
-                        //        if (msy < 0) continue;
-                        //        if (msy > resMax) continue;
-
-                        //        counts[classification[(msy * QUANTIZATION_RESOLUTION_WITH_BUFFER) + msx]]++;
-                        //    }
-                        //}
-
-                        //var c = classification[i];
-                        //var count = counts[c];
-                        //for (int m = 0; m < counts.Length; ++m)
-                        //{
-                        //    if (counts[m] > 0)
-                        //    {
-                        //        count = counts[m];
-                        //        c = m;
-                        //        break;
-                        //    }
-                        //}
-
-                        //classification[i] = c;
-
                         var c0 = classification[i];
                         var c1 = classification[((sy + dy) * QUANTIZATION_RESOLUTION_WITH_BUFFER) + (sx + dx)];
                         if (c0 > c1)

@@ -9,15 +9,12 @@ using UnityEngine;
 public class UnityTerrainToTfrags : BaseAssetGenerator
 {
     [Range(4f, 8f)] public float m_TfragSize = 4f;
+    [Range(0f, 4f)] public float m_TfragTextureClassificationSharpness = 1f;
     public TextureSize m_TextureSize = TextureSize._128;
-    public bool m_RenderGenerated = false;
+
+    public bool m_RenderGenerated { get; set; }
 
     private Terrain m_Terrain;
-
-    private void OnValidate()
-    {
-        SetVisible(m_RenderGenerated);
-    }
 
     #region Generate
 
@@ -32,7 +29,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
 
         try
         {
-            TerrainHelper.ToMesh(m_Terrain, out var terrainVertices, out var terrainNormals, out var terrainUvs, out var terrainTriangles, out var terrainTextures, faceSize: m_TfragSize, textureSize: m_TextureSize);
+            TerrainHelper.ToMesh(m_Terrain, out var terrainVertices, out var terrainNormals, out var terrainUvs, out var terrainTriangles, out var terrainTextures, faceSize: m_TfragSize, splatRamp: m_TfragTextureClassificationSharpness, textureSize: m_TextureSize);
 
             var vertexPerRow = Mathf.CeilToInt(m_Terrain.terrainData.size.x / m_TfragSize) + 1;
             var vertexPerColumn = Mathf.CeilToInt(m_Terrain.terrainData.size.z / m_TfragSize) + 1;
@@ -283,7 +280,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
         return HierarchicalSorting.Sort(this.GetComponentsInChildren<TfragChunk>(true).Where(x => x.gameObject.hideFlags.HasFlag(HideFlags.HideInHierarchy)).ToArray());
     }
 
-    private void SetVisible(bool visible)
+    public void SetVisible(bool visible)
     {
         var chunks = GetChunkInstances();
         if (chunks != null)

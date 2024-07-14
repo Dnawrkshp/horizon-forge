@@ -9,13 +9,13 @@ using UnityEngine;
 
 public static class TerrainHelper
 {
+    public static Vector4 OFFSET_SCALE = new Vector4(-0.5f, -0.5f, 1, 1);
+    public static float SAMPLE_WEIGHT_RAMP = 0.5f;
     static readonly RectInt? DEBUG_RENDER_SUBMESH = null; // new RectInt(6, 10, 2, 2);
     const bool DEBUG_RENDER_SPLAT_POINT_FILTER = false;
     const int QUANTIZATION_RESOLUTION = 1;
     const int QUANTIZATION_BUFFER = 1;
     const int QUANTIZATION_RESOLUTION_WITH_BUFFER = QUANTIZATION_RESOLUTION + (QUANTIZATION_BUFFER * 2);
-    const float TERRAIN_MESH_RESOLUTION = 4f;
-    const int TERRAIN_BAKED_TEX_RESOLUTION = 64;
 
     private static Dictionary<Hash128, Mesh> _terrainColliderMeshCache = new Dictionary<Hash128, Mesh>();
 
@@ -45,17 +45,16 @@ public static class TerrainHelper
     }
 
 
-    public static Mesh GetCollider(this TerrainCollider terrainCollider)
+    public static Mesh GetCollider(this TerrainCollider terrainCollider, float faceSize = 4f)
     {
-        const float terrainMeshResolution = 4f;
-
         var hash = terrainCollider.terrainData.ComputeHash();
+        hash.Append(faceSize);
         if (_terrainColliderMeshCache.TryGetValue(hash, out var mesh))
             return mesh;
 
         var terrainData = terrainCollider.terrainData;
-        var vertexPerRow = Mathf.CeilToInt(terrainData.size.x / terrainMeshResolution);
-        var vertexPerColumn = Mathf.CeilToInt(terrainData.size.z / terrainMeshResolution);
+        var vertexPerRow = Mathf.CeilToInt(terrainData.size.x / faceSize) + 1;
+        var vertexPerColumn = Mathf.CeilToInt(terrainData.size.z / faceSize) + 1;
         var facePerRow = vertexPerRow - 1;
         var facePerColumn = vertexPerColumn - 1;
 
@@ -104,7 +103,7 @@ public static class TerrainHelper
         return mesh;
     }
 
-    public static void ToMesh(this Terrain terrain, GameObject targetGameObject)
+    public static void ToMesh(this Terrain terrain, GameObject targetGameObject, float faceSize = 4f, TextureSize textureSize = TextureSize._64)
     {
 
         var universalShader = Shader.Find("Horizon Forge/Universal");
@@ -117,8 +116,8 @@ public static class TerrainHelper
         var uvCenter = Vector2.one * 0.5f;
 
         var texDb = new TerrainTextureDatabase(terrain);
-        var vertexPerRow = Mathf.CeilToInt(terrain.terrainData.size.x / TERRAIN_MESH_RESOLUTION) + 1;
-        var vertexPerColumn = Mathf.CeilToInt(terrain.terrainData.size.z / TERRAIN_MESH_RESOLUTION) + 1;
+        var vertexPerRow = Mathf.CeilToInt(terrain.terrainData.size.x / faceSize) + 1;
+        var vertexPerColumn = Mathf.CeilToInt(terrain.terrainData.size.z / faceSize) + 1;
         var facePerRow = vertexPerRow - 1;
         var facePerColumn = vertexPerColumn - 1;
         var iFacePerRow = 1f / facePerRow;
@@ -157,10 +156,10 @@ public static class TerrainHelper
                             var tx = (x + vx) / (float)facePerRow;
                             var ty = (y + vy) / (float)facePerColumn;
                             var height = terrain.terrainData.GetInterpolatedHeight(tx, ty);
-                            var vertex = new Vector3((x + vx) * TERRAIN_MESH_RESOLUTION, height, (y + vy) * TERRAIN_MESH_RESOLUTION);
+                            var vertex = new Vector3(tx * terrain.terrainData.size.x, height, ty * terrain.terrainData.size.z);
 
                             vertices[vIdx] = vertex;
-                            uvs[vIdx] = (new Vector2(vx, vy) - uvCenter)*0.99f + uvCenter;
+                            uvs[vIdx] = (new Vector2(vx, vy) - uvCenter) + uvCenter;
                             normals[vIdx] = terrain.terrainData.GetInterpolatedNormal(tx, ty);
                             ++vIdx;
                         }
@@ -170,7 +169,7 @@ public static class TerrainHelper
                     {
                         var tx = x / (float)facePerRow;
                         var ty = y / (float)facePerColumn;
-                        var face = new Rect(tx, ty, iFacePerRow, iFacePerColumn);
+                        var face = new Rect(tx - 0.5f * iFacePerRow, ty - 0.5f * iFacePerColumn, iFacePerRow, iFacePerColumn);
                         var classification = texDb.Classify(terrain.terrainData, face, 0);
 
                         var ci = 0;
@@ -203,7 +202,7 @@ public static class TerrainHelper
                 if (x > 0 && y > 0)
                 {
                     var tIdx = ((y - 1) * facePerRow + (x - 1)) * 2;
-                    textures[tIdx + 0] = textures[tIdx + 1] = texDb.GetTexture(splatClassifications, QUANTIZATION_RESOLUTION * vertexPerRow, x, y);
+                    textures[tIdx + 0] = textures[tIdx + 1] = texDb.GetTexture(splatClassifications, QUANTIZATION_RESOLUTION * vertexPerRow, x, y, textureSize);
                 }
             }
         }
@@ -253,6 +252,103 @@ public static class TerrainHelper
         meshRenderer.sharedMaterials = materials.ToArray();
     }
 
+    public static void ToMesh(this Terrain terrain, out Vector3[] vertices, out Vector3[] normals, out Vector2[] uvs, out int[] triangles, out Texture2D[] textures, float faceSize = 4f, TextureSize textureSize = TextureSize._64)
+    {
+        var uvCenter = Vector2.one * 0.5f;
+
+        var texDb = new TerrainTextureDatabase(terrain);
+        var vertexPerRow = Mathf.CeilToInt(terrain.terrainData.size.x / faceSize) + 1;
+        var vertexPerColumn = Mathf.CeilToInt(terrain.terrainData.size.z / faceSize) + 1;
+        var facePerRow = vertexPerRow - 1;
+        var facePerColumn = vertexPerColumn - 1;
+        var iFacePerRow = 1f / facePerRow;
+        var iFacePerColumn = 1f / facePerColumn;
+
+        vertices = new Vector3[4 * facePerColumn * facePerRow];
+        triangles = new int[3 * 2 * facePerColumn * facePerRow];
+        normals = new Vector3[4 * facePerColumn * facePerRow];
+        uvs = new Vector2[4 * facePerColumn * facePerRow];
+        textures = new Texture2D[2 * facePerColumn * facePerRow];
+        var splatClassifications = new int[QUANTIZATION_RESOLUTION * vertexPerRow * QUANTIZATION_RESOLUTION * vertexPerColumn];
+
+        // construct mesh
+        for (int y = 0; y < facePerColumn; ++y)
+        {
+            for (int x = 0; x < facePerRow; ++x)
+            {
+                if (!DEBUG_RENDER_SUBMESH.HasValue || (DEBUG_RENDER_SUBMESH.HasValue && DEBUG_RENDER_SUBMESH.Value.Contains(new Vector2Int(x, y))))
+                {
+                    var idx = (y * facePerRow + x) * 6;
+                    var vIdx = (y * facePerRow + x) * 4;
+
+                    triangles[idx + 2] = vIdx + 0;
+                    triangles[idx + 1] = vIdx + 1;
+                    triangles[idx + 0] = vIdx + 2;
+                    triangles[idx + 5] = vIdx + 1;
+                    triangles[idx + 4] = vIdx + 3;
+                    triangles[idx + 3] = vIdx + 2;
+
+                    // add vertices
+                    for (int vy = 0; vy < 2; ++vy)
+                    {
+                        for (int vx = 0; vx < 2; ++vx)
+                        {
+                            var tx = (x + vx) / (float)facePerRow;
+                            var ty = (y + vy) / (float)facePerColumn;
+
+                            var height = terrain.terrainData.GetInterpolatedHeight(tx, ty);
+                            var vertex = new Vector3(tx * terrain.terrainData.size.x, height, ty * terrain.terrainData.size.z);
+
+                            vertices[vIdx] = vertex;
+                            uvs[vIdx] = (new Vector2(vx, vy) - uvCenter) + uvCenter;
+                            normals[vIdx] = terrain.terrainData.GetInterpolatedNormal(tx, ty);
+                            ++vIdx;
+                        }
+                    }
+
+                    // classify splat
+                    {
+                        var tx = x / (float)facePerRow;
+                        var ty = y / (float)facePerColumn;
+                        var face = new Rect(tx + (OFFSET_SCALE.x * iFacePerRow * OFFSET_SCALE.z), ty + (OFFSET_SCALE.y * iFacePerRow * OFFSET_SCALE.w), iFacePerRow * OFFSET_SCALE.z, iFacePerColumn * OFFSET_SCALE.w);
+                        var classification = texDb.Classify(terrain.terrainData, face, 0);
+
+                        var ci = 0;
+                        for (int cy = 0; cy < QUANTIZATION_RESOLUTION_WITH_BUFFER; cy++)
+                        {
+                            for (int cx = 0; cx < QUANTIZATION_RESOLUTION_WITH_BUFFER; cx++)
+                            {
+                                var sx = (cx - QUANTIZATION_BUFFER) + (x * QUANTIZATION_RESOLUTION);
+                                var sy = (cy - QUANTIZATION_BUFFER) + (y * QUANTIZATION_RESOLUTION);
+                                if (sx < 0) continue;
+                                if (sx >= (vertexPerRow * QUANTIZATION_RESOLUTION)) continue;
+                                if (sy < 0) continue;
+                                if (sy >= (vertexPerColumn * QUANTIZATION_RESOLUTION)) continue;
+
+                                var cIdx = (sy * vertexPerRow * QUANTIZATION_RESOLUTION) + sx;
+                                if (cIdx < splatClassifications.Length)
+                                    splatClassifications[cIdx] = classification[ci++];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // assign textures
+        for (int y = 0; y < vertexPerColumn; ++y)
+        {
+            for (int x = 0; x < vertexPerRow; ++x)
+            {
+                if (x > 0 && y > 0)
+                {
+                    var tIdx = ((y - 1) * facePerRow + (x - 1)) * 2;
+                    textures[tIdx + 0] = textures[tIdx + 1] = texDb.GetTexture(splatClassifications, QUANTIZATION_RESOLUTION * vertexPerRow, x, y, textureSize);
+                }
+            }
+        }
+    }
+
     class TerrainTextureDatabase
     {
         private Terrain _terrain;
@@ -285,8 +381,10 @@ public static class TerrainHelper
             return tex;
         }
 
-        public Texture2D GetTexture(int[] classifications, int stride, int x, int y)
+        public Texture2D GetTexture(int[] classifications, int stride, int x, int y, TextureSize textureSize)
         {
+            var texSize = (int)Mathf.Pow(2, 5 + (int)textureSize);
+
             // sample layers
             var layers = _terrain.terrainData.terrainLayers;
             if (layers == null || !layers.Any())
@@ -299,7 +397,7 @@ public static class TerrainHelper
             for (int i = 0; i < _terrain.terrainData.alphamapTextureCount; ++i)
             {
                 var classification = GetClassificationBlock(classifications, stride, x, y);
-                tex = SampleSplatmap(_terrain.terrainData, i, classification, TERRAIN_BAKED_TEX_RESOLUTION, TERRAIN_BAKED_TEX_RESOLUTION);
+                tex = SampleSplatmap(_terrain.terrainData, i, classification, texSize, texSize);
             }
 
             // default to default tex
@@ -347,6 +445,7 @@ public static class TerrainHelper
                 var oldRt = RenderTexture.active;
                 RenderTexture.active = rt;
                 var tex2 = new Texture2D(width, height, TextureFormat.ARGB32, false);
+                tex2.wrapMode = TextureWrapMode.Clamp;
                 tex2.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 tex2.Apply();
                 RenderTexture.active = oldRt;
@@ -432,9 +531,9 @@ public static class TerrainHelper
                             var yDisp = scale * (j - 4f) / 5f;
                             var xOff = (xDisp + (x - QUANTIZATION_BUFFER)) / QUANTIZATION_RESOLUTION;
                             var yOff = (yDisp + (y - QUANTIZATION_BUFFER)) / QUANTIZATION_RESOLUTION;
-                            var weight = Mathf.Pow(Mathf.Exp(-Mathf.Sqrt(Mathf.Pow(xDisp, 2) + Mathf.Pow(yDisp, 2))), 1f);
+                            var weight = Mathf.Pow(Mathf.Exp(-Mathf.Sqrt(Mathf.Pow(xDisp, 2) + Mathf.Pow(yDisp, 2))), SAMPLE_WEIGHT_RAMP);
 
-                            var sample = (Vector4)alphamap.GetPixelBilinear(face.x + xOff * face.width, face.y + yOff * face.height);
+                            var sample = (Vector4)alphamap.GetPixelBilinear(face.x + (xOff * face.width), face.y + (yOff * face.height));
                             weights += sample * weight;
                         }
                     }

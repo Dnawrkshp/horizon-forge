@@ -470,3 +470,13 @@ public static class UnityHelper
         }
     }
 }
+
+public enum TextureSize
+{
+    _32,
+    _64,
+    _128,
+    _256,
+    _512,
+    _1024
+}

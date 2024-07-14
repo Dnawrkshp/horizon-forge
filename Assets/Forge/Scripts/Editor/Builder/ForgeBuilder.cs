@@ -141,6 +141,7 @@ public static class ForgeBuilder
         var resourcesFolder = FolderNames.GetMapFolder(scene.name);
         var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
 
         // validate resources folder
         if (!Directory.Exists(resourcesFolder))
@@ -165,6 +166,13 @@ public static class ForgeBuilder
             {
                 MapSceneName = scene.name
             };
+
+            // rerun generators
+            foreach (var assetGenerator in assetGenerators)
+            {
+                assetGenerator.Generate();
+                assetGenerator.OnPreBake();
+            }
 
             //RebuildSky(ref ctx.Cancel, resourcesFolder, binFolder); if (cancel) return;
             //await RebuildCollision(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
@@ -212,6 +220,10 @@ public static class ForgeBuilder
         }
         finally
         {
+            // cleanup generators
+            foreach (var assetGenerator in assetGenerators)
+                assetGenerator.OnPostBake();
+
             EditorUtility.ClearProgressBar();
         }
 
@@ -505,8 +517,10 @@ public static class ForgeBuilder
         var terrainBinFile = Path.Combine(binFolder, FolderNames.BinaryTerrainBinFile);
         var occlusionFolder = Path.Combine(binFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
         var tfragOcclusionBinFile = Path.Combine(occlusionFolder, "tfrag.bin");
-        var chunks = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<TfragChunk>());
         var materials = new List<Material>();
+        var chunks = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<TfragChunk>());
+
+        Debug.Log(chunks.Length);
 
         if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Tfrags", 0.5f))
             return;
@@ -610,8 +624,15 @@ public static class ForgeBuilder
                 }
 
                 var maxDimension = Constants.MAX_TEXTURE_SIZE;
-                var baseTex = mat ? (mat.GetTexture("_MainTex") as Texture2D) : null;
-                if (!baseTex) baseTex = UnityHelper.DefaultTexture;
+                var baseTex = UnityHelper.DefaultTexture;
+                var color = Color.white;
+
+                if (mat)
+                {
+                    color = mat.GetColor("_Color");
+                    baseTex = mat.GetTexture("_MainTex") as Texture2D;
+                    if (!baseTex) baseTex = UnityHelper.DefaultTexture;
+                }
 
                 // determine max size of texture
                 var texAssetPath = AssetDatabase.GetAssetPath(baseTex);
@@ -623,7 +644,7 @@ public static class ForgeBuilder
                 }
 
                 var outTexFilePath = Path.Combine(terrainAssetsFolder, $"tex.{i:D4}.0.png");
-                UnityHelper.SaveTexture(baseTex, outTexFilePath, forcePowerOfTwo: true, maxTexSize: maxDimension);
+                UnityHelper.SaveTexture(baseTex, outTexFilePath, tint: color, forcePowerOfTwo: true, maxTexSize: maxDimension);
             }
         }
 

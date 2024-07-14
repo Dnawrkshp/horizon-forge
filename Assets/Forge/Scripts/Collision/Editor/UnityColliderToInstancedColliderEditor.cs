@@ -12,6 +12,7 @@ public class UnityColliderToInstancedColliderEditor : Editor
     private SerializedProperty m_NormalsProperty;
     private SerializedProperty m_RecalculateNormalsFactorProperty;
     private SerializedProperty m_ResolutionProperty;
+    private SerializedProperty m_TfragSizeProperty;
     private SerializedProperty m_RenderProperty;
 
     private void OnEnable()
@@ -21,6 +22,7 @@ public class UnityColliderToInstancedColliderEditor : Editor
         m_NormalsProperty = serializedObject.FindProperty("m_Normals");
         m_RecalculateNormalsFactorProperty = serializedObject.FindProperty("m_RecalculateNormalsFactor");
         m_ResolutionProperty = serializedObject.FindProperty("m_Resolution");
+        m_TfragSizeProperty = serializedObject.FindProperty("m_TfragSize");
         m_RenderProperty = serializedObject.FindProperty("m_Render");
     }
 
@@ -42,6 +44,8 @@ public class UnityColliderToInstancedColliderEditor : Editor
 
         if (m_ColliderProperty.objectReferenceValue is SphereCollider)
             EditorGUILayout.PropertyField(m_ResolutionProperty);
+        else if (m_ColliderProperty.objectReferenceValue is TerrainCollider)
+            EditorGUILayout.PropertyField(m_TfragSizeProperty);
 
         EditorGUILayout.PropertyField(m_RenderProperty);
 

@@ -14,7 +14,6 @@ public static class OcclusionBaker
     public static void BakeOcclusion()
     {
         ComputeBuffer parsedIdsBuffer = null;
-        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
 
         var bakeSettings = GameObject.FindObjectOfType<OcclusionBakeSettings>();
         if (!bakeSettings)
@@ -63,11 +62,7 @@ public static class OcclusionBaker
         try
         {
             // run generators
-            foreach (var assetGenerator in assetGenerators)
-            {
-                assetGenerator.Generate();
-                assetGenerator.OnPreBake(BakeType.OCCLUSION);
-            }
+            UnityHelper.RunGeneratorsPreBake(BakeType.OCCLUSION);
 
             // get occluders
             IOcclusionData.Refresh();
@@ -248,8 +243,7 @@ public static class OcclusionBaker
         finally
         {
             // cleanup generators
-            foreach (var assetGenerator in assetGenerators)
-                assetGenerator.OnPostBake(BakeType.OCCLUSION);
+            UnityHelper.RunGeneratorsPostBake(BakeType.OCCLUSION);
 
             Shader.DisableKeyword("_OCCLUSION");
             rtColor.Release();

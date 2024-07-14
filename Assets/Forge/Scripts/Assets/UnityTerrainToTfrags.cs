@@ -16,6 +16,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
     public bool m_RenderGenerated { get; set; }
 
     private Terrain m_Terrain;
+    [SerializeField, HideInInspector] private Hash128 m_LastGeneratedHash;
 
     #region Generate
     
@@ -24,6 +25,12 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
         m_Terrain = GetComponent<Terrain>();
         if (!m_Terrain) throw new Exception("UnityTerrainToTfrags: Missing Terrain component.");
         if (m_Terrain.terrainData.terrainLayers.Length > 4) throw new Exception("UnityTerrainToTfrags: Terrain component has more than 4 layers.");
+    }
+
+    public void Regenerate()
+    {
+        m_LastGeneratedHash = default;
+        Generate();
     }
 
     public override void Generate()
@@ -39,8 +46,6 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
 
         try
         {
-            TerrainHelper.ToMesh(m_Terrain, out var terrainVertices, out var terrainNormals, out var terrainUvs, out var terrainTriangles, out var terrainTextures, faceSize: m_TfragSize, splatRamp: m_TfragTextureClassificationSharpness, textureSize: m_TextureSize);
-
             var vertexPerRow = Mathf.CeilToInt(m_Terrain.terrainData.size.x / m_TfragSize) + 1;
             var vertexPerColumn = Mathf.CeilToInt(m_Terrain.terrainData.size.z / m_TfragSize) + 1;
             var facePerRow = vertexPerRow - 1;
@@ -51,6 +56,13 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
             var materials = new List<Material>();
             List<Vector3> allOctants = null;
             chunkCount = chunkPerRow * chunkPerColumn;
+
+            // check if we need to regenerate
+            if (chunkCount == chunks.Length && m_LastGeneratedHash.isValid && TerrainHelper.ComputeHash(m_Terrain.terrainData) == m_LastGeneratedHash)
+                return;
+
+            // convert
+            TerrainHelper.ToMesh(m_Terrain, out var terrainVertices, out var terrainNormals, out var terrainUvs, out var terrainTriangles, out var terrainTextures, faceSize: m_TfragSize, splatRamp: m_TfragTextureClassificationSharpness, textureSize: m_TextureSize);
 
             // generate
             for (int i = 0; i < chunkCount; ++i)
@@ -147,11 +159,12 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                 newMesh.SetVertices(vertices);
                 newMesh.SetUVs(0, uvs);
                 newMesh.SetColors(colors);
+                newMesh.SetNormals(normals);
                 newMesh.subMeshCount = quads.Count;
                 for (int f = 0; f < quads.Count; ++f)
                 {
                     var quad = quads[f];
-                    newMesh.SetIndices(new int[] { quad[2], quad[1], quad[0], quad[2], quad[3], quad[1] }, MeshTopology.Triangles, f);
+                    newMesh.SetIndices(new int[] { quad[0], quad[1], quad[2], quad[1], quad[3], quad[2] }, MeshTopology.Triangles, f);
                 }
 
                 chunk.gameObject.name = i.ToString();
@@ -161,6 +174,9 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                 chunkMeshFilter.sharedMesh = newMesh;
                 chunkMeshRenderer.sharedMaterials = texs.Select(x => materials[x]).ToArray();
             }
+
+            // update hash
+            m_LastGeneratedHash = TerrainHelper.ComputeHash(m_Terrain.terrainData);
         }
         catch (Exception ex)
         {

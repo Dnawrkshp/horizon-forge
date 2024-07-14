@@ -30,7 +30,9 @@ public static class MapExporter
     public static async Task<bool> ExportSceneForDZO(string outFilePath, string outMetadataFilePath)
     {
         const string objectPathPrefix = "Scene/";
+        var renameHistory = new Dictionary<GameObject, string>();
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        GameObject combinedCopy = null;
         if (!mapConfig) return false;
 
         var exportSettings = new ExportSettings
@@ -50,23 +52,25 @@ public static class MapExporter
 
         var export = new GameObjectExport(exportSettings, gameObjectExportSettings);
 
-        // we want to export static geometry
-        var dzoConfig = GameObject.FindObjectOfType<DzoConfig>() ?? new DzoConfig();
-        var ties = dzoConfig.Ties ? GameObject.FindObjectsOfType<Tie>() : new Tie[0];
-        var shrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<Shrub>() : new Shrub[0];
-        var tfrags = dzoConfig.Tfrags ? GameObject.FindObjectsOfType<Tfrag>() : new Tfrag[0];
-        var lights = dzoConfig.Lights ? GameObject.FindObjectsOfType<Light>() : new Light[0];
-        var sky = dzoConfig.Sky ? GameObject.FindObjectOfType<Sky>() : null;
-        var convertToShrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<ConvertToShrub>() : new ConvertToShrub[0];
-        var extraGeometry = dzoConfig.IncludeInExport ?? new GameObject[0];
-
-        // merge static geometry into one object
-        var staticGameObjects = ties.Select(x => x.GetAssetInstance()).Union(shrubs.Select(x => x.GetAssetInstance())).Union(tfrags.Select(x => x.gameObject)).Where(x => x).Distinct().ToArray();
-        var combinedCopy = CombineMeshes(staticGameObjects);
-        var renameHistory = new Dictionary<GameObject, string>();
-
         try
         {
+            // run generators
+            UnityHelper.RunGeneratorsPreBake(BakeType.BUILD);
+
+            // we want to export static geometry
+            var dzoConfig = GameObject.FindObjectOfType<DzoConfig>() ?? new DzoConfig();
+            var ties = dzoConfig.Ties ? GameObject.FindObjectsOfType<Tie>() : new Tie[0];
+            var shrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<Shrub>() : new Shrub[0];
+            var tfrags = dzoConfig.Tfrags ? GameObject.FindObjectsOfType<TfragChunk>() : new TfragChunk[0];
+            var lights = dzoConfig.Lights ? GameObject.FindObjectsOfType<Light>() : new Light[0];
+            var sky = dzoConfig.Sky ? GameObject.FindObjectOfType<Sky>() : null;
+            var convertToShrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<ConvertToShrub>() : new ConvertToShrub[0];
+            var extraGeometry = dzoConfig.IncludeInExport ?? new GameObject[0];
+
+            // merge static geometry into one object
+            var staticGameObjects = ties.Select(x => x.GetAssetInstance()).Union(shrubs.Select(x => x.GetAssetInstance())).Union(tfrags.Select(x => x.gameObject)).Where(x => x).Distinct().ToArray();
+            combinedCopy = CombineMeshes(staticGameObjects);
+
             RenameIndexedUnique("light", lights, renameHistory);
             RenameIndexedUnique("sky", sky, renameHistory);
 
@@ -159,6 +163,9 @@ public static class MapExporter
         }
         finally
         {
+            // cleanup generators
+            UnityHelper.RunGeneratorsPostBake(BakeType.BUILD);
+
             if (combinedCopy) GameObject.DestroyImmediate(combinedCopy);
 
             // return objects to their old names

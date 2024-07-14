@@ -141,7 +141,6 @@ public static class ForgeBuilder
         var resourcesFolder = FolderNames.GetMapFolder(scene.name);
         var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
-        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
 
         // validate resources folder
         if (!Directory.Exists(resourcesFolder))
@@ -168,11 +167,7 @@ public static class ForgeBuilder
             };
 
             // run generators
-            foreach (var assetGenerator in assetGenerators)
-            {
-                assetGenerator.Generate();
-                assetGenerator.OnPreBake(BakeType.BUILD);
-            }
+            UnityHelper.RunGeneratorsPreBake(BakeType.BUILD);
 
             //RebuildSky(ref ctx.Cancel, resourcesFolder, binFolder); if (cancel) return;
             //await RebuildCollision(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
@@ -221,8 +216,7 @@ public static class ForgeBuilder
         finally
         {
             // cleanup generators
-            foreach (var assetGenerator in assetGenerators)
-                assetGenerator.OnPostBake(BakeType.BUILD);
+            UnityHelper.RunGeneratorsPostBake(BakeType.BUILD);
 
             EditorUtility.ClearProgressBar();
         }

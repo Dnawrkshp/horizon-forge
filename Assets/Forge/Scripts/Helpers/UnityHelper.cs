@@ -504,6 +504,25 @@ public static class UnityHelper
             mesh.SetTriangles(triangles, i);
         }
     }
+
+    public static void RunGeneratorsPreBake(BakeType type)
+    {
+        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
+        foreach (var assetGenerator in assetGenerators)
+        {
+            assetGenerator.Generate();
+            assetGenerator.OnPreBake(type);
+        }
+    }
+
+    public static void RunGeneratorsPostBake(BakeType type)
+    {
+        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
+        foreach (var assetGenerator in assetGenerators)
+        {
+            assetGenerator.OnPostBake(type);
+        }
+    }
 }
 
 public enum TextureSize

@@ -38,7 +38,7 @@ public class UnityTerrainToTfragsEditor : Editor
 
         if (GUILayout.Button("Generate"))
         {
-            (target as UnityTerrainToTfrags).Generate();
+            (target as UnityTerrainToTfrags).Regenerate();
         }
     }
 

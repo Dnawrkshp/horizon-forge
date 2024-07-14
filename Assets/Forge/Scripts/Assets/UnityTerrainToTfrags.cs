@@ -23,7 +23,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
     {
         m_Terrain = GetComponent<Terrain>();
 
-        var triOfs = new int[] { 0, 4, 2, 1 };
+        var triOfs = new int[] { 0, 1, 2, 4 };
         var universalShader = Shader.Find("Horizon Forge/Universal");
         var chunks = GetChunkInstances();
         var chunkCount = 0;
@@ -142,7 +142,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                 for (int f = 0; f < quads.Count; ++f)
                 {
                     var quad = quads[f];
-                    newMesh.SetIndices(new int[] { quad[0], quad[1], quad[2], quad[1], quad[3], quad[2] }, MeshTopology.Triangles, f);
+                    newMesh.SetIndices(new int[] { quad[2], quad[1], quad[0], quad[2], quad[3], quad[1] }, MeshTopology.Triangles, f);
                 }
 
                 chunk.gameObject.name = i.ToString();

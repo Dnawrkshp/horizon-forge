@@ -16,6 +16,7 @@ public static class OcclusionBaker
         ComputeBuffer parsedIdsBuffer = null;
         var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
 
+        IOcclusionData.Refresh();
         var allOcclusionDatas = IOcclusionData.AllOcclusionDatas;
         if (allOcclusionDatas == null || allOcclusionDatas.Count == 0)
         {

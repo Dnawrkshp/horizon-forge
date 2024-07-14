@@ -80,12 +80,12 @@ public static class TerrainHelper
                     var rowS1 = ((y - 1) * vertexPerRow) + (x - 1);
                     var rowE1 = ((y - 0) * vertexPerRow) + (x - 1);
 
-                    triangles[idx + 2] = rowS1 + 0;
-                    triangles[idx + 1] = rowS1 + 1;
                     triangles[idx + 0] = rowE1 + 0;
-                    triangles[idx + 5] = rowS1 + 1;
-                    triangles[idx + 4] = rowE1 + 1;
-                    triangles[idx + 3] = rowE1 + 0;
+                    triangles[idx + 1] = rowE1 + 1;
+                    triangles[idx + 2] = rowS1 + 0;
+                    triangles[idx + 3] = rowE1 + 1;
+                    triangles[idx + 4] = rowS1 + 1;
+                    triangles[idx + 5] = rowS1 + 0;
                 }
 
                 var vIdx = (y * vertexPerRow) + x;
@@ -140,12 +140,12 @@ public static class TerrainHelper
                     var idx = (y * facePerRow + x) * 6;
                     var vIdx = (y * facePerRow + x) * 4;
 
-                    triangles[idx + 2] = vIdx + 0;
-                    triangles[idx + 1] = vIdx + 1;
                     triangles[idx + 0] = vIdx + 2;
-                    triangles[idx + 5] = vIdx + 1;
-                    triangles[idx + 4] = vIdx + 3;
-                    triangles[idx + 3] = vIdx + 2;
+                    triangles[idx + 1] = vIdx + 3;
+                    triangles[idx + 2] = vIdx + 0;
+                    triangles[idx + 3] = vIdx + 3;
+                    triangles[idx + 4] = vIdx + 1;
+                    triangles[idx + 5] = vIdx + 0;
 
                     // add vertices
                     for (int vy = 0; vy < 2; ++vy)
@@ -280,12 +280,12 @@ public static class TerrainHelper
                     var idx = (y * facePerRow + x) * 6;
                     var vIdx = (y * facePerRow + x) * 4;
 
-                    triangles[idx + 2] = vIdx + 0;
-                    triangles[idx + 1] = vIdx + 1;
                     triangles[idx + 0] = vIdx + 2;
-                    triangles[idx + 5] = vIdx + 1;
-                    triangles[idx + 4] = vIdx + 3;
-                    triangles[idx + 3] = vIdx + 2;
+                    triangles[idx + 1] = vIdx + 3;
+                    triangles[idx + 2] = vIdx + 0;
+                    triangles[idx + 3] = vIdx + 3;
+                    triangles[idx + 4] = vIdx + 1;
+                    triangles[idx + 5] = vIdx + 0;
 
                     // add vertices
                     for (int vy = 0; vy < 2; ++vy)

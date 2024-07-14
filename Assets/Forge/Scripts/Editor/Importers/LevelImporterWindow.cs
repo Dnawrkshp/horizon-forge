@@ -116,6 +116,12 @@ public class LevelImporterWindow : EditorWindow
             default: throw new NotImplementedException();
         }
     }
+    string GetInputLevelName()
+    {
+        if (ImportSourceIsWad()) return Path.GetFileNameWithoutExtension(wadPath);
+
+        return GetSelectedLevelName();
+    }
     int GetLevelId()
     {
         switch (ImportSourceRacVersion())
@@ -547,7 +553,7 @@ public class LevelImporterWindow : EditorWindow
             PrepareMapResourceFolder(destMapFolder, destMapBinFolder);
             PrepareNewScene(destSceneFile);
 
-            rootGo = new GameObject(GetSelectedLevelName());
+            rootGo = new GameObject(GetInputLevelName());
             rootGo.transform.SetAsFirstSibling();
 
             var mapConfig = FindObjectOfType<MapConfig>();
@@ -662,7 +668,7 @@ public class LevelImporterWindow : EditorWindow
         var reimportOcclusion = (importTfrags == 1) || (importTies > 0) || (importMobys > 0);
         var postActions = new List<Action>();
         var mapConfig = FindObjectOfType<MapConfig>();
-        var rootGo = new GameObject(GetSelectedLevelName());
+        var rootGo = new GameObject(GetInputLevelName());
         rootGo.transform.SetAsFirstSibling();
 
         // base map isn't set when importing into current map
@@ -1721,7 +1727,9 @@ public class LevelImporterWindow : EditorWindow
         var terrainBinFile = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainBinFile);
         var terrainBinFolder = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainFolder);
         var terrainOutColladaFile = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainFolder, "terrain.dae");
-        var terrainMapResourcesFolder = Path.Combine(mapResourcesFolder, FolderNames.TfragFolder, $"rc{ImportSourceRacVersion()}_level{GetLevelId()}");
+        var terrainFolderName = $"rc{ImportSourceRacVersion()}_level{GetLevelId()}";
+        if (ImportSourceIsWad()) terrainFolderName = $"rc{ImportSourceRacVersion()}_{Path.GetFileNameWithoutExtension(wadPath)}";
+        var terrainMapResourcesFolder = Path.Combine(mapResourcesFolder, FolderNames.TfragFolder, terrainFolderName);
         var terrainTexturesMapResourcesFolder = Path.Combine(terrainMapResourcesFolder, "Textures");
         var terrainMaterialsMapResourcesFolder = Path.Combine(terrainMapResourcesFolder, "Materials");
         var shader = Shader.Find("Horizon Forge/Universal");
@@ -1759,9 +1767,15 @@ public class LevelImporterWindow : EditorWindow
 
             // create material
             var outMatFile = Path.Combine(terrainMaterialsMapResourcesFolder, $"tfrags-{texIdx}.mat");
-            var mat = new Material(shader);
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(outMatFile);
+            bool matAlreadyExists = mat;
+
+            if (!mat) mat = new Material(shader);
             mat.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(outTexFile));
-            AssetDatabase.CreateAsset(mat, outMatFile);
+            EditorUtility.SetDirty(mat);
+
+            if (matAlreadyExists) AssetDatabase.SaveAssetIfDirty(mat);
+            else AssetDatabase.CreateAsset(mat, outMatFile);
         }
 
         BlenderHelper.ImportMesh(terrainOutColladaFile, terrainMapResourcesFolder, "tfrags", overwrite: true, out var outMeshFile, fixNormals: false);
@@ -2230,7 +2244,7 @@ public class LevelImporterWindow : EditorWindow
 
         importer.preserveHierarchy = true;
         importer.bakeAxisConversion = true;
-        importer.importNormals = ModelImporterNormals.Calculate;
+        importer.importNormals = ModelImporterNormals.Import;
         importer.addCollider = addCollider;
 
         if (labels != null)

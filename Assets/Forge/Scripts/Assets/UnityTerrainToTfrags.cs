@@ -18,6 +18,13 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
     private Terrain m_Terrain;
 
     #region Generate
+    
+    public void ValidateOrThrow()
+    {
+        m_Terrain = GetComponent<Terrain>();
+        if (!m_Terrain) throw new Exception("UnityTerrainToTfrags: Missing Terrain component.");
+        if (m_Terrain.terrainData.terrainLayers.Length > 4) throw new Exception("UnityTerrainToTfrags: Terrain component has more than 4 layers.");
+    }
 
     public override void Generate()
     {
@@ -27,6 +34,8 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
         var universalShader = Shader.Find("Horizon Forge/Universal");
         var chunks = GetChunkInstances();
         var chunkCount = 0;
+
+        ValidateOrThrow();
 
         try
         {

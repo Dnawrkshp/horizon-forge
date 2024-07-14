@@ -16,14 +16,6 @@ public static class OcclusionBaker
         ComputeBuffer parsedIdsBuffer = null;
         var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
 
-        IOcclusionData.Refresh();
-        var allOcclusionDatas = IOcclusionData.AllOcclusionDatas;
-        if (allOcclusionDatas == null || allOcclusionDatas.Count == 0)
-        {
-            EditorUtility.DisplayDialog("Occlusion Builder", "No objects with occlusion to bake!", "Ok");
-            return;
-        }
-
         var bakeSettings = GameObject.FindObjectOfType<OcclusionBakeSettings>();
         if (!bakeSettings)
             bakeSettings = new OcclusionBakeSettings();
@@ -75,6 +67,15 @@ public static class OcclusionBaker
             {
                 assetGenerator.Generate();
                 assetGenerator.OnPreBake(BakeType.OCCLUSION);
+            }
+
+            // get occluders
+            IOcclusionData.Refresh();
+            var allOcclusionDatas = IOcclusionData.AllOcclusionDatas;
+            if (allOcclusionDatas == null || allOcclusionDatas.Count == 0)
+            {
+                EditorUtility.DisplayDialog("Occlusion Builder", "No objects with occlusion to bake!", "Ok");
+                return;
             }
 
             // pass pre event to OcclusionData

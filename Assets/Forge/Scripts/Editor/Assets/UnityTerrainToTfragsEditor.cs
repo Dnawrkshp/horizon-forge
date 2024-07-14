@@ -20,6 +20,14 @@ public class UnityTerrainToTfragsEditor : Editor
 
         if (target is UnityTerrainToTfrags tfragGen)
         {
+            if (tfragGen.GetComponent<Terrain>() is Terrain terrain && terrain)
+            {
+                if (terrain.terrainData.terrainLayers.Length > 4)
+                {
+                    EditorGUILayout.HelpBox("Each terrain may only have up to 4 textures. Please consider adding an additional terrain if wish to use more.", MessageType.Error);
+                }
+            }
+
             if (tfragGen.m_RenderGenerated != EditorGUILayout.Toggle("Render Generated", tfragGen.m_RenderGenerated))
             {
                 tfragGen.m_RenderGenerated = !tfragGen.m_RenderGenerated;

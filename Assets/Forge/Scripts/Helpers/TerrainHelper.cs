@@ -438,6 +438,10 @@ public static class TerrainHelper
                 mat.SetTexture("_Splat1", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 1)?.diffuseTexture);
                 mat.SetTexture("_Splat2", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 2)?.diffuseTexture);
                 mat.SetTexture("_Splat3", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 3)?.diffuseTexture);
+                mat.SetColor("_SplatEx0", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 0)?.specular ?? Color.clear);
+                mat.SetColor("_SplatEx1", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 1)?.specular ?? Color.clear);
+                mat.SetColor("_SplatEx2", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 2)?.specular ?? Color.clear);
+                mat.SetColor("_SplatEx3", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 3)?.specular ?? Color.clear);
                 mat.SetVector("_CurvatureCenter", curvatureCenter);
                 Graphics.Blit(splatmap, rt, mat);
 

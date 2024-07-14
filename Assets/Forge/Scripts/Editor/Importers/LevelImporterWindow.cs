@@ -2244,7 +2244,7 @@ public class LevelImporterWindow : EditorWindow
 
         importer.preserveHierarchy = true;
         importer.bakeAxisConversion = true;
-        importer.importNormals = ModelImporterNormals.Import;
+        importer.importNormals = ModelImporterNormals.Calculate;
         importer.addCollider = addCollider;
 
         if (labels != null)

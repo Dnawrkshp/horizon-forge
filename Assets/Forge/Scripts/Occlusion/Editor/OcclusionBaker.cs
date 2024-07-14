@@ -10,31 +10,11 @@ using UnityEngine;
 
 public static class OcclusionBaker
 {
-    [MenuItem("Forge/Tools/Occlusion/Clear Occlusion For Selected")]
-    public static void ClearOcclusion()
-    {
-        var selectedOcclusionDatas = UnityHelper.GetAllOcclusionDataInSelection();
-        if (selectedOcclusionDatas == null || selectedOcclusionDatas.Count == 0)
-        {
-            EditorUtility.DisplayDialog("Occlusion Builder", "Please select at least one object with OcclusionData!", "Ok");
-            return;
-        }
-
-        foreach (var selectedOcclusionData in selectedOcclusionDatas)
-            selectedOcclusionData.Octants = new Vector3[0];
-    }
-
-    [MenuItem("Forge/Tools/Occlusion/Bake Occlusion For Selected")]
+    [MenuItem("Forge/Tools/Occlusion/Bake Occlusion")]
     public static void BakeOcclusion()
     {
         ComputeBuffer parsedIdsBuffer = null;
-
-        var selectedOcclusionDatas = UnityHelper.GetAllOcclusionDataInSelection();
-        if (selectedOcclusionDatas == null || selectedOcclusionDatas.Count == 0)
-        {
-            EditorUtility.DisplayDialog("Occlusion Builder", "Please select at least one object with OcclusionData!", "Ok");
-            return;
-        }
+        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
 
         var bakeSettings = GameObject.FindObjectOfType<OcclusionBakeSettings>();
         if (!bakeSettings)
@@ -82,9 +62,24 @@ public static class OcclusionBaker
         Shader.EnableKeyword("_OCCLUSION");
         try
         {
-            // pass pre event to OcclusionData
+            // run generators
+            foreach (var assetGenerator in assetGenerators)
+            {
+                assetGenerator.Generate();
+                assetGenerator.OnPreBake(BakeType.OCCLUSION);
+            }
+
+            // get occluders
+            IOcclusionData.Refresh();
             var allOcclusionDatas = IOcclusionData.AllOcclusionDatas;
-            var occlusionDatas = selectedOcclusionDatas; // GameObject.FindObjectsOfType<OcclusionData>();
+            if (allOcclusionDatas == null || allOcclusionDatas.Count == 0)
+            {
+                EditorUtility.DisplayDialog("Occlusion Builder", "No objects with occlusion to bake!", "Ok");
+                return;
+            }
+
+            // pass pre event to OcclusionData
+            var occlusionDatas = allOcclusionDatas; // GameObject.FindObjectsOfType<OcclusionData>();
             var occlusionDatasWithDupeIds = occlusionDatas.Where(x => allOcclusionDatas.Count(y => y.OcclusionType == x.OcclusionType && y.OcclusionId == x.OcclusionId) > 1).ToList();
             if (occlusionDatasWithDupeIds.Count > 0)
             {
@@ -252,6 +247,10 @@ public static class OcclusionBaker
         }
         finally
         {
+            // cleanup generators
+            foreach (var assetGenerator in assetGenerators)
+                assetGenerator.OnPostBake(BakeType.OCCLUSION);
+
             Shader.DisableKeyword("_OCCLUSION");
             rtColor.Release();
             parsedIdsBuffer?.Release();

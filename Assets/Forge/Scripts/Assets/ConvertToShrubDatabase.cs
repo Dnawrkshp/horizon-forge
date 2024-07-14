@@ -630,16 +630,6 @@ public class ConvertToShrubData
 [Serializable]
 public class ConvertToShrubMaterialData
 {
-    public enum TextureSize
-    {
-        _32,
-        _64,
-        _128,
-        _256,
-        _512,
-        _1024
-    }
-
 
     [SerializeField, HideInInspector] public string Name;
     public TextureSize MaxTextureSize = TextureSize._128;

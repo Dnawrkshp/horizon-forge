@@ -45,6 +45,11 @@ Shader "Horizon Forge/SplatBlit"
         sampler2D _Splat3;
         float4 _Splat3_ST;
 
+        float4 _SplatEx0;
+        float4 _SplatEx1;
+        float4 _SplatEx2;
+        float4 _SplatEx3;
+
         v2f VertBlit(appdata v)
         {
             v2f o;
@@ -59,14 +64,40 @@ Shader "Horizon Forge/SplatBlit"
             return col * (1.0 / mag);
         }
 
+        float SampleSplatChannel(float2 uv, float4 noise, float4 ex, int channel)
+        {
+            float sharpness = 1 + (ex.r*10);
+            float noiseFactor = saturate(1-ex.g);
+            float growthFactor = ex.b * 2;
+
+            float2 center = noise.r*noiseFactor*_CurvatureCenter + 0.5;
+            float2 splatUV = ((uv - center) * ((2-growthFactor)+noise.g*noiseFactor*4)) + center;
+            float4 col = tex2D(_SplatMap, TRANSFORM_TEX(splatUV, _SplatMap));
+
+            if (col[channel] == 0) return 0;
+
+            return pow(col[channel], sharpness);
+        }
+
         half4 FragBlit(v2f i) : SV_Target
         {
             float4 noise = tex2D(_NoiseMap, TRANSFORM_TEX(i.uv, _NoiseMap));
-            float2 center = noise.r*_CurvatureCenter + 0.5;
-            float2 splatUV = ((i.uv - center) * (2+noise.g*4)) + center;
+            float4 alpha = float4(_SplatEx0.a, _SplatEx1.a, _SplatEx2.a, _SplatEx3.a);
 
-            float4 col = tex2D(_SplatMap, TRANSFORM_TEX(splatUV, _SplatMap));
-            //col = normalize_splat(pow(col, 2));
+            //float4 col = tex2D(_SplatMap, TRANSFORM_TEX(splatUV, _SplatMap));
+            float4 col = float4(
+                SampleSplatChannel(i.uv, noise, _SplatEx0, 0),
+                SampleSplatChannel(i.uv, noise, _SplatEx1, 1),
+                SampleSplatChannel(i.uv, noise, _SplatEx2, 2),
+                SampleSplatChannel(i.uv, noise, _SplatEx3, 3)
+                );
+
+            col.r *= 1 - saturate(dot(alpha.gba, col.gba));
+            col.g *= 1 - saturate(dot(alpha.rba, col.rba));
+            col.b *= 1 - saturate(dot(alpha.rga, col.rga));
+            col.a *= 1 - saturate(dot(alpha.rgb, col.rgb));
+            
+            col = normalize_splat(col);
             //return col;
 
             float4 splat = tex2D(_Splat0, TRANSFORM_TEX(i.uv, _Splat0))*col.r

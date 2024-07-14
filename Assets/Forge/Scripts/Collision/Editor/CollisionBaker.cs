@@ -190,6 +190,7 @@ public static class CollisionBaker
         var resourcesFolder = FolderNames.GetMapFolder(scene.name);
         var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
         var affectedInstancedColliders = new List<CollisionRenderHandle>();
+        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
         GameObject combinedRootGo = null;
 
         var exportSettings = new ExportSettings
@@ -211,6 +212,13 @@ public static class CollisionBaker
             EditorUtility.DisplayProgressBar("Exporting Instanced Collision", "Collecting Colliders", 0.25f);
 
             var selectedGameObjects = Selection.gameObjects;
+
+            // run generators
+            foreach (var assetGenerator in assetGenerators)
+            {
+                assetGenerator.Generate();
+                assetGenerator.OnPreBake(BakeType.COLLISION);
+            }
 
             // build instanced collision
             var instancedColliders = new List<IInstancedCollider>();
@@ -267,6 +275,10 @@ public static class CollisionBaker
         }
         finally
         {
+            // cleanup generators
+            foreach (var assetGenerator in assetGenerators)
+                assetGenerator.OnPostBake(BakeType.COLLISION);
+
             // post bake
             foreach (var instance in affectedInstancedColliders)
                 instance.OnPostBake();

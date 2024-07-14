@@ -185,6 +185,11 @@ public static class UnityHelper
         return Selection.gameObjects?.SelectMany(x => x.GetComponentsInChildren<IOcclusionData>())?.ToList();
     }
 
+    public static List<IOcclusionData> GetAllOcclusionData()
+    {
+        return GameObject.FindObjectsOfType<MonoBehaviour>().Where(x => x is IOcclusionData).Select(x => x as IOcclusionData).ToList();
+    }
+
     public static List<Vector3> GetAllOctants()
     {
         var volumes = GameObject.FindObjectsOfType<OcclusionVolume>();
@@ -396,6 +401,36 @@ public static class UnityHelper
         return hash;
     }
 
+    public static Mesh Clone(this Mesh mesh)
+    {
+        var m = new Mesh()
+        {
+            name = mesh.name,
+            vertices = mesh.vertices,
+            normals = mesh.normals,
+            tangents = mesh.tangents,
+            bounds = mesh.bounds,
+            uv = mesh.uv,
+            uv2 = mesh.uv2,
+            colors = mesh.colors,
+            colors32 = mesh.colors32,
+            indexBufferTarget = mesh.indexBufferTarget,
+            indexFormat = mesh.indexFormat,
+            subMeshCount = mesh.subMeshCount,
+            boneWeights = mesh.boneWeights,
+            bindposes = mesh.bindposes,
+        };
+
+        // copy submeshes
+        for (int i = 0; i < mesh.subMeshCount; ++i)
+        {
+            var submesh = mesh.GetSubMesh(i);
+            m.SetIndices(mesh.GetIndices(i), submesh.topology, i);
+        }
+
+        return m;
+    }
+
     public static void FlipFaces(this Mesh mesh, int subMeshIndex = -1)
     {
         for (int i = 0; i < mesh.subMeshCount; ++i)
@@ -469,4 +504,14 @@ public static class UnityHelper
             mesh.SetTriangles(triangles, i);
         }
     }
+}
+
+public enum TextureSize
+{
+    _32,
+    _64,
+    _128,
+    _256,
+    _512,
+    _1024
 }

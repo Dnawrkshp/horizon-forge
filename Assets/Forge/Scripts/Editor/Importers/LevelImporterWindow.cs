@@ -1772,17 +1772,30 @@ public class LevelImporterWindow : EditorWindow
         var tfragPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(UnityHelper.GetProjectRelativePath(outMeshFile));
         if (tfragPrefab)
         {
-            var tfragGo = (GameObject)PrefabUtility.InstantiatePrefab(tfragPrefab);
+            var tfragGo = (GameObject)GameObject.Instantiate(tfragPrefab);
             if (tfragGo)
             {
+                tfragGo.name = "tfrags";
                 tfragGo.transform.SetParent(rootGo.transform, true);
                 var tfrag = tfragGo.AddComponent<Tfrag>();
                 tfragGo.layer = LayerMask.NameToLayer("OCCLUSION_BAKE");
                 UnityHelper.RecurseHierarchy(tfragGo.transform, (t) => t.gameObject.layer = tfragGo.layer);
 
+                // clone each tfrag mesh before we delete the tfrag model
+                for (int i = 0; i < tfragGo.transform.childCount; ++i)
+                {
+                    var child = tfragGo.transform.GetChild(i);
+                    var mf = child.GetComponent<MeshFilter>();
+                    if (mf)
+                        mf.sharedMesh = mf.sharedMesh.Clone();
+                }
+
                 // populate tfrag chunks
                 ReadTfragChunks(mapBinFolder, tfrag);
             }
+
+            // destroy prefab
+            AssetDatabase.DeleteAsset(UnityHelper.GetProjectRelativePath(outMeshFile));
         }
     }
 

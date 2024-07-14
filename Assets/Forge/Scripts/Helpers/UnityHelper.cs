@@ -401,6 +401,36 @@ public static class UnityHelper
         return hash;
     }
 
+    public static Mesh Clone(this Mesh mesh)
+    {
+        var m = new Mesh()
+        {
+            name = mesh.name,
+            vertices = mesh.vertices,
+            normals = mesh.normals,
+            tangents = mesh.tangents,
+            bounds = mesh.bounds,
+            uv = mesh.uv,
+            uv2 = mesh.uv2,
+            colors = mesh.colors,
+            colors32 = mesh.colors32,
+            indexBufferTarget = mesh.indexBufferTarget,
+            indexFormat = mesh.indexFormat,
+            subMeshCount = mesh.subMeshCount,
+            boneWeights = mesh.boneWeights,
+            bindposes = mesh.bindposes,
+        };
+
+        // copy submeshes
+        for (int i = 0; i < mesh.subMeshCount; ++i)
+        {
+            var submesh = mesh.GetSubMesh(i);
+            m.SetIndices(mesh.GetIndices(i), submesh.topology, i);
+        }
+
+        return m;
+    }
+
     public static void FlipFaces(this Mesh mesh, int subMeshIndex = -1)
     {
         for (int i = 0; i < mesh.subMeshCount; ++i)

@@ -167,7 +167,7 @@ public static class ForgeBuilder
                 MapSceneName = scene.name
             };
 
-            // rerun generators
+            // run generators
             foreach (var assetGenerator in assetGenerators)
             {
                 assetGenerator.Generate();

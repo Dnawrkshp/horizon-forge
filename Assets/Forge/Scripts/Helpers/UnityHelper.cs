@@ -185,6 +185,11 @@ public static class UnityHelper
         return Selection.gameObjects?.SelectMany(x => x.GetComponentsInChildren<IOcclusionData>())?.ToList();
     }
 
+    public static List<IOcclusionData> GetAllOcclusionData()
+    {
+        return GameObject.FindObjectsOfType<MonoBehaviour>().Where(x => x is IOcclusionData).Select(x => x as IOcclusionData).ToList();
+    }
+
     public static List<Vector3> GetAllOctants()
     {
         var volumes = GameObject.FindObjectsOfType<OcclusionVolume>();

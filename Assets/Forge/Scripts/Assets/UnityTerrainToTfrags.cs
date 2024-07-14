@@ -39,6 +39,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
             var chunkPerColumn = Mathf.CeilToInt(facePerColumn / 2f);
             var textures = new List<Texture2D>();
             var materials = new List<Material>();
+            List<Vector3> allOctants = null;
             chunkCount = chunkPerRow * chunkPerColumn;
 
             // generate
@@ -49,13 +50,15 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                 MeshRenderer chunkMeshRenderer = null;
                 if (!chunk)
                 {
+                    if (allOctants == null) allOctants = UnityHelper.GetAllOctants();
+
                     var go = new GameObject(i.ToString());
                     go.transform.SetParent(this.transform, false);
-                    Hide(go);
+                    Hide(go, m_RenderGenerated);
                     chunkMeshFilter = go.AddComponent<MeshFilter>();
                     chunkMeshRenderer = go.AddComponent<MeshRenderer>();
                     chunk = go.AddComponent<TfragChunk>();
-                    chunk.Octants = UnityHelper.GetAllOctants().ToArray();
+                    chunk.Octants = allOctants.ToArray();
                 }
                 else
                 {
@@ -144,6 +147,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                 chunk.gameObject.name = i.ToString();
                 chunk.HeaderBytes = headerBytes;
                 chunk.DataBytes = dataBytes;
+                chunk.gameObject.layer = LayerMask.NameToLayer("OCCLUSION_BAKE");
                 chunkMeshFilter.sharedMesh = newMesh;
                 chunkMeshRenderer.sharedMaterials = texs.Select(x => materials[x]).ToArray();
             }
@@ -165,16 +169,19 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
     private void TestGen()
     {
         var chunks = HierarchicalSorting.Sort(this.GetComponentsInChildren<TfragChunk>());
+        List<Vector3> allOctants = null;
 
         for (int i = 0; i < 1; ++i)
         {
             var chunk = chunks.ElementAtOrDefault(i);
             if (!chunk)
             {
+                if (allOctants == null) allOctants = UnityHelper.GetAllOctants();
+
                 var go = new GameObject(i.ToString());
                 go.transform.SetParent(this.transform, false);
                 chunk = go.AddComponent<TfragChunk>();
-                chunk.Octants = UnityHelper.GetAllOctants().ToArray();
+                chunk.Octants = allOctants.ToArray();
             }
 
             var verts = new Vector3[]
@@ -277,7 +284,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
 
     private TfragChunk[] GetChunkInstances()
     {
-        return HierarchicalSorting.Sort(this.GetComponentsInChildren<TfragChunk>(true).Where(x => x.gameObject.hideFlags.HasFlag(HideFlags.HideInHierarchy)).ToArray());
+        return HierarchicalSorting.Sort(this.GetComponentsInChildren<TfragChunk>(true));
     }
 
     public void SetVisible(bool visible)
@@ -287,7 +294,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
         {
             foreach (var chunk in chunks)
             {
-                if (chunk) chunk.gameObject.SetActive(visible);
+                if (chunk) Hide(chunk.gameObject, visible);
             }
         }
 
@@ -295,9 +302,9 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
         if (m_Terrain) m_Terrain.enabled = !visible;
     }
 
-    private void Hide(GameObject go)
+    private void Hide(GameObject go, bool visible)
     {
-        go.hideFlags = HideFlags.HideInHierarchy;
-        go.SetActive(m_RenderGenerated);
+        go.hideFlags = (visible ? HideFlags.None : HideFlags.HideInHierarchy);
+        go.SetActive(visible);
     }
 }

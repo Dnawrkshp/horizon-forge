@@ -40,15 +40,19 @@ public static class TerrainHelper
             if (layer.diffuseTexture)
                 hash.Append(layer.diffuseTexture.imageContentsHash.ToString());
 
+        hash.Append(terrainData.size.x);
+        hash.Append(terrainData.size.y);
+        hash.Append(terrainData.size.z);
+
         return hash;
     }
 
 
-    public static Mesh GetCollider(this TerrainCollider terrainCollider, float faceSize = 4f)
+    public static Mesh GetCollider(this TerrainCollider terrainCollider, float faceSize = 4f, bool force = false)
     {
         var hash = terrainCollider.terrainData.ComputeHash();
         hash.Append(faceSize);
-        if (_terrainColliderMeshCache.TryGetValue(hash, out var mesh))
+        if (!force && _terrainColliderMeshCache.TryGetValue(hash, out var mesh))
             return mesh;
 
         var terrainData = terrainCollider.terrainData;

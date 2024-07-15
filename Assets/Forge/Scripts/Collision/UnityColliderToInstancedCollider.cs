@@ -17,6 +17,8 @@ public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IIn
     [Range(4f, 8f), Delayed] public float m_TfragSize = 4f;
     public bool m_Render = true;
 
+    [SerializeField, HideInInspector] private bool m_ForceRegenerateMesh = false;
+
     public GameObject GameObject => this ? this.gameObject : null;
     public bool IsHidden => collisionRenderHandle?.IsHidden ?? false;
     public CollisionRenderHandle GetInstancedCollider() => collisionRenderHandle;
@@ -59,6 +61,12 @@ public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IIn
         collisionRenderHandle?.UpdateMaterials();
     }
 
+    public void ForceRegenerateCollider()
+    {
+        m_ForceRegenerateMesh = true;
+        UpdateAsset();
+    }
+
     public void UpdateAsset()
     {
         // configure collider
@@ -80,9 +88,12 @@ public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IIn
 
     private Mesh GetMesh()
     {
+        var force = m_ForceRegenerateMesh;
+        m_ForceRegenerateMesh = false;
+
         if (!m_Collider) return null;
         if (m_Collider is MeshCollider meshCollider) return meshCollider.sharedMesh;
-        if (m_Collider is TerrainCollider terrainCollider) return TerrainHelper.GetCollider(terrainCollider, faceSize: m_TfragSize);
+        if (m_Collider is TerrainCollider terrainCollider) return TerrainHelper.GetCollider(terrainCollider, faceSize: m_TfragSize, force: force);
         if (m_Collider is BoxCollider boxCollider) return GenerateFromBoxCollider(boxCollider);
         if (m_Collider is SphereCollider sphereCollider) return GenerateFromSphereCollider(sphereCollider);
 

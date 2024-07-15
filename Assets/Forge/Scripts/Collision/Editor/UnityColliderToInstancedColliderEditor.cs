@@ -67,7 +67,7 @@ public class UnityColliderToInstancedColliderEditor : Editor
         {
             foreach (var target in targets)
                 if (target is UnityColliderToInstancedCollider collider)
-                    collider.UpdateAsset();
+                    collider.ForceRegenerateCollider();
         }
     }
 }

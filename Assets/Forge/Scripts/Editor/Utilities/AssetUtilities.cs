@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -42,6 +43,117 @@ public static class AssetUtilities
             var mat = new Material(shader);
             mat.SetTexture("_MainTex", texture);
             AssetDatabase.CreateAsset(mat, matAssetPath);
+        }
+    }
+
+    [MenuItem("Forge/Utilities/Fix Texture Clamping for Selected Objects")]
+    public static void FixTextureClampSelectedObjects()
+    {
+        Dictionary<Texture2D, List<(Mesh, int) >> texMeshes = new Dictionary<Texture2D, List<(Mesh, int)>>();
+        List<(Texture2D, bool, bool) > clampedTextures = new List<(Texture2D, bool, bool)>();
+
+        // collect
+        foreach (var go in Selection.gameObjects)
+        {
+            var meshRenderers = go.GetComponentsInChildren<MeshRenderer>();
+
+            foreach (var mr in meshRenderers)
+            {
+                var mf = mr.GetComponent<MeshFilter>();
+                if (mf)
+                {
+                    for (int m = 0; m < mr.sharedMaterials.Length; ++m)
+                    {
+                        var mat = mr.sharedMaterials[m];
+                        if (!mat || mat.shader.name != "Horizon Forge/Universal") continue;
+
+                        var tex = mat.mainTexture as Texture2D;
+                        if (tex && tex.wrapMode != TextureWrapMode.Clamp)
+                        {
+                            if (!texMeshes.TryGetValue(tex, out var list))
+                                texMeshes[tex] = list = new List<(Mesh, int)>();
+
+                            var pair = (mf.sharedMesh, m % mf.sharedMesh.subMeshCount);
+                            if (!list.Any(x => x.Item1 == pair.Item1 && x.Item2 == pair.Item2))
+                                list.Add(pair);
+                        }
+                    }
+                }
+            }
+        }
+
+        // check
+        foreach (var item in texMeshes)
+        {
+            var tex = item.Key;
+            var meshes = item.Value;
+            var clampX = true;
+            var clampY = true;
+
+            foreach (var meshSubmesh in meshes)
+            {
+                var mesh = meshSubmesh.Item1;
+                var idx = meshSubmesh.Item2;
+
+                var submesh = mesh.GetSubMesh(idx);
+                var indices = mesh.GetIndices(idx);
+
+                for (int i = 0; i < indices.Length; ++i)
+                {
+                    var vIdx = submesh.baseVertex + indices[i];
+                    var uv = mesh.uv[vIdx];
+
+                    if (uv.x < 0 || uv.x > 1)
+                        clampX = false;
+                    if (uv.y < 0 || uv.y > 1)
+                        clampY = false;
+
+                    if (clampX && clampY) break;
+                }
+            }
+
+            if (clampX || clampY)
+            {
+                Debug.Log($"CLAMP X:{clampX} Y:{clampY} {tex.name}");
+                clampedTextures.Add((tex, clampX, clampY));
+            }
+        }
+
+        if (clampedTextures.Any())
+        {
+            Undo.RecordObjects(clampedTextures.Select(x => x.Item1).ToArray(), "Clamp Textures");
+            foreach (var texClamp in clampedTextures)
+            {
+                var tex = texClamp.Item1;
+                var clampX = texClamp.Item2;
+                var clampY = texClamp.Item3;
+
+                if (clampX && clampY)
+                    tex.wrapMode = TextureWrapMode.Clamp;
+                else if (clampX)
+                    tex.wrapModeU = TextureWrapMode.Clamp;
+                else if (clampY)
+                    tex.wrapModeV = TextureWrapMode.Clamp;
+
+                EditorUtility.SetDirty(tex);
+
+                var assetPath = AssetDatabase.GetAssetPath(tex);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    var assetImporter = AssetImporter.GetAtPath(assetPath);
+                    if (assetImporter is TextureImporter textureImporter)
+                    {
+                        if (clampX && clampY)
+                            textureImporter.wrapMode = TextureWrapMode.Clamp;
+                        else if (clampX)
+                            textureImporter.wrapModeU = TextureWrapMode.Clamp;
+                        else if (clampY)
+                            textureImporter.wrapModeV = TextureWrapMode.Clamp;
+
+                    }
+                }
+            }
+            Undo.FlushUndoRecordObjects();
         }
     }
 

@@ -53,6 +53,7 @@ Shader "Horizon Forge/Universal"
             #pragma multi_compile_fog
             #pragma shader_feature _OCCLUSION
             #pragma shader_feature _MAPRENDER
+            #pragma shader_feature _MAPRENDER_SCENEVIEW
             #pragma shader_feature _DEPTH
             #pragma shader_feature _PICKING
 
@@ -93,7 +94,6 @@ Shader "Horizon Forge/Universal"
             float4 _Color;
             float _AlphaClip;
             float4 _IdColor;
-            float4 _LayerColor;
             float _Rim;
             float _Shading;
             float _Fog;
@@ -106,6 +106,15 @@ Shader "Horizon Forge/Universal"
                 0,0,0,1
                 );
                 
+            // MAPRENDER
+            float4 _LayerColor;
+            int _MapRenderDepth;
+            float4 _MapRenderDepthRange;
+            float4 _MapRenderDepthNearColor;
+            float4 _MapRenderDepthFarColor;
+            int _MapRenderDepthQuantizeCount;
+            float2 _MapRenderCameraZRange;
+
             float3 _WorldLightRays[32];
             float3 _WorldLightColors[32];
             float4 _FORGE_SELECTION_COLOR;
@@ -156,9 +165,36 @@ Shader "Horizon Forge/Universal"
                 _IdColor.a = 1;
                 return _IdColor;
 #elif _MAPRENDER
+    
                 float4 col = tex2D(_MainTex, i.uv) * _LayerColor;
                 clip(col.a - _AlphaClip);
                 if (_RenderIgnore) clip(-1);
+                
+                if (_MapRenderDepth) {
+                    float depthLowToHigh = saturate(i.pos.z / i.pos.w);
+                    float clamped = clamp(depthLowToHigh, _MapRenderDepthRange.x, _MapRenderDepthRange.y);
+                    float d = clamped / (_MapRenderDepthRange.y - _MapRenderDepthRange.z); // (depthLowToHigh * (_MapRenderDepthRange.y - _MapRenderDepthRange.x)) + _MapRenderDepthRange.x;
+                    d = pow(d, _MapRenderDepthRange.w);
+                    float q = (int)(d * (_MapRenderDepthQuantizeCount)) / (float)(_MapRenderDepthQuantizeCount-1);
+                    return lerp(_MapRenderDepthNearColor, _MapRenderDepthFarColor, 1-saturate(q));
+                }
+
+                return _LayerColor;
+#elif _MAPRENDER_SCENEVIEW
+    
+                float4 col = tex2D(_MainTex, i.uv) * _LayerColor;
+                clip(col.a - _AlphaClip);
+                if (_RenderIgnore) clip(-1);
+                
+                if (_MapRenderDepth) {
+                    float depthLowToHigh = 1-saturate((_MapRenderCameraZRange.y - i.wpos.y) / (_MapRenderCameraZRange.y - _MapRenderCameraZRange.x)); // saturate(i.pos.z / i.pos.w);
+                    float clamped = clamp(depthLowToHigh, _MapRenderDepthRange.x, _MapRenderDepthRange.y);
+                    float d = clamped / (_MapRenderDepthRange.y - _MapRenderDepthRange.z); // (depthLowToHigh * (_MapRenderDepthRange.y - _MapRenderDepthRange.x)) + _MapRenderDepthRange.x;
+                    d = pow(d, _MapRenderDepthRange.w);
+                    float q = (int)(d * (_MapRenderDepthQuantizeCount)) / (float)(_MapRenderDepthQuantizeCount-1);
+                    return lerp(_MapRenderDepthNearColor, _MapRenderDepthFarColor, 1-saturate(q));
+                }
+
                 return _LayerColor;
 #else
 

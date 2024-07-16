@@ -58,6 +58,19 @@ public static class AssetUtilities
         }
     }
 
+    [MenuItem("Forge/Utilities/Align Selected With Ground")]
+    public static void AlignWithGround()
+    {
+        Undo.RecordObjects(Selection.transforms, "Align With Ground");
+        foreach (var go in Selection.gameObjects)
+        {
+            if (Physics.Raycast(go.transform.position + Vector3.up, Vector3.down, out var hitInfo, 1000, -1))
+            {
+                go.transform.rotation = Quaternion.LookRotation(Vector3.Cross(go.transform.right, hitInfo.normal), hitInfo.normal);
+            }
+        }
+    }
+
     [MenuItem("Forge/Utilities/Screenshot")]
     public static void Screenshot()
     {

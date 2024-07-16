@@ -296,7 +296,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
 
     public override void OnPreBake(BakeType type)
     {
-        if (type != BakeType.OCCLUSION && type != BakeType.BUILD) return;
+        if (type != BakeType.OCCLUSION && type != BakeType.BUILD && type != BakeType.MAPRENDER) return;
 
         // render tfrags
         SetVisible(true);
@@ -304,7 +304,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
 
     public override void OnPostBake(BakeType type)
     {
-        if (type != BakeType.OCCLUSION && type != BakeType.BUILD) return;
+        if (type != BakeType.OCCLUSION && type != BakeType.BUILD && type != BakeType.MAPRENDER) return;
 
         // return to normal render mode
         SetVisible(m_RenderGenerated);

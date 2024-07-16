@@ -205,7 +205,7 @@ public static class TerrainHelper
                 if (x > 0 && y > 0)
                 {
                     var tIdx = ((y - 1) * facePerRow + (x - 1)) * 2;
-                    textures[tIdx + 0] = textures[tIdx + 1] = texDb.GetTexture(splatClassifications, QUANTIZATION_RESOLUTION * vertexPerRow, x, y, textureSize);
+                    textures[tIdx + 0] = textures[tIdx + 1] = texDb.GetTexture(splatClassifications, QUANTIZATION_RESOLUTION * vertexPerRow, x, y, textureSize, true);
                 }
             }
         }
@@ -255,7 +255,7 @@ public static class TerrainHelper
         meshRenderer.sharedMaterials = materials.ToArray();
     }
 
-    public static void ToMesh(this Terrain terrain, out Vector3[] vertices, out Vector3[] normals, out Vector2[] uvs, out int[] triangles, out Texture2D[] textures, float faceSize = 4f, float splatRamp = 1f, TextureSize textureSize = TextureSize._64)
+    public static void ToMesh(this Terrain terrain, out Vector3[] vertices, out Vector3[] normals, out Vector2[] uvs, out int[] triangles, out Texture2D[] textures, float faceSize = 4f, float splatRamp = 1f, bool splatReduce = true, TextureSize textureSize = TextureSize._64)
     {
         var uvCenter = Vector2.one * 0.5f;
 
@@ -346,7 +346,7 @@ public static class TerrainHelper
                 if (x > 0 && y > 0)
                 {
                     var tIdx = ((y - 1) * facePerRow + (x - 1)) * 2;
-                    textures[tIdx + 0] = textures[tIdx + 1] = texDb.GetTexture(splatClassifications, QUANTIZATION_RESOLUTION * vertexPerRow, x, y, textureSize);
+                    textures[tIdx + 0] = textures[tIdx + 1] = texDb.GetTexture(splatClassifications, QUANTIZATION_RESOLUTION * vertexPerRow, x, y, textureSize, splatReduce);
                 }
             }
         }
@@ -374,7 +374,7 @@ public static class TerrainHelper
             Texture2D tex = null;
             for (int i = 0; i < _terrain.terrainData.alphamapTextureCount; ++i)
             {
-                tex = SampleSplatmap(_terrain.terrainData, i, face, 64, 64);
+                tex = SampleSplatmap(_terrain.terrainData, i, face, 64, 64, true);
             }
 
             // default to default tex
@@ -384,7 +384,7 @@ public static class TerrainHelper
             return tex;
         }
 
-        public Texture2D GetTexture(int[] classifications, int stride, int x, int y, TextureSize textureSize)
+        public Texture2D GetTexture(int[] classifications, int stride, int x, int y, TextureSize textureSize, bool reduce)
         {
             var texSize = (int)Mathf.Pow(2, 5 + (int)textureSize);
 
@@ -399,8 +399,8 @@ public static class TerrainHelper
             Texture2D tex = null;
             for (int i = 0; i < _terrain.terrainData.alphamapTextureCount; ++i)
             {
-                var classification = GetClassificationBlock(classifications, stride, x, y);
-                tex = SampleSplatmap(_terrain.terrainData, i, classification, texSize, texSize);
+                var classification = GetClassificationBlock(classifications, stride, x, y, reduce);
+                tex = SampleSplatmap(_terrain.terrainData, i, classification, texSize, texSize, reduce);
             }
 
             // default to default tex
@@ -410,13 +410,13 @@ public static class TerrainHelper
             return tex;
         }
 
-        private Texture2D SampleSplatmap(TerrainData terrainData, int splatmapIdx, Rect face, int width, int height)
+        private Texture2D SampleSplatmap(TerrainData terrainData, int splatmapIdx, Rect face, int width, int height, bool reduce)
         {
             var classification = Classify(terrainData, face, splatmapIdx);
-            return SampleSplatmap(terrainData, splatmapIdx, classification, width, height);
+            return SampleSplatmap(terrainData, splatmapIdx, classification, width, height, reduce);
         }
 
-        private Texture2D SampleSplatmap(TerrainData terrainData, int splatmapIdx, int[] classification, int width, int height)
+        private Texture2D SampleSplatmap(TerrainData terrainData, int splatmapIdx, int[] classification, int width, int height, bool reduce)
         {
             var shader = Shader.Find("Horizon Forge/SplatBlit");
             if (DEBUG_RENDER_SPLAT_POINT_FILTER)
@@ -447,6 +447,7 @@ public static class TerrainHelper
                 mat.SetColor("_SplatEx2", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 2)?.specular ?? Color.clear);
                 mat.SetColor("_SplatEx3", terrainData.terrainLayers.ElementAtOrDefault(splatmapIdx * 4 + 3)?.specular ?? Color.clear);
                 mat.SetVector("_CurvatureCenter", curvatureCenter);
+                mat.SetFloat("_SplatReduce", reduce ? 1 : 0);
                 Graphics.Blit(splatmap, rt, mat);
 
                 var oldRt = RenderTexture.active;
@@ -560,7 +561,7 @@ public static class TerrainHelper
             return classification;
         }
 
-        private int[] GetClassificationBlock(int[] classifications, int stride, int x, int y)
+        private int[] GetClassificationBlock(int[] classifications, int stride, int x, int y, bool reduce)
         {
             int[] classification = new int[QUANTIZATION_RESOLUTION_WITH_BUFFER * QUANTIZATION_RESOLUTION_WITH_BUFFER];
             var resMax = QUANTIZATION_RESOLUTION_WITH_BUFFER - 1;
@@ -583,7 +584,7 @@ public static class TerrainHelper
             }
 
             // ordered filter reduction pass
-            if (!classification.All(x => x == classification[0]))
+            if (reduce && !classification.All(x => x == classification[0]))
             {
                 for (int i = 0; i < classification.Length; ++i)
                 {

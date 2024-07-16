@@ -20,6 +20,13 @@ public class ForgeSceneOverlay : Overlay
             root.Add(renderInstancedCollidersToggle);
         }
 
+        {
+            var renderMapRenderLayersToggle = new Toggle("Render Map Render Layers");
+            renderMapRenderLayersToggle.RegisterValueChangedCallback<bool>(e => { UpdateForceRenderAllMapRenderLayers(e.newValue); });
+            renderMapRenderLayersToggle.SetValueWithoutNotify(MapRenderLayer.ForceRender);
+            root.Add(renderMapRenderLayersToggle);
+        }
+
         return root;
     }
 
@@ -32,5 +39,29 @@ public class ForgeSceneOverlay : Overlay
         {
             handle.UpdateMaterials();
         }
-}
+    }
+
+    private void UpdateForceRenderAllMapRenderLayers(bool force)
+    {
+        MapRenderLayer.ForceRender = force;
+
+        if (force)
+            Shader.EnableKeyword("_MAPRENDER_SCENEVIEW");
+        else
+            Shader.DisableKeyword("_MAPRENDER_SCENEVIEW");
+
+        var mapRender = GameObject.FindObjectOfType<MapRender>();
+        if (mapRender) mapRender.UpdateCamera();
+
+        var handles = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<MapRenderLayer>(includeInactive: false));
+        foreach (var handle in handles)
+        {
+            if (force)
+                handle.OnPreMapRender();
+            else
+                handle.OnPostMapRender();
+        }
+    }
+
+
 }

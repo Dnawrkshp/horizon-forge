@@ -54,7 +54,7 @@ public static class AssetGizmosDrawer
                 if (!_meshFlipCache.TryGetValue(meshFilter.sharedMesh, out var flippedMesh) || !flippedMesh)
                     _meshFlipCache[meshFilter.sharedMesh] = flippedMesh = DupeFlipMesh(meshFilter.sharedMesh);
 
-                if (flippedMesh)
+                if (flippedMesh && flippedMesh.vertexCount > 0 && flippedMesh.normals.Length > 0)
                     Gizmos.DrawMesh(flippedMesh, Vector3.zero, Quaternion.identity, Vector3.one * 1f);
             }
         }

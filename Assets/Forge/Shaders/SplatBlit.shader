@@ -50,6 +50,8 @@ Shader "Horizon Forge/SplatBlit"
         float4 _SplatEx2;
         float4 _SplatEx3;
 
+        float _SplatReduce;
+
         v2f VertBlit(appdata v)
         {
             v2f o;
@@ -69,9 +71,10 @@ Shader "Horizon Forge/SplatBlit"
             float sharpness = 1 + (ex.r*10);
             float noiseFactor = saturate(1-ex.g);
             float growthFactor = ex.b * 2;
+            float growth = lerp(1, ((2 - growthFactor) + noise.g*noiseFactor*4), _SplatReduce);
 
             float2 center = noise.r*noiseFactor*_CurvatureCenter + 0.5;
-            float2 splatUV = ((uv - center) * ((2-growthFactor)+noise.g*noiseFactor*4)) + center;
+            float2 splatUV = (uv - center) * growth + center;
             float4 col = tex2D(_SplatMap, TRANSFORM_TEX(splatUV, _SplatMap));
 
             if (col[channel] == 0) return 0;

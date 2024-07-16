@@ -114,6 +114,7 @@ Shader "Horizon Forge/Universal"
             float4 _MapRenderDepthFarColor;
             int _MapRenderDepthQuantizeCount;
             float2 _MapRenderCameraZRange;
+            float2 _MapRenderClip;
 
             float3 _WorldLightRays[32];
             float3 _WorldLightColors[32];
@@ -170,10 +171,12 @@ Shader "Horizon Forge/Universal"
                 clip(col.a - _AlphaClip);
                 if (_RenderIgnore) clip(-1);
                 
+                float depth = saturate(i.pos.z / i.pos.w);
+                if (depth < _MapRenderClip.x || depth > _MapRenderClip.y) clip(-1);
+                
                 if (_MapRenderDepth) {
-                    float depthLowToHigh = saturate(i.pos.z / i.pos.w);
-                    float clamped = clamp(depthLowToHigh, _MapRenderDepthRange.x, _MapRenderDepthRange.y);
-                    float d = clamped / (_MapRenderDepthRange.y - _MapRenderDepthRange.z); // (depthLowToHigh * (_MapRenderDepthRange.y - _MapRenderDepthRange.x)) + _MapRenderDepthRange.x;
+                    float clamped = clamp(depth, _MapRenderDepthRange.x, _MapRenderDepthRange.y);
+                    float d = clamped / (_MapRenderDepthRange.y - _MapRenderDepthRange.z);
                     d = pow(d, _MapRenderDepthRange.w);
                     float q = (int)(d * (_MapRenderDepthQuantizeCount)) / (float)(_MapRenderDepthQuantizeCount-1);
                     return lerp(_MapRenderDepthNearColor, _MapRenderDepthFarColor, 1-saturate(q));
@@ -186,10 +189,12 @@ Shader "Horizon Forge/Universal"
                 clip(col.a - _AlphaClip);
                 if (_RenderIgnore) clip(-1);
                 
+                float depth = 1-saturate((_MapRenderCameraZRange.y - i.wpos.y) / (_MapRenderCameraZRange.y - _MapRenderCameraZRange.x));
+                if (depth < _MapRenderClip.x || depth > _MapRenderClip.y) clip(-1);
+
                 if (_MapRenderDepth) {
-                    float depthLowToHigh = 1-saturate((_MapRenderCameraZRange.y - i.wpos.y) / (_MapRenderCameraZRange.y - _MapRenderCameraZRange.x)); // saturate(i.pos.z / i.pos.w);
-                    float clamped = clamp(depthLowToHigh, _MapRenderDepthRange.x, _MapRenderDepthRange.y);
-                    float d = clamped / (_MapRenderDepthRange.y - _MapRenderDepthRange.z); // (depthLowToHigh * (_MapRenderDepthRange.y - _MapRenderDepthRange.x)) + _MapRenderDepthRange.x;
+                    float clamped = clamp(depth, _MapRenderDepthRange.x, _MapRenderDepthRange.y);
+                    float d = clamped / (_MapRenderDepthRange.y - _MapRenderDepthRange.z);
                     d = pow(d, _MapRenderDepthRange.w);
                     float q = (int)(d * (_MapRenderDepthQuantizeCount)) / (float)(_MapRenderDepthQuantizeCount-1);
                     return lerp(_MapRenderDepthNearColor, _MapRenderDepthFarColor, 1-saturate(q));

@@ -135,4 +135,13 @@ public static class MathHelper
     {
         return Mathf.Max(v.x, v.y, v.z, v.w);
     }
+
+    public static Vector3 Quantize(this Vector3 v, int quantizeCount)
+    {
+        // fail
+        if (quantizeCount < 1) throw new System.ArgumentException();
+
+        var finc = (float)quantizeCount;
+        return new Vector3(Mathf.Round(v.x * finc) / finc, Mathf.Round(v.y * finc) / finc, Mathf.Round(v.z * finc) / finc);
+    }
 }

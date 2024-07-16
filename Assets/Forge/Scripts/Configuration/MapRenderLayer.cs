@@ -19,6 +19,10 @@ public class MapRenderLayer : MonoBehaviour
     public Color DepthHighColor = Color.white;
     [Min(2)] public int DepthQuantizeCount = 100;
 
+    [Header("Clip")]
+    [Range(0f, 1f)] public float ClipLow = 0f;
+    [Range(0f, 1f)] public float ClipHigh = 1f;
+
     private void OnValidate()
     {
         if (ForceRender)
@@ -44,6 +48,7 @@ public class MapRenderLayer : MonoBehaviour
             mpb.SetColor("_MapRenderDepthFarColor", DepthLowColor);
             mpb.SetVector("_MapRenderDepthRange", new Vector4(DepthLowClamp, DepthHighClamp, DepthMidpoint, DepthRamp));
             mpb.SetInteger("_MapRenderDepthQuantizeCount", DepthQuantizeCount);
+            mpb.SetVector("_MapRenderClip", new Vector2(ClipLow, ClipHigh));
             mpb.SetFloat("_Outline", 1f);
             mpb.SetColor("_OutlineColor", Color.red);
             renderer.SetPropertyBlock(mpb);

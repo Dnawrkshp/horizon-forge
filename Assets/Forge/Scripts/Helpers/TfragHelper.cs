@@ -450,17 +450,18 @@ public static class TfragHelper
             // compute bounds
             var bounds = new Bounds(bCenter, Vector3.one / 8f);
             foreach (var vertex in orderedVertices) bounds.Encapsulate(vertex.position);
+            var center = bounds.center.Quantize(1024);
 
             // update cube
             for (int i = 0; i < 8; ++i)
             {
                 dataMs.Position = header.cube_ofs + (i * 8);
-                WriteVector3_16(dataWriter, bounds.center + Vector3.Scale(bounds.size, CUBE_AXES[i]));
+                WriteVector3_16(dataWriter, center + Vector3.Scale(bounds.size, CUBE_AXES[i]));
             }
 
             // write position
             dataMs.Position = header.light_ofs;
-            WriteVector3_32(dataWriter, bounds.center);
+            WriteVector3_32(dataWriter, center);
 
             // set colors to default
             dataMs.Position = header.rgba_ofs;
@@ -491,13 +492,13 @@ public static class TfragHelper
             foreach (var lodOfs in lodPosOffsets)
             {
                 dataMs.Position = lodOfs;
-                WriteVector3_32(dataWriter, bounds.center);
+                WriteVector3_32(dataWriter, center);
             }
 
             // update displacements
             dataMs.Position = header.light_vert_start_off;
             for (int i = 0; i < baseVertices.Count; ++i)
-                WriteVector3_16_1024(dataWriter, baseVertices[i] - bounds.center);
+                WriteVector3_16_1024(dataWriter, baseVertices[i] - center);
 
             // update normals
             for (int i = 0; i < baseNormals.Count; ++i)

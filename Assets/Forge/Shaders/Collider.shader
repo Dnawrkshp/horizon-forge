@@ -211,6 +211,14 @@ Shader "Horizon Forge/Collider"
                 return 0;
 #endif
 
+                // highlight red when outside bounds of map (0,1023)
+                if (max(max(i.worldSpacePosition.x, i.worldSpacePosition.y), i.worldSpacePosition.z) > 1023) {
+                    return fixed4(1,0,0,1);
+                }
+                if (min(min(i.worldSpacePosition.x, i.worldSpacePosition.y), i.worldSpacePosition.z) < 0) {
+                    return fixed4(1,0,0,1);
+                }
+
 				float _WireSmoothness = 1;
 				float4 _WireColor = 1;
 				float minDistanceToEdge = min(i.dist[0], min(i.dist[1], i.dist[2])) * i.dist[3];

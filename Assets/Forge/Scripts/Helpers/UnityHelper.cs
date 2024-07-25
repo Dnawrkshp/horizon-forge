@@ -206,6 +206,24 @@ public static class UnityHelper
         Handles.DrawBezier(from, to, from, to, color, null, thickness);
     }
 
+    public static Texture2D GetMainTexture(this Material mat)
+    {
+        var tex = mat.mainTexture;
+        if (tex) return tex as Texture2D;
+
+        string[] texPropertyNames = { "_BaseMap", "_MainTex", "baseColorTexture" };
+        foreach (var texPropertyName in texPropertyNames)
+        {
+            if (mat.HasProperty(texPropertyName))
+            {
+                tex = mat.GetTexture(texPropertyName);
+                if (tex) return tex as Texture2D;
+            }
+        }
+
+        return null;
+    }
+
     public static void SaveRenderTexture(RenderTexture rt, string path)
     {
         Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);

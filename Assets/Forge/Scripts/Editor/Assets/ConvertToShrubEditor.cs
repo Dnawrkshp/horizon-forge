@@ -42,7 +42,7 @@ public class ConvertToShrubEditor : Editor
                     if (elem != null)
                     {
                         var parentProperty = elem.FindPropertyRelative("Parent");
-                        if (parentProperty != null && parentProperty.objectReferenceValue == parentGo)
+                        if (parentProperty != null && parentProperty.objectReferenceValue && (parentProperty.objectReferenceValue == parentGo || PrefabUtility.GetOriginalSourceRootWhereGameObjectIsAdded(parentProperty.objectReferenceValue as GameObject) == parentGo))
                         {
                             m_ShrubsProperty.serializedObject.Update();
                             var materialsProperty = elem.FindPropertyRelative("Materials");

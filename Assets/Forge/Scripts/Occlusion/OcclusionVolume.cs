@@ -205,7 +205,7 @@ public class OcclusionVolume : MonoBehaviour
 
         foreach (var dir in dirs)
         {
-            if (Physics.Raycast(p, dir, out var hitInfo, dist.Value))
+            if (Physics.Raycast(p - (dir * 2f), dir, out var hitInfo, dist.Value + (dir.magnitude * 2f)))
             {
                 if (Vector3.Dot(hitInfo.normal, dir) < 0)
                 {

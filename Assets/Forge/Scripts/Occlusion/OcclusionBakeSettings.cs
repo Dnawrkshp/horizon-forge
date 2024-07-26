@@ -17,7 +17,7 @@ public class OcclusionBakeSettings : MonoBehaviour
         _4096
     }
 
-    public OcclusionBakeResolution Resolution = OcclusionBakeResolution._256;
+    //public OcclusionBakeResolution Resolution = OcclusionBakeResolution._256;
     public float RenderDistance = 1000f;
     public LayerMask CullingMask = -1;
     [Range(0f, 179f), Tooltip("Default is 90. Increasing will increase the number of objects included in each octant.")] public float RenderFov = 90f;

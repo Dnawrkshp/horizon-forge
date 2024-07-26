@@ -52,7 +52,7 @@ public static class TerrainHelper
     {
         var hash = terrainCollider.terrainData.ComputeHash();
         hash.Append(faceSize);
-        if (!force && _terrainColliderMeshCache.TryGetValue(hash, out var mesh))
+        if (!force && _terrainColliderMeshCache.TryGetValue(hash, out var mesh) && mesh)
             return mesh;
 
         var terrainData = terrainCollider.terrainData;

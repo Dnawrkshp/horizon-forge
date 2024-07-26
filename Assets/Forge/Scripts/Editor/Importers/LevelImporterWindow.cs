@@ -1264,7 +1264,7 @@ public class LevelImporterWindow : EditorWindow
         var worldInstanceTiesFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceTieFolder);
         var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
         var tieWorldInstanceDirs = Directory.EnumerateDirectories(worldInstanceTiesFolder).OrderBy(x => int.Parse(Path.GetFileName(x).Split('_')[0])).ToList();
-        var tieOcclusion = File.ReadAllBytes(Path.Combine(worldInstanceOcclusionFolder, "tie.bin"));
+        var tieOcclusionFile = Path.Combine(worldInstanceOcclusionFolder, "tie.bin");
 
         var tieRootGo = new GameObject("Ties");
         tieRootGo.transform.SetParent(rootGo.transform, true);
@@ -1291,17 +1291,21 @@ public class LevelImporterWindow : EditorWindow
         }
 
         // read occlusion
-        using (var ms = new MemoryStream(tieOcclusion))
+        if (File.Exists(tieOcclusionFile))
         {
-            using (var occlusionReader = new BinaryReader(ms))
+            var tieOcclusion = File.ReadAllBytes(tieOcclusionFile);
+            using (var ms = new MemoryStream(tieOcclusion))
             {
-                while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                using (var occlusionReader = new BinaryReader(ms))
                 {
-                    var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
-                    if (instancesByOcclId.TryGetValue(occlusionId, out var tie))
-                        tie.Octants = octants;
-                    else
-                        Debug.LogWarning($"Occlusion block with no matching tie!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                    {
+                        var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
+                        if (instancesByOcclId.TryGetValue(occlusionId, out var tie))
+                            tie.Octants = octants;
+                        else
+                            Debug.LogWarning($"Occlusion block with no matching tie!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    }
                 }
             }
         }
@@ -1817,7 +1821,7 @@ public class LevelImporterWindow : EditorWindow
     {
         var terrainBinFile = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainBinFile);
         var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
-        var tfragOcclusion = File.ReadAllBytes(Path.Combine(worldInstanceOcclusionFolder, "tfrag.bin"));
+        var tfragOcclusionFile = Path.Combine(worldInstanceOcclusionFolder, "tfrag.bin");
 
         if (!File.Exists(terrainBinFile))
             return;
@@ -1875,17 +1879,21 @@ public class LevelImporterWindow : EditorWindow
         }
 
         // read occlusion
-        using (var ms = new MemoryStream(tfragOcclusion))
+        if (File.Exists(tfragOcclusionFile))
         {
-            using (var occlusionReader = new BinaryReader(ms))
+            var tfragOcclusion = File.ReadAllBytes(tfragOcclusionFile);
+            using (var ms = new MemoryStream(tfragOcclusion))
             {
-                while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                using (var occlusionReader = new BinaryReader(ms))
                 {
-                    var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
-                    if (instancesById.TryGetValue(instanceIdx, out var chunk))
-                        chunk.Octants = octants;
-                    else
-                        Debug.LogWarning($"Occlusion block with no matching tfrag!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                    {
+                        var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
+                        if (instancesById.TryGetValue(instanceIdx, out var chunk))
+                            chunk.Octants = octants;
+                        else
+                            Debug.LogWarning($"Occlusion block with no matching tfrag!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    }
                 }
             }
         }

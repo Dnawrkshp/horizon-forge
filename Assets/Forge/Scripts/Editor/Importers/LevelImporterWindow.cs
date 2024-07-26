@@ -782,7 +782,6 @@ public class LevelImporterWindow : EditorWindow
         map.MapName = map.MapFilename = mapName;
 
         var occBakeSettings = mapGameObject.AddComponent<OcclusionBakeSettings>();
-        occBakeSettings.CullingMask = LayerMask.GetMask("OCCLUSION_BAKE");
 
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
@@ -1796,7 +1795,7 @@ public class LevelImporterWindow : EditorWindow
                 tfragGo.name = "tfrags";
                 tfragGo.transform.SetParent(rootGo.transform, true);
                 var tfrag = tfragGo.AddComponent<Tfrag>();
-                tfragGo.layer = LayerMask.NameToLayer("OCCLUSION_BAKE");
+                tfragGo.layer = LayerMask.NameToLayer("TFRAG");
                 UnityHelper.RecurseHierarchy(tfragGo.transform, (t) => t.gameObject.layer = tfragGo.layer);
 
                 // clone each tfrag mesh before we delete the tfrag model

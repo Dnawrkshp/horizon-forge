@@ -170,7 +170,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                 chunk.gameObject.name = i.ToString();
                 chunk.HeaderBytes = headerBytes;
                 chunk.DataBytes = dataBytes;
-                chunk.gameObject.layer = LayerMask.NameToLayer("OCCLUSION_BAKE");
+                chunk.gameObject.layer = LayerMask.NameToLayer("TFRAG");
                 chunkMeshFilter.sharedMesh = newMesh;
                 chunkMeshRenderer.sharedMaterials = texs.Select(x => materials[x]).ToArray();
             }

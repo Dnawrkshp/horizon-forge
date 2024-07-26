@@ -67,6 +67,12 @@ public class MobyEditor : Editor
 
         base.OnInspectorGUI();
 
+        // detect out of bounds
+        if (targets.Any(x => IsOutOfBounds((x as Moby).transform.position)))
+        {
+            EditorGUILayout.HelpBox("One or more mobys are out of bounds. Please ensure all mobys are within 0 and 1023 on each axis.", MessageType.Error);
+        }
+
         // draw pvar overlay
         if (HasOneTarget)
         {
@@ -494,5 +500,13 @@ public class MobyEditor : Editor
                 }
             }
         }
+    }
+
+    private bool IsOutOfBounds(Vector3 position)
+    {
+        if (Mathf.Max(position.x, position.y, position.z) > 1023) return true;
+        if (Mathf.Min(position.x, position.y, position.z) < 0) return true;
+
+        return false;
     }
 }

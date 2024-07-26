@@ -197,11 +197,13 @@ public static class MapExporter
 
     static GameObject CombineMeshes(GameObject[] gameObjects)
     {
+        var collisionLayer = LayerMask.NameToLayer("COLLISION");
+
         // Locals
         Dictionary<Material, List<MeshFilterSubMesh>> materialToMeshFilterList = new Dictionary<Material, List<MeshFilterSubMesh>>();
         List<GameObject> combinedObjects = new List<GameObject>();
 
-        MeshFilter[] meshFilters = gameObjects.SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).ToArray();
+        MeshFilter[] meshFilters = gameObjects.SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).Where(x => x && x.gameObject.layer != collisionLayer).ToArray();
 
         // Go through all mesh filters and establish the mapping between the materials and all mesh filters using it.
         foreach (var meshFilter in meshFilters)

@@ -19,7 +19,7 @@ public static class OcclusionBaker
         if (!bakeSettings)
             bakeSettings = new OcclusionBakeSettings();
 
-        var renderResolution = (int)Mathf.Pow(2, (int)bakeSettings.Resolution + 5);
+        var renderResolution = 1024; // (int)Mathf.Pow(2, (int)bakeSettings.Resolution + 5);
         //var clipPixelCount = (int)Math.Max(bakeSettings.ClipPixelCount, bakeSettings.ClipPercent * renderResolution * renderResolution);
         var octants = UnityHelper.GetAllOctants();
         var graph = GameObject.FindObjectOfType<OcclusionGraph>();

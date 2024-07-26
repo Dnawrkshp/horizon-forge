@@ -61,6 +61,7 @@ public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
         renderHandle.IsPicking = !SceneVisibilityManager.instance.IsPickingDisabled(this.gameObject);
         renderHandle.Reflection = Reflection;
         renderHandle.Rotation = Quaternion.Euler(0, -90f, 0);
+        renderHandle.Layer = LayerMask.NameToLayer("SHRUB");
         renderHandle.Update(this.gameObject, prefab);
 
         // configure collider

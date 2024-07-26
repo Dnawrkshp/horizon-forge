@@ -99,6 +99,7 @@ public class Tie : RenderSelectionBase, IOcclusionData, IAsset, IInstancedCollid
         renderHandle.IsSelected = Selection.activeGameObject == this.gameObject || Selection.gameObjects.Contains(this.gameObject);
         renderHandle.IsPicking = !SceneVisibilityManager.instance.IsPickingDisabled(this.gameObject);
         renderHandle.Reflection = Reflection;
+        renderHandle.Layer = LayerMask.NameToLayer("TIE");
         renderHandle.Update(this.gameObject, prefab);
 
         // configure collider

@@ -57,6 +57,8 @@ public class TfragChunk : MonoBehaviour, IOcclusionData, IAsset
 
     public void OnPreBake(Color32 uidColor)
     {
+        this.gameObject.layer = LayerMask.NameToLayer("TFRAG");
+
         var mpb = new MaterialPropertyBlock();
         var renderers = GetComponentsInChildren<MeshRenderer>();
         if (renderers != null)

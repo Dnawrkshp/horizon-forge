@@ -160,6 +160,7 @@ public class Moby : RenderSelectionBase, IAsset
         renderHandle.IsSelected = Selection.activeGameObject == this.gameObject || Selection.gameObjects.Contains(this.gameObject);
         renderHandle.IsPicking = !SceneVisibilityManager.instance.IsPickingDisabled(this.gameObject);
         renderHandle.WorldLightIndex = Light1;
+        renderHandle.Layer = LayerMask.NameToLayer("MOBY");
         renderHandle.Update(this.gameObject, GetPrefab());
         UpdateMaterials();
 

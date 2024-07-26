@@ -203,14 +203,6 @@ Shader "Horizon Forge/Universal"
                 return _LayerColor;
 #else
 
-                // highlight red when outside bounds of map (0,1023)
-                if (max(max(i.wpos.x, i.wpos.y), i.wpos.z) > 1023) {
-                    return fixed4(1,0,0,1);
-                }
-                if (min(min(i.wpos.x, i.wpos.y), i.wpos.z) < 0) {
-                    return fixed4(1,0,0,1);
-                }
-
                 FacingSign = lerp(FacingSign, 1, _Reflection);
 
                 // vertex colors

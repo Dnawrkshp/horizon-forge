@@ -12,6 +12,8 @@ using UnityEngine.SceneManagement;
 
 public static class MapExporter
 {
+    public static readonly float DZO_SKY_BRIGHTNESS_FACTOR = 1.5f;
+
     [MenuItem("Forge/Tools/Exporter/Export for DZO")]
     public static async void ExportSceneForDZO()
     {
@@ -69,7 +71,7 @@ public static class MapExporter
 
             // merge static geometry into one object
             var staticGameObjects = ties.Select(x => x.GetAssetInstance()).Union(shrubs.Select(x => x.GetAssetInstance())).Union(tfrags.Select(x => x.gameObject)).Where(x => x).Distinct().ToArray();
-            combinedCopy = CombineMeshes(staticGameObjects);
+            combinedCopy = CombineMeshes(staticGameObjects, dzoConfig);
 
             RenameIndexedUnique("light", lights, renameHistory);
             RenameIndexedUnique("sky", sky, renameHistory);
@@ -113,10 +115,7 @@ public static class MapExporter
                     {
                         foreach (var shell in shells)
                         {
-                            var color = shell.GetMaterials()[0].GetColor("_Color").linear;
-                            color.r *= 1.5f;
-                            color.g *= 1.5f;
-                            color.b *= 1.5f;
+                            var color = shell.GetMaterials()[0].GetColor("_Color").linear.ScaleRGB(DZO_SKY_BRIGHTNESS_FACTOR);
                             color.a *= shell.GetMaterials()[0].GetFloat("_Opacity");
 
                             shellData.Add(new DzoMapMetadata.SkymeshShellMetadata()
@@ -196,7 +195,7 @@ public static class MapExporter
         obj.name = prefix;
     }
 
-    static GameObject CombineMeshes(GameObject[] gameObjects)
+    static GameObject CombineMeshes(GameObject[] gameObjects, DzoConfig dzoConfig)
     {
         var collisionLayer = LayerMask.NameToLayer("COLLISION");
 
@@ -235,17 +234,23 @@ public static class MapExporter
             var reflectionMatrix = Matrix4x4.identity;
             var tie = meshRenderer.GetComponentInParent<Tie>();
             var shrub = meshRenderer.GetComponentInParent<Shrub>();
+            var tfrag = meshRenderer.GetComponentInParent<TfragChunk>();
             if (tie)
             {
                 reflectionMatrix = tie.Reflection;
-                var color = tie.GetBaseVertexColor().HalveRGB(); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
+                var color = tie.GetBaseVertexColor().HalveRGB().ScaleRGB(dzoConfig.TieBrightness * tie.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
                 colors = Enumerable.Repeat(color, meshFilter.sharedMesh.vertexCount).ToArray();
             }
             else if (shrub)
             {
                 reflectionMatrix = shrub.Reflection;
-                var color = shrub.Tint.HalveRGB(); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
+                var color = shrub.Tint.HalveRGB().ScaleRGB(dzoConfig.ShrubBrightness * shrub.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
                 colors = Enumerable.Repeat(color, meshFilter.sharedMesh.vertexCount).ToArray();
+            }
+            else if (tfrag)
+            {
+                for (int i = 0; i < colors.Length; ++i)
+                    colors[i] = colors[i].ScaleRGB(dzoConfig.TfragBrightness * tfrag.DZOBrightness);
             }
 
             // create a clone of the mesh and bake any vertex colors

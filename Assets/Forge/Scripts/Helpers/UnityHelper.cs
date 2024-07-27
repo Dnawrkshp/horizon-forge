@@ -394,6 +394,11 @@ public static class UnityHelper
         return new Color(color.r * 2f, color.g * 2f, color.b * 2f, color.a);
     }
 
+    public static Color ScaleRGB(this Color color, float factor)
+    {
+        return new Color(color.r * factor, color.g * factor, color.b * factor, color.a);
+    }
+
     static int ForceDimensionPowerOfTwo(int dimension)
     {
         float exp = Mathf.Log(dimension, 2);

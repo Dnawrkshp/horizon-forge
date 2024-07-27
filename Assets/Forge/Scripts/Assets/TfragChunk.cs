@@ -12,6 +12,7 @@ public class TfragChunk : MonoBehaviour, IOcclusionData, IAsset
 
     [SerializeField, HideInInspector] public byte[] HeaderBytes;
     [SerializeField, HideInInspector] public byte[] DataBytes;
+    public float DZOBrightness = 1f;
 
     [HideInInspector, SerializeField] private Vector3[] _octants;
     [HideInInspector, SerializeField] private int _occlusionId;

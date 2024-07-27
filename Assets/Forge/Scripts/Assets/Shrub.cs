@@ -15,6 +15,7 @@ public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
     public int GroupId;
     public float RenderDistance = 64;
     [ColorUsage(false)] public Color Tint = Color.white;
+    public float DZOBrightness = 1f;
 
     [Header("Collision")]
     [Tooltip("Enable instanced collider.")] public bool InstancedCollider;

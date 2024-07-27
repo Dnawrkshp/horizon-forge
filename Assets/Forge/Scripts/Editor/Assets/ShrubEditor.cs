@@ -15,6 +15,7 @@ public class ShrubEditor : Editor
     private SerializedProperty m_GroupIdProperty;
     private SerializedProperty m_RenderDistanceProperty;
     private SerializedProperty m_TintProperty;
+    private SerializedProperty m_DZOBrightnessProperty;
     private SerializedProperty m_InstancedColliderProperty;
     private SerializedProperty m_RenderInstancedColliderProperty;
     private SerializedProperty m_InstancedColliderIdOverridesProperty;
@@ -32,6 +33,7 @@ public class ShrubEditor : Editor
         m_GroupIdProperty = serializedObject.FindProperty("GroupId");
         m_RenderDistanceProperty = serializedObject.FindProperty("RenderDistance");
         m_TintProperty = serializedObject.FindProperty("Tint");
+        m_DZOBrightnessProperty = serializedObject.FindProperty("DZOBrightness");
         m_InstancedColliderProperty = serializedObject.FindProperty("InstancedCollider");
         m_RenderInstancedColliderProperty = serializedObject.FindProperty("RenderInstancedCollider");
         m_InstancedColliderIdOverridesProperty = serializedObject.FindProperty("InstancedColliderIdOverrides");
@@ -58,6 +60,7 @@ public class ShrubEditor : Editor
         EditorGUILayout.PropertyField(m_GroupIdProperty);
         EditorGUILayout.PropertyField(m_RenderDistanceProperty);
         EditorGUILayout.PropertyField(m_TintProperty);
+        EditorGUILayout.PropertyField(m_DZOBrightnessProperty);
 
         // reflection
         UnityHelper.Matrix4x4PropertyField(m_ReflectionProperty);

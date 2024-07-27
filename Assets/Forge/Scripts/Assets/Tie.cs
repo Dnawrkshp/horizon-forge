@@ -21,6 +21,8 @@ public class Tie : RenderSelectionBase, IOcclusionData, IAsset, IInstancedCollid
     public Color ColorDataValue = new Color(0.5f, 0.5f, 0.5f, 1f);
     [SerializeField, HideInInspector]
     public byte[] ColorData;
+    [SerializeField]
+    public float DZOBrightness = 1f;
 
     [HideInInspector, SerializeField] private Vector3[] _octants;
     [HideInInspector, SerializeField] private int _occlusionId;

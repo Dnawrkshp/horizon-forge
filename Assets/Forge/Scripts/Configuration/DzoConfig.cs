@@ -15,6 +15,11 @@ public class DzoConfig : MonoBehaviour
     public bool Sky = true;
     public GameObject[] IncludeInExport;
 
+    [Header("Export Brightness")]
+    public float TieBrightness = 1f;
+    public float ShrubBrightness = 1f;
+    public float TfragBrightness = 1f;
+
     [Header("Export Misc")]
     public bool Lights = true;
 

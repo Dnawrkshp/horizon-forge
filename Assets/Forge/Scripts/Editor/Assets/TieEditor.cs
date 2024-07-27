@@ -13,6 +13,7 @@ public class TieEditor : Editor
     private List<(MaterialEditor matEditor, bool canEdit)> _materialEditors = new List<(MaterialEditor, bool)>();
     private SerializedProperty m_ColorProperty;
     private SerializedProperty m_ColorDataProperty;
+    private SerializedProperty m_DZOBrightnessProperty;
     private SerializedProperty m_ReflectionProperty;
     private SerializedProperty m_GroupIdProperty;
     private SerializedProperty m_InstancedColliderProperty;
@@ -34,6 +35,7 @@ public class TieEditor : Editor
 
         m_ColorProperty = serializedObject.FindProperty("ColorDataValue");
         m_ColorDataProperty = serializedObject.FindProperty("ColorData");
+        m_DZOBrightnessProperty = serializedObject.FindProperty("DZOBrightness");
         m_ReflectionProperty = serializedObject.FindProperty("Reflection");
         m_GroupIdProperty = serializedObject.FindProperty("GroupId");
         m_InstancedColliderProperty = serializedObject.FindProperty("InstancedCollider");
@@ -157,6 +159,7 @@ public class TieEditor : Editor
         // color
         GUILayout.Space(20);
         GUILayout.Label("Vertex Color", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(m_DZOBrightnessProperty);
         EditorGUILayout.PropertyField(m_ColorProperty, new GUIContent("Base Vertex Color"));
         if (GUILayout.Button("Apply Uniform Color"))
         {

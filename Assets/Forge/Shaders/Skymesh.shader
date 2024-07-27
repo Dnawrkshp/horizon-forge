@@ -86,7 +86,7 @@ Shader "Horizon Forge/Skymesh"
 
                 //col.rgb *= _Color.rgb * (1 + bloom);
                 //col.rgb = float3(a, 1, 1);
-
+                
                 fixed4 final = col;
                 final.rgb *= _Color.rgb * (1 + bloom);
                 final.a = a;

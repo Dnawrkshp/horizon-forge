@@ -28,17 +28,18 @@ public class UnityTerrainToTfragsEditor : Editor
                 }
             }
 
+            GUILayout.Space(20);
+            EditorGUILayout.LabelField("Generation", EditorStyles.boldLabel);
             if (tfragGen.m_RenderGenerated != EditorGUILayout.Toggle("Render Generated", tfragGen.m_RenderGenerated))
             {
                 tfragGen.m_RenderGenerated = !tfragGen.m_RenderGenerated;
                 tfragGen.SetVisible(tfragGen.m_RenderGenerated);
             }
 
-        }
-
-        if (GUILayout.Button("Generate"))
-        {
-            (target as UnityTerrainToTfrags).Regenerate();
+            if (GUILayout.Button("Generate"))
+            {
+                tfragGen.Regenerate();
+            }
         }
     }
 

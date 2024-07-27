@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 public static class TfragHelper
@@ -215,7 +216,7 @@ public static class TfragHelper
     /// <param name="quadTextures"></param>
     /// <param name="def"></param>
     /// <param name="data"></param>
-    public static void GenerateTfrag_2x2(IEnumerable<Vector3> vertices, IEnumerable<Vector3> normals, IEnumerable<Vector2> uvs, IEnumerable<int[]> quads, IEnumerable<int> quadTextures, out byte[] def, out byte[] data)
+    public static void GenerateTfrag_2x2(IEnumerable<Vector3> vertices, IEnumerable<Vector3> normals, IEnumerable<Color> colors, IEnumerable<Vector2> uvs, IEnumerable<int[]> quads, IEnumerable<int> quadTextures, out byte[] def, out byte[] data)
     {
         data = Convert.FromBase64String(GENERATE_TFRAG_DATA_2X2);
         var header = new TfragHeader()
@@ -253,7 +254,7 @@ public static class TfragHelper
             mip_dist = short.MinValue
         };
 
-        GenerateTfrag(4, 9, GENERATE_TFRAG_DATA_2X2_STRIPOFS, GENERATE_TFRAG_DATA_2X2_LODOFS, vertices, normals, uvs, quads, quadTextures, header, data, out def);
+        GenerateTfrag(4, 9, GENERATE_TFRAG_DATA_2X2_STRIPOFS, GENERATE_TFRAG_DATA_2X2_LODOFS, vertices, normals, colors, uvs, quads, quadTextures, header, data, out def);
     }
 
     /// <summary>
@@ -265,7 +266,7 @@ public static class TfragHelper
     /// <param name="quadTextures"></param>
     /// <param name="def"></param>
     /// <param name="data"></param>
-    public static void GenerateTfrag_1x2(IEnumerable<Vector3> vertices, IEnumerable<Vector3> normals, IEnumerable<Vector2> uvs, IEnumerable<int[]> quads, IEnumerable<int> quadTextures, out byte[] def, out byte[] data)
+    public static void GenerateTfrag_1x2(IEnumerable<Vector3> vertices, IEnumerable<Vector3> normals, IEnumerable<Color> colors, IEnumerable<Vector2> uvs, IEnumerable<int[]> quads, IEnumerable<int> quadTextures, out byte[] def, out byte[] data)
     {
         data = Convert.FromBase64String(GENERATE_TFRAG_DATA_1X2);
         var header = new TfragHeader()
@@ -303,7 +304,7 @@ public static class TfragHelper
             mip_dist = short.MinValue
         };
 
-        GenerateTfrag(2, 6, GENERATE_TFRAG_DATA_1X2_STRIPOFS, GENERATE_TFRAG_DATA_1X2_LODOFS, vertices, normals, uvs, quads, quadTextures, header, data, out def);
+        GenerateTfrag(2, 6, GENERATE_TFRAG_DATA_1X2_STRIPOFS, GENERATE_TFRAG_DATA_1X2_LODOFS, vertices, normals, colors, uvs, quads, quadTextures, header, data, out def);
     }
 
     /// <summary>
@@ -315,7 +316,7 @@ public static class TfragHelper
     /// <param name="quadTextures"></param>
     /// <param name="def"></param>
     /// <param name="data"></param>
-    public static void GenerateTfrag_1x1(IEnumerable<Vector3> vertices, IEnumerable<Vector3> normals, IEnumerable<Vector2> uvs, IEnumerable<int[]> quads, IEnumerable<int> quadTextures, out byte[] def, out byte[] data)
+    public static void GenerateTfrag_1x1(IEnumerable<Vector3> vertices, IEnumerable<Vector3> normals, IEnumerable<Color> colors, IEnumerable<Vector2> uvs, IEnumerable<int[]> quads, IEnumerable<int> quadTextures, out byte[] def, out byte[] data)
     {
         data = Convert.FromBase64String(GENERATE_TFRAG_DATA_1X2);
         var header = new TfragHeader()
@@ -353,7 +354,7 @@ public static class TfragHelper
             mip_dist = short.MinValue
         };
 
-        GenerateTfrag(1, 4, GENERATE_TFRAG_DATA_1X2_STRIPOFS, GENERATE_TFRAG_DATA_1X2_LODOFS, vertices, normals, uvs, quads, quadTextures, header, data, out def);
+        GenerateTfrag(1, 4, GENERATE_TFRAG_DATA_1X2_STRIPOFS, GENERATE_TFRAG_DATA_1X2_LODOFS, vertices, normals, colors, uvs, quads, quadTextures, header, data, out def);
     }
 
     private static void GenerateTfrag(int quadCount,
@@ -362,6 +363,7 @@ public static class TfragHelper
                                       int[] lodPosOffsets,
                                       IEnumerable<Vector3> vertices,
                                       IEnumerable<Vector3> normals,
+                                      IEnumerable<Color> colors,
                                       IEnumerable<Vector2> uvs,
                                       IEnumerable<int[]> quads,
                                       IEnumerable<int> quadTextures,
@@ -504,11 +506,7 @@ public static class TfragHelper
             for (int i = 0; i < baseNormals.Count; ++i)
             {
                 dataMs.Position = header.light_ofs + 0x10 + (8 * i);
-
-                dataWriter.Write((ushort)0x7A00);
-                dataWriter.Write((ushort)0x3E81);
-                dataWriter.Write((ushort)0x9D08);
-                //WriteVector3_16_1024(dataWriter, new Vector3(1, 1, 1) * 0.6f * 31.999f);
+                dataWriter.Write(PackNormal(baseNormals[i], colors.ElementAt(i)));
             }
 
             // update vertices
@@ -605,6 +603,44 @@ public static class TfragHelper
 
         writer.Write((short)Mathf.Round(uv.x * 4096f));
         writer.Write((short)Mathf.Round(uv.y * 4096f));
+    }
+
+    #endregion
+
+    #region Normals
+
+    public static Vector3 UnpackNormal(ushort intensity, ushort normal, ushort color)
+    {
+        float factor = intensity / (float)0x7FFF;
+        int azimuthIdx = normal & 0xFF;
+        int elevationIdx = normal >> 8;
+        Color baseColor = new Color32((byte)((color & 0x1F) << 3), (byte)(((color >> 5) & 0x1F) << 3), (byte)(((color >> 10) & 0x1F) << 3), (byte)(((color >> 15) & 0x1) << 7));
+
+        var azimuth = LookupTrigValues(azimuthIdx);
+        var elevation = LookupTrigValues(elevationIdx);
+        var normalVec = ((Vector3)azimuth * elevation.x + Vector3.forward * elevation.y);
+
+        return normalVec * factor;
+    }
+
+    public static ulong PackNormal(Vector3 normal, Color color)
+    {
+        float factor = Mathf.Clamp01(normal.magnitude);
+        var normalNormalized = normal.normalized;
+
+        // find closest base normal
+        var azimuthIdx = (byte)(Mathf.Atan2(normalNormalized.y, normalNormalized.x) * (128f / Mathf.PI));
+        var elevationIdx = (byte)(Mathf.Asin(normalNormalized.z) * (128f / Mathf.PI));
+
+        // convert color to 16 bit
+        ushort col16 = (ushort)((Mathf.RoundToInt(color.r * 255) >> 3) | ((Mathf.RoundToInt(color.g * 255) >> 3) << 5) | ((Mathf.RoundToInt(color.b * 255) >> 3) << 10) | ((Mathf.RoundToInt(color.a * 255) >> 7) << 15));
+
+        return ((ulong)(factor * 0x7FFF) | ((ulong)azimuthIdx << 16) | ((ulong)elevationIdx << 24) | ((ulong)col16 << 32) | ((ulong)0x0000 << 48));
+    }
+
+    private static Vector2 LookupTrigValues(int idx)
+    {
+        return new Vector2(Mathf.Cos(idx * Mathf.PI / 128f), Mathf.Sin(idx * Mathf.PI / 128f));
     }
 
     #endregion

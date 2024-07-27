@@ -12,7 +12,12 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
     [Range(4f, 8f)] public float m_TfragSize = 4f;
     [Range(0f, 4f)] public float m_TfragTextureClassificationSharpness = 1f;
     public TextureSize m_TextureSize = TextureSize._128;
+
+    [Header("Vertex Colors")]
     [ColorUsage(showAlpha: false)] public Color m_Tint = Color.white;
+    [Range(0f, 1f)] public float m_Shading = 0f;
+    [Range(0f, 1f)] public float m_Noise = 0f;
+    [Range(1f, 50f)] public float m_NoiseScale = 20f;
 
     public bool m_RenderGenerated { get; set; }
 
@@ -125,7 +130,11 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                         vertices.Add(terrainVertices[vIdx]);
                         normals.Add(terrainNormals[vIdx]);
                         uvs.Add(terrainUvs[vIdx]);
-                        colors.Add(m_Tint * 0.5f);
+
+                        // calculate color
+                        var shading = Mathf.Pow(Mathf.Clamp01(Mathf.Abs(Vector3.Dot(terrainNormals[vIdx], Vector3.up))), m_Shading * 10);
+                        var noise = Mathf.Pow(Mathf.PerlinNoise(terrainVertices[vIdx].x / m_NoiseScale, terrainVertices[vIdx].z / m_NoiseScale), m_Noise);
+                        colors.Add(m_Tint * 0.5f * shading * noise);
                     }
 
                     var tex = terrainTextures[fIdx];

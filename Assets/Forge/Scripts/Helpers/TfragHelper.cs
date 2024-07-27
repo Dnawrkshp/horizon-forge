@@ -376,6 +376,8 @@ public static class TfragHelper
         // generate ordered vertices from quads
         List<Vector3> baseVertices = new List<Vector3>();
         List<Vector3> baseNormals = new List<Vector3>();
+        List<Color> baseColors = new List<Color>();
+        List<int> baseCounts = new List<int>();
         List<TfragVertexEx> orderedVertices = new List<TfragVertexEx>();
         List<int[]> orderedQuads = new List<int[]>();
 
@@ -386,17 +388,21 @@ public static class TfragHelper
             {
                 var vertex = vertices.ElementAtOrDefault(quad[i]).SwizzleXZY();
                 var normal = normals.ElementAtOrDefault(quad[i]).SwizzleXZY();
+                var color = colors.ElementAtOrDefault(quad[i]);
                 var baseVertexIdx = baseVertices.IndexOf(vertex);
                 if (baseVertexIdx < 0)
                 {
                     baseVertexIdx = baseVertices.Count;
                     baseVertices.Add(vertex);
                     baseNormals.Add(normal);
+                    baseColors.Add(color);
+                    baseCounts.Add(1);
 
                     orderedVertices.Add(new TfragVertexEx()
                     {
                         position = vertex,
                         normal = normal,
+                        color = color,
                         baseVertexIdx = baseVertexIdx,
                         uv = uvs.ElementAtOrDefault(quad[i])
                     });
@@ -412,6 +418,7 @@ public static class TfragHelper
             {
                 var vertex = vertices.ElementAtOrDefault(quad[i]).SwizzleXZY();
                 var normal = normals.ElementAtOrDefault(quad[i]).SwizzleXZY();
+                var color = colors.ElementAtOrDefault(quad[i]);
                 var uv = uvs.ElementAtOrDefault(quad[i]);
                 var vertexIdx = orderedVertices.FindIndex(x => x.position == vertex && x.uv == uv && x.normal == normal);
                 if (vertexIdx < 0)
@@ -422,11 +429,14 @@ public static class TfragHelper
                     {
                         position = vertex,
                         normal = normal,
+                        color = color,
                         baseVertexIdx = baseVertexIdx,
                         uv = uv
                     });
 
+                    baseCounts[baseVertexIdx] += 1;
                     baseNormals[baseVertexIdx] += normal;
+                    baseColors[baseVertexIdx] += color;
                 }
 
                 // add
@@ -435,6 +445,10 @@ public static class TfragHelper
 
             orderedQuads.Add(orderedQuad);
         }
+
+        // average merged colors
+        for (int i = 0; i < baseColors.Count; ++i)
+            baseColors[i] /= baseCounts[i];
 
         if (baseVertices.Count != expectedVertices) throw new Exception($"Base vertices does not matched expected {expectedVertices}.");
 
@@ -506,7 +520,7 @@ public static class TfragHelper
             for (int i = 0; i < baseNormals.Count; ++i)
             {
                 dataMs.Position = header.light_ofs + 0x10 + (8 * i);
-                dataWriter.Write(PackNormal(baseNormals[i], colors.ElementAt(i)));
+                dataWriter.Write(PackNormal(baseNormals[i], baseColors[i]));
             }
 
             // update vertices
@@ -768,6 +782,7 @@ struct TfragVertexEx
 {
     public Vector3 position;
     public Vector3 normal;
+    public Color color;
     public Vector2 uv;
     public int parent;
     public int baseVertexIdx;

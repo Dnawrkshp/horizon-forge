@@ -13,7 +13,7 @@ public class TfragChunkEditor : Editor
 
     public override void OnInspectorGUI()
     {
-        //base.OnInspectorGUI();
+        base.OnInspectorGUI();
 
         // occlusion
         var octantCount = targets.Sum(x => (x as TfragChunk)?.Octants?.Length ?? 0);

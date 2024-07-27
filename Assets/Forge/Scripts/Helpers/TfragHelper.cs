@@ -625,7 +625,7 @@ public static class TfragHelper
 
     public static Vector3 UnpackNormal(ushort intensity, ushort normal, ushort color)
     {
-        float factor = intensity / (float)0x7FFF;
+        float factor = (intensity >> 8) / (float)0x7F;
         int azimuthIdx = normal & 0xFF;
         int elevationIdx = normal >> 8;
         Color baseColor = new Color32((byte)((color & 0x1F) << 3), (byte)(((color >> 5) & 0x1F) << 3), (byte)(((color >> 10) & 0x1F) << 3), (byte)(((color >> 15) & 0x1) << 7));
@@ -640,6 +640,8 @@ public static class TfragHelper
     public static ulong PackNormal(Vector3 normal, Color color)
     {
         float factor = Mathf.Clamp01(normal.magnitude);
+        byte factor8 = (byte)(factor * 0x7F);
+        byte vertIdx = 0;
         var normalNormalized = normal.normalized;
 
         // find closest base normal
@@ -649,7 +651,7 @@ public static class TfragHelper
         // convert color to 16 bit
         ushort col16 = (ushort)((Mathf.RoundToInt(color.r * 255) >> 3) | ((Mathf.RoundToInt(color.g * 255) >> 3) << 5) | ((Mathf.RoundToInt(color.b * 255) >> 3) << 10) | ((Mathf.RoundToInt(color.a * 255) >> 7) << 15));
 
-        return ((ulong)(factor * 0x7FFF) | ((ulong)azimuthIdx << 16) | ((ulong)elevationIdx << 24) | ((ulong)col16 << 32) | ((ulong)0x0000 << 48));
+        return ((ulong)((vertIdx) | (ulong)factor8 << 8) | ((ulong)azimuthIdx << 16) | ((ulong)elevationIdx << 24) | ((ulong)col16 << 32) | ((ulong)0x0000 << 48));
     }
 
     private static Vector2 LookupTrigValues(int idx)

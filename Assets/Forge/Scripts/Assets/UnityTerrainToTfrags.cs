@@ -12,6 +12,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
     [Range(4f, 8f)] public float m_TfragSize = 4f;
     [Range(0f, 4f)] public float m_TfragTextureClassificationSharpness = 1f;
     public TextureSize m_TextureSize = TextureSize._128;
+    [ColorUsage(showAlpha: false)] public Color m_Tint = Color.white;
 
     public bool m_RenderGenerated { get; set; }
 
@@ -124,7 +125,7 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                         vertices.Add(terrainVertices[vIdx]);
                         normals.Add(terrainNormals[vIdx]);
                         uvs.Add(terrainUvs[vIdx]);
-                        colors.Add(Color.white * 0.5f);
+                        colors.Add(m_Tint * 0.5f);
                     }
 
                     var tex = terrainTextures[fIdx];
@@ -148,11 +149,11 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
                 }
 
                 if (quads.Count == 4)
-                    TfragHelper.GenerateTfrag_2x2(vertices, normals, uvs, quads, texs, out headerBytes, out dataBytes);
+                    TfragHelper.GenerateTfrag_2x2(vertices, normals, colors, uvs, quads, texs, out headerBytes, out dataBytes);
                 else if (quads.Count == 2)
-                    TfragHelper.GenerateTfrag_1x2(vertices, normals, uvs, quads, texs, out headerBytes, out dataBytes);
+                    TfragHelper.GenerateTfrag_1x2(vertices, normals, colors, uvs, quads, texs, out headerBytes, out dataBytes);
                 else if (quads.Count == 1)
-                    TfragHelper.GenerateTfrag_1x1(vertices, normals, uvs, quads, texs, out headerBytes, out dataBytes);
+                    TfragHelper.GenerateTfrag_1x1(vertices, normals, colors, uvs, quads, texs, out headerBytes, out dataBytes);
                 else
                     throw new NotImplementedException();
 
@@ -190,104 +191,6 @@ public class UnityTerrainToTfrags : BaseAssetGenerator
         // remove excess
         for (int i = chunkCount; i < chunks.Length; ++i)
             GameObject.DestroyImmediate(chunks[i].gameObject);
-    }
-
-    private void TestGen()
-    {
-        var chunks = HierarchicalSorting.Sort(this.GetComponentsInChildren<TfragChunk>());
-        List<Vector3> allOctants = null;
-
-        for (int i = 0; i < 1; ++i)
-        {
-            var chunk = chunks.ElementAtOrDefault(i);
-            if (!chunk)
-            {
-                if (allOctants == null) allOctants = UnityHelper.GetAllOctants();
-
-                var go = new GameObject(i.ToString());
-                go.transform.SetParent(this.transform, false);
-                chunk = go.AddComponent<TfragChunk>();
-                chunk.Octants = allOctants.ToArray();
-            }
-
-            var verts = new Vector3[]
-            {
-                new Vector3(0, 0, 0),
-                new Vector3(-1, 0, 0),
-                new Vector3(0, 0, 1),
-                new Vector3(-1, 0, 1),
-                new Vector3(0, 0, 1),
-                new Vector3(-1, 0, 1),
-                new Vector3(0, 0, 2),
-                new Vector3(-1, 0, 2),
-                new Vector3(1, 0, 0),
-                new Vector3(0, 0, 0),
-                new Vector3(1, 0, 1),
-                new Vector3(0, 0, 1),
-                new Vector3(1, 0, 1),
-                new Vector3(0, 0, 1),
-                new Vector3(1, 0, 2),
-                new Vector3(0, 0, 2),
-            };
-
-            var normals = new Vector3[]
-            {
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-                Vector3.up,
-            };
-
-            var uvs = new Vector2[]
-            {
-                new Vector2(1, 0),
-                new Vector2(0, 0),
-                new Vector2(1, 1),
-                new Vector2(0, 1),
-                new Vector2(1, 0),
-                new Vector2(0, 0),
-                new Vector2(1, 1),
-                new Vector2(0, 1),
-                new Vector2(1, 0),
-                new Vector2(0, 0),
-                new Vector2(1, 1),
-                new Vector2(0, 1),
-                new Vector2(1, 0),
-                new Vector2(0, 0),
-                new Vector2(1, 1),
-                new Vector2(0, 1),
-            };
-
-            var quads = new int[][]
-            {
-                new int[] { 0, 1, 2, 3 },
-                new int[] { 4, 5, 6, 7 },
-                new int[] { 8, 9, 10, 11 },
-                new int[] { 12, 13, 14, 15 },
-            };
-
-            var texs = new int[] { 0, 1, 2, 3, };
-
-            TfragHelper.GenerateTfrag_2x2(verts, normals, uvs, quads, texs, out var headerBytes, out var dataBytes);
-            chunk.gameObject.name = i.ToString();
-            chunk.HeaderBytes = headerBytes;
-            chunk.DataBytes = dataBytes;
-
-            File.WriteAllBytes("M:\\Unity\\horizon-forge\\levels\\Tower\\rc4\\assets\\terrain\\test.tfragdef", headerBytes);
-            File.WriteAllBytes("M:\\Unity\\horizon-forge\\levels\\Tower\\rc4\\assets\\terrain\\test.tfrag", dataBytes);
-        }
     }
 
     #endregion

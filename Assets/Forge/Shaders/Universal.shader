@@ -216,11 +216,11 @@ Shader "Horizon Forge/Universal"
                 int worldLightIdx = _WorldLightIndex * 2;
                 if (worldLightIdx >= 0) {
 
-                    float d0 = (dot(_WorldLightRays[worldLightIdx + 0], -FacingSign * i.normal));
-                    float d1 = (dot(_WorldLightRays[worldLightIdx + 1], -FacingSign * i.normal));
+                    float d0 = saturate(dot(_WorldLightRays[worldLightIdx + 0], -FacingSign * i.normal));
+                    float d1 = saturate(dot(_WorldLightRays[worldLightIdx + 1], -FacingSign * i.normal));
 
-                    float3 c0 = saturate(0 + d0) * _WorldLightColors[worldLightIdx + 0];
-                    float3 c1 = saturate(0 + d1) * _WorldLightColors[worldLightIdx + 1];
+                    float3 c0 = d0 * _WorldLightColors[worldLightIdx + 0];
+                    float3 c1 = d1 * _WorldLightColors[worldLightIdx + 1];
 
                     col.rgb *= (_Color.rgb * vcolor.rgb + (c0 + c1) * 0.5);
                     col.a *= _Color.a * vcolor.a;

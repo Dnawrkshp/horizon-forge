@@ -117,6 +117,7 @@ public static class MapExporter
                             color.r *= 1.5f;
                             color.g *= 1.5f;
                             color.b *= 1.5f;
+                            color.a *= shell.GetMaterials()[0].GetFloat("_Opacity");
 
                             shellData.Add(new DzoMapMetadata.SkymeshShellMetadata()
                             {
@@ -149,7 +150,7 @@ public static class MapExporter
                     BackgroundColor = mapConfig.BackgroundColor,
                     FogColor = mapConfig.FogColor,
                     FogNearDistance = mapConfig.FogNearDistance,
-                    FogFarDistance = mapConfig.FogFarDistance * fogT,
+                    FogFarDistance = mapConfig.FogNearDistance + fogT,
                     PostColorFilter = dzoConfig.PostColorFilter,
                     PostExposure = dzoConfig.PostExposure,
                     DefaultCameraPosition = dzoConfig.DefaultCameraPosition ? dzoConfig.DefaultCameraPosition.position : Vector3.zero,

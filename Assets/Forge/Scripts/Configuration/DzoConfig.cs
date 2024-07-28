@@ -22,6 +22,7 @@ public class DzoConfig : MonoBehaviour
 
     [Header("Export Misc")]
     public bool Lights = true;
+    public int MinimapResolution = 512;
 
     [Header("Post Processing")]
     public float PostExposure = 0f;
@@ -52,6 +53,7 @@ public class DzoMapMetadata
     public string TieShrubTfragCombinedName;
     public string SkymeshName;
     public SkymeshShellMetadata[] SkymeshShells;
+    public string MinimapMeshName;
     public LightMetadata[] Lights;
     public Vector3 DefaultCameraPosition;
     public Vector3 DefaultCameraEuler;

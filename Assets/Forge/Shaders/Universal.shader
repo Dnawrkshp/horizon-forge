@@ -222,7 +222,7 @@ Shader "Horizon Forge/Universal"
                     float3 c0 = d0 * _WorldLightColors[worldLightIdx + 0];
                     float3 c1 = d1 * _WorldLightColors[worldLightIdx + 1];
 
-                    col.rgb *= (_Color.rgb * vcolor.rgb + (c0 + c1) * 0.5);
+                    col.rgb *= (_Color.rgb * vcolor.rgb + (c0 + c1));
                     col.a *= _Color.a * vcolor.a;
                 } else {
                     //col *= _Color * vcolor;

@@ -34,7 +34,7 @@ public static class MapExporter
         const string objectPathPrefix = "Scene/";
         var renameHistory = new Dictionary<GameObject, string>();
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
-        GameObject combinedCopy = null;
+        var gameObjectsToCleanup = new List<GameObject>();
         if (!mapConfig) return false;
 
         var exportSettings = new ExportSettings
@@ -69,9 +69,26 @@ public static class MapExporter
             var convertToShrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<ConvertToShrub>() : new ConvertToShrub[0];
             var extraGeometry = dzoConfig.IncludeInExport ?? new GameObject[0];
 
+            // create minimap object
+            GameObject minimapGo = null;
+            var minimapTex = mapConfig.DLMinimap;
+            if (minimapTex)
+            {
+                minimapGo = new GameObject("minimap-container");
+                var mf = minimapGo.AddComponent<MeshFilter>();
+                var mr = minimapGo.AddComponent<MeshRenderer>();
+                var mat = new Material(Shader.Find("Standard"));
+                mat.mainTexture = UnityHelper.ResizeTexture(minimapTex, dzoConfig.MinimapResolution, dzoConfig.MinimapResolution);
+                mr.sharedMaterial = mat;
+                mf.sharedMesh = UnityHelper.BuildQuad();
+
+                gameObjectsToCleanup.Add(minimapGo);
+            }
+
             // merge static geometry into one object
             var staticGameObjects = ties.Select(x => x.GetAssetInstance()).Union(shrubs.Select(x => x.GetAssetInstance())).Union(tfrags.Select(x => x.gameObject)).Where(x => x).Distinct().ToArray();
-            combinedCopy = CombineMeshes(staticGameObjects, dzoConfig);
+            var combinedCopy = CombineMeshes(staticGameObjects, dzoConfig);
+            if (combinedCopy) gameObjectsToCleanup.Add(combinedCopy);
 
             RenameIndexedUnique("light", lights, renameHistory);
             RenameIndexedUnique("sky", sky, renameHistory);
@@ -80,6 +97,7 @@ public static class MapExporter
             var gameObjectsToExport = new List<GameObject>();
             if (combinedCopy) gameObjectsToExport.Add(combinedCopy);
             gameObjectsToExport.AddRange(extraGeometry);
+            if (minimapGo) gameObjectsToExport.Add(minimapGo);
             gameObjectsToExport.AddRange(convertToShrubs.Where(x => x.DZOExportWithShrubs).Select(x => x.gameObject));
             foreach (var light in lights) gameObjectsToExport.Add(light.gameObject);
 
@@ -145,6 +163,7 @@ public static class MapExporter
                     TieShrubTfragCombinedName = combinedCopy ? objectPathPrefix + combinedCopy.name : null,
                     SkymeshName = sky ? objectPathPrefix + sky.gameObject.name : null,
                     SkymeshShells = shellData.ToArray(),
+                    MinimapMeshName = minimapGo ? objectPathPrefix + minimapGo.name : null,
                     Lights = lightData.ToArray(),
                     BackgroundColor = mapConfig.BackgroundColor,
                     FogColor = mapConfig.FogColor,
@@ -166,7 +185,10 @@ public static class MapExporter
             // cleanup generators
             UnityHelper.RunGeneratorsPostBake(BakeType.BUILD);
 
-            if (combinedCopy) GameObject.DestroyImmediate(combinedCopy);
+            // 
+            if (gameObjectsToCleanup.Any())
+                foreach (var go in gameObjectsToCleanup)
+                    GameObject.DestroyImmediate(go);
 
             // return objects to their old names
             foreach (var rename in renameHistory)

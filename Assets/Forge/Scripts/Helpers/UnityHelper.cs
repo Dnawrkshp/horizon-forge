@@ -424,6 +424,19 @@ public static class UnityHelper
         return hash;
     }
 
+    public static Mesh BuildQuad()
+    {
+        var m = new Mesh()
+        {
+            vertices = new[] { new Vector3(-1, -1, 0), new Vector3(1, -1, 0), new Vector3(1, 1, 0), new Vector3(1, 1, 0) },
+            triangles = new[] { 0, 2, 1, 2, 3, 1 },
+            normals = new[] { -Vector3.forward, -Vector3.forward, -Vector3.forward, -Vector3.forward },
+            uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) }
+        };
+
+        return m;
+    }
+
     public static Mesh Clone(this Mesh mesh)
     {
         var m = new Mesh()

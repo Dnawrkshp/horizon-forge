@@ -94,8 +94,8 @@ public class MapConfig : MonoBehaviour
 
             worldLightRays[idx] = worldLights[i].GetRay(0);
             worldLightRays[idx+1] = worldLights[i].GetRay(1);
-            worldLightColors[idx] = worldLights[i].GetColor(0) * worldLights[i].GetIntensity(0) * 2;
-            worldLightColors[idx+1] = worldLights[i].GetColor(1) * worldLights[i].GetIntensity(1) * 2;
+            worldLightColors[idx] = worldLights[i].GetColor(0) * worldLights[i].GetIntensity(0);
+            worldLightColors[idx+1] = worldLights[i].GetColor(1) * worldLights[i].GetIntensity(1);
         }
 
         Shader.SetGlobalVectorArray("_WorldLightRays", worldLightRays);

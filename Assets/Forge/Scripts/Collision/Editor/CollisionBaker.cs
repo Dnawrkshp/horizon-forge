@@ -226,6 +226,9 @@ public static class CollisionBaker
 
             var selectedGameObjects = Selection.gameObjects;
 
+            // run generators
+            UnityHelper.RunGeneratorsPreBake(BakeType.COLLISION);
+
             // build instanced collision
             var instancedColliders = new List<IInstancedCollider>();
             foreach (var selectedGameObject in selectedGameObjects)
@@ -281,6 +284,9 @@ public static class CollisionBaker
         }
         finally
         {
+            // cleanup generators
+            UnityHelper.RunGeneratorsPostBake(BakeType.COLLISION);
+
             // post bake
             foreach (var instance in affectedInstancedColliders)
                 instance.OnPostBake();

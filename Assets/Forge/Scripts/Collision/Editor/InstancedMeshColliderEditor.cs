@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(InstancedMeshColliderEditor)), CanEditMultipleObjects]
+[CustomEditor(typeof(InstancedMeshCollider)), CanEditMultipleObjects]
 public class InstancedMeshColliderEditor : Editor
 {
     private SerializedProperty m_MaterialIdProperty;

@@ -109,6 +109,14 @@ bpy.ops.object.select_all(action='DESELECT')
 C.view_layer.objects.active = root
 root.select_set(state=True)
 
+# remove duplicate vertices
+#bpy.ops.object.mode_set(mode='EDIT')
+#bpy.ops.mesh.select_all(action='SELECT')
+#bpy.ops.mesh.remove_doubles(threshold = 0.001)
+#bpy.ops.mesh.normals_tools(mode='RESET')
+#bpy.ops.mesh.normals_make_consistent(inside=False)
+#bpy.ops.object.editmode_toggle()
+
 # subdivide as necessary
 if True:
     bm = bmesh.new()

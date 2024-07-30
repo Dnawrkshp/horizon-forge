@@ -12,6 +12,8 @@ using UnityEngine.SceneManagement;
 
 public static class MapExporter
 {
+    public static readonly float DZO_SKY_BRIGHTNESS_FACTOR = 1.5f;
+
     [MenuItem("Forge/Tools/Exporter/Export for DZO")]
     public static async void ExportSceneForDZO()
     {
@@ -30,7 +32,9 @@ public static class MapExporter
     public static async Task<bool> ExportSceneForDZO(string outFilePath, string outMetadataFilePath)
     {
         const string objectPathPrefix = "Scene/";
+        var renameHistory = new Dictionary<GameObject, string>();
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        var gameObjectsToCleanup = new List<GameObject>();
         if (!mapConfig) return false;
 
         var exportSettings = new ExportSettings
@@ -50,23 +54,42 @@ public static class MapExporter
 
         var export = new GameObjectExport(exportSettings, gameObjectExportSettings);
 
-        // we want to export static geometry
-        var dzoConfig = GameObject.FindObjectOfType<DzoConfig>() ?? new DzoConfig();
-        var ties = dzoConfig.Ties ? GameObject.FindObjectsOfType<Tie>() : new Tie[0];
-        var shrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<Shrub>() : new Shrub[0];
-        var tfrags = dzoConfig.Tfrags ? GameObject.FindObjectsOfType<Tfrag>() : new Tfrag[0];
-        var lights = dzoConfig.Lights ? GameObject.FindObjectsOfType<Light>() : new Light[0];
-        var sky = dzoConfig.Sky ? GameObject.FindObjectOfType<Sky>() : null;
-        var convertToShrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<ConvertToShrub>() : new ConvertToShrub[0];
-        var extraGeometry = dzoConfig.IncludeInExport ?? new GameObject[0];
-
-        // merge static geometry into one object
-        var staticGameObjects = ties.Select(x => x.GetAssetInstance()).Union(shrubs.Select(x => x.GetAssetInstance())).Union(tfrags.Select(x => x.gameObject)).Where(x => x).Distinct().ToArray();
-        var combinedCopy = CombineMeshes(staticGameObjects);
-        var renameHistory = new Dictionary<GameObject, string>();
-
         try
         {
+            // run generators
+            UnityHelper.RunGeneratorsPreBake(BakeType.BUILD);
+
+            // we want to export static geometry
+            var dzoConfig = GameObject.FindObjectOfType<DzoConfig>() ?? new DzoConfig();
+            var ties = dzoConfig.Ties ? GameObject.FindObjectsOfType<Tie>() : new Tie[0];
+            var shrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<Shrub>() : new Shrub[0];
+            var tfrags = dzoConfig.Tfrags ? GameObject.FindObjectsOfType<TfragChunk>() : new TfragChunk[0];
+            var lights = dzoConfig.Lights ? GameObject.FindObjectsOfType<Light>() : new Light[0];
+            var sky = dzoConfig.Sky ? GameObject.FindObjectOfType<Sky>() : null;
+            var convertToShrubs = dzoConfig.Shrubs ? GameObject.FindObjectsOfType<ConvertToShrub>() : new ConvertToShrub[0];
+            var extraGeometry = dzoConfig.IncludeInExport ?? new GameObject[0];
+
+            // create minimap object
+            GameObject minimapGo = null;
+            var minimapTex = mapConfig.DLMinimap;
+            if (minimapTex)
+            {
+                minimapGo = new GameObject("minimap-container");
+                var mf = minimapGo.AddComponent<MeshFilter>();
+                var mr = minimapGo.AddComponent<MeshRenderer>();
+                var mat = new Material(Shader.Find("Standard"));
+                mat.mainTexture = UnityHelper.ResizeTexture(minimapTex, dzoConfig.MinimapResolution, dzoConfig.MinimapResolution);
+                mr.sharedMaterial = mat;
+                mf.sharedMesh = UnityHelper.BuildQuad();
+
+                gameObjectsToCleanup.Add(minimapGo);
+            }
+
+            // merge static geometry into one object
+            var staticGameObjects = ties.Select(x => x.GetAssetInstance()).Union(shrubs.Select(x => x.GetAssetInstance())).Union(tfrags.Select(x => x.gameObject)).Where(x => x).Distinct().ToArray();
+            var combinedCopy = CombineMeshes(staticGameObjects, dzoConfig);
+            if (combinedCopy) gameObjectsToCleanup.Add(combinedCopy);
+
             RenameIndexedUnique("light", lights, renameHistory);
             RenameIndexedUnique("sky", sky, renameHistory);
 
@@ -74,6 +97,7 @@ public static class MapExporter
             var gameObjectsToExport = new List<GameObject>();
             if (combinedCopy) gameObjectsToExport.Add(combinedCopy);
             gameObjectsToExport.AddRange(extraGeometry);
+            if (minimapGo) gameObjectsToExport.Add(minimapGo);
             gameObjectsToExport.AddRange(convertToShrubs.Where(x => x.DZOExportWithShrubs).Select(x => x.gameObject));
             foreach (var light in lights) gameObjectsToExport.Add(light.gameObject);
 
@@ -109,10 +133,8 @@ public static class MapExporter
                     {
                         foreach (var shell in shells)
                         {
-                            var color = shell.GetMaterials()[0].GetColor("_Color").linear;
-                            color.r *= 1.5f;
-                            color.g *= 1.5f;
-                            color.b *= 1.5f;
+                            var color = shell.GetMaterials()[0].GetColor("_Color").linear.ScaleRGB(DZO_SKY_BRIGHTNESS_FACTOR);
+                            color.a *= shell.GetMaterials()[0].GetFloat("_Opacity");
 
                             shellData.Add(new DzoMapMetadata.SkymeshShellMetadata()
                             {
@@ -141,11 +163,12 @@ public static class MapExporter
                     TieShrubTfragCombinedName = combinedCopy ? objectPathPrefix + combinedCopy.name : null,
                     SkymeshName = sky ? objectPathPrefix + sky.gameObject.name : null,
                     SkymeshShells = shellData.ToArray(),
+                    MinimapMeshName = minimapGo ? objectPathPrefix + minimapGo.name : null,
                     Lights = lightData.ToArray(),
                     BackgroundColor = mapConfig.BackgroundColor,
                     FogColor = mapConfig.FogColor,
                     FogNearDistance = mapConfig.FogNearDistance,
-                    FogFarDistance = mapConfig.FogFarDistance * fogT,
+                    FogFarDistance = mapConfig.FogNearDistance + fogT,
                     PostColorFilter = dzoConfig.PostColorFilter,
                     PostExposure = dzoConfig.PostExposure,
                     DefaultCameraPosition = dzoConfig.DefaultCameraPosition ? dzoConfig.DefaultCameraPosition.position : Vector3.zero,
@@ -159,7 +182,13 @@ public static class MapExporter
         }
         finally
         {
-            if (combinedCopy) GameObject.DestroyImmediate(combinedCopy);
+            // cleanup generators
+            UnityHelper.RunGeneratorsPostBake(BakeType.BUILD);
+
+            // 
+            if (gameObjectsToCleanup.Any())
+                foreach (var go in gameObjectsToCleanup)
+                    GameObject.DestroyImmediate(go);
 
             // return objects to their old names
             foreach (var rename in renameHistory)
@@ -188,13 +217,15 @@ public static class MapExporter
         obj.name = prefix;
     }
 
-    static GameObject CombineMeshes(GameObject[] gameObjects)
+    static GameObject CombineMeshes(GameObject[] gameObjects, DzoConfig dzoConfig)
     {
+        var collisionLayer = LayerMask.NameToLayer("COLLISION");
+
         // Locals
         Dictionary<Material, List<MeshFilterSubMesh>> materialToMeshFilterList = new Dictionary<Material, List<MeshFilterSubMesh>>();
         List<GameObject> combinedObjects = new List<GameObject>();
 
-        MeshFilter[] meshFilters = gameObjects.SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).ToArray();
+        MeshFilter[] meshFilters = gameObjects.SelectMany(x => x.GetComponentsInChildren<MeshFilter>()).Where(x => x && x.gameObject.layer != collisionLayer).ToArray();
 
         // Go through all mesh filters and establish the mapping between the materials and all mesh filters using it.
         foreach (var meshFilter in meshFilters)
@@ -225,17 +256,23 @@ public static class MapExporter
             var reflectionMatrix = Matrix4x4.identity;
             var tie = meshRenderer.GetComponentInParent<Tie>();
             var shrub = meshRenderer.GetComponentInParent<Shrub>();
+            var tfrag = meshRenderer.GetComponentInParent<TfragChunk>();
             if (tie)
             {
                 reflectionMatrix = tie.Reflection;
-                var color = tie.GetBaseVertexColor().HalveRGB(); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
+                var color = tie.GetBaseVertexColor().HalveRGB().ScaleRGB(dzoConfig.TieBrightness * tie.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
                 colors = Enumerable.Repeat(color, meshFilter.sharedMesh.vertexCount).ToArray();
             }
             else if (shrub)
             {
                 reflectionMatrix = shrub.Reflection;
-                var color = shrub.Tint.HalveRGB(); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
+                var color = shrub.Tint.HalveRGB().ScaleRGB(dzoConfig.ShrubBrightness * shrub.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
                 colors = Enumerable.Repeat(color, meshFilter.sharedMesh.vertexCount).ToArray();
+            }
+            else if (tfrag)
+            {
+                for (int i = 0; i < colors.Length; ++i)
+                    colors[i] = colors[i].ScaleRGB(dzoConfig.TfragBrightness * tfrag.DZOBrightness);
             }
 
             // create a clone of the mesh and bake any vertex colors

@@ -11,7 +11,7 @@ public interface IOcclusionData
     [InitializeOnLoadMethod]
     private static void OnInitialized()
     {
-        AllOcclusionDatas = GameObject.FindObjectsOfType<Transform>().Select(x => x.GetComponent<IOcclusionData>()).Where(x => x != null).ToList();
+        Refresh();
     }
 
     public Vector3[] Octants { get; set; }
@@ -21,6 +21,11 @@ public interface IOcclusionData
 
     public void OnPostBake();
     public void OnPreBake(Color32 uidColor);
+
+    public static void Refresh()
+    {
+        AllOcclusionDatas = GameObject.FindObjectsOfType<Transform>().Select(x => x.GetComponent<IOcclusionData>()).Where(x => x != null).ToList();
+    }
 
     public static void ForceUniqueOcclusionIds()
     {

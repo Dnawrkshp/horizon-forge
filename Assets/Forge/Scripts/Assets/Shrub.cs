@@ -15,6 +15,7 @@ public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
     public int GroupId;
     public float RenderDistance = 64;
     [ColorUsage(false)] public Color Tint = Color.white;
+    public float DZOBrightness = 1f;
 
     [Header("Collision")]
     [Tooltip("Enable instanced collider.")] public bool InstancedCollider;
@@ -61,6 +62,7 @@ public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
         renderHandle.IsPicking = !SceneVisibilityManager.instance.IsPickingDisabled(this.gameObject);
         renderHandle.Reflection = Reflection;
         renderHandle.Rotation = Quaternion.Euler(0, -90f, 0);
+        renderHandle.Layer = LayerMask.NameToLayer("SHRUB");
         renderHandle.Update(this.gameObject, prefab);
 
         // configure collider

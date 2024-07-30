@@ -210,6 +210,8 @@ public class CollisionRenderHandle
             assetInstance.transform.localPosition = Offset;
             assetInstance.transform.localScale = Scale;
             assetInstance.transform.SetParent(parent.transform, false);
+
+            UpdateColliderAssetMaterials();
         }
         else if (_prefab)
         {

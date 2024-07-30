@@ -79,17 +79,17 @@ Shader "Horizon Forge/Skymesh"
                 // sample the texture
                 fixed4 col = tex2D(_MainTex, i.uv);
 
-                float bloom = _Bloom * 0.5;
+                float bloom = _Bloom * 1;
 
                 float a = saturate(i.color.a * col.a * _Color.a * _Opacity);
                 //col.a = a; //*a;
 
                 //col.rgb *= _Color.rgb * (1 + bloom);
                 //col.rgb = float3(a, 1, 1);
-
+                
                 fixed4 final = col;
                 final.rgb *= _Color.rgb * (1 + bloom);
-                final.a = a;
+                final.a = a * lerp(1, a, _Bloom);
                 return final;
 #endif
             }

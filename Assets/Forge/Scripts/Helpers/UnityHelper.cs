@@ -185,6 +185,11 @@ public static class UnityHelper
         return Selection.gameObjects?.SelectMany(x => x.GetComponentsInChildren<IOcclusionData>())?.ToList();
     }
 
+    public static List<IOcclusionData> GetAllOcclusionData()
+    {
+        return GameObject.FindObjectsOfType<MonoBehaviour>().Where(x => x is IOcclusionData).Select(x => x as IOcclusionData).ToList();
+    }
+
     public static List<Vector3> GetAllOctants()
     {
         var volumes = GameObject.FindObjectsOfType<OcclusionVolume>();
@@ -199,6 +204,24 @@ public static class UnityHelper
     public static void DrawLine(Vector3 from, Vector3 to, Color color, float thickness)
     {
         Handles.DrawBezier(from, to, from, to, color, null, thickness);
+    }
+
+    public static Texture2D GetMainTexture(this Material mat)
+    {
+        var tex = mat.mainTexture;
+        if (tex) return tex as Texture2D;
+
+        string[] texPropertyNames = { "_BaseMap", "_MainTex", "baseColorTexture" };
+        foreach (var texPropertyName in texPropertyNames)
+        {
+            if (mat.HasProperty(texPropertyName))
+            {
+                tex = mat.GetTexture(texPropertyName);
+                if (tex) return tex as Texture2D;
+            }
+        }
+
+        return null;
     }
 
     public static void SaveRenderTexture(RenderTexture rt, string path)
@@ -371,6 +394,11 @@ public static class UnityHelper
         return new Color(color.r * 2f, color.g * 2f, color.b * 2f, color.a);
     }
 
+    public static Color ScaleRGB(this Color color, float factor)
+    {
+        return new Color(color.r * factor, color.g * factor, color.b * factor, color.a);
+    }
+
     static int ForceDimensionPowerOfTwo(int dimension)
     {
         float exp = Mathf.Log(dimension, 2);
@@ -394,6 +422,49 @@ public static class UnityHelper
             hash = hash ^ v.GetHashCode();
 
         return hash;
+    }
+
+    public static Mesh BuildQuad()
+    {
+        var m = new Mesh()
+        {
+            vertices = new[] { new Vector3(-1, -1, 0), new Vector3(1, -1, 0), new Vector3(1, 1, 0), new Vector3(1, 1, 0) },
+            triangles = new[] { 0, 2, 1, 2, 3, 1 },
+            normals = new[] { -Vector3.forward, -Vector3.forward, -Vector3.forward, -Vector3.forward },
+            uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) }
+        };
+
+        return m;
+    }
+
+    public static Mesh Clone(this Mesh mesh)
+    {
+        var m = new Mesh()
+        {
+            name = mesh.name,
+            vertices = mesh.vertices,
+            normals = mesh.normals,
+            tangents = mesh.tangents,
+            bounds = mesh.bounds,
+            uv = mesh.uv,
+            uv2 = mesh.uv2,
+            colors = mesh.colors,
+            colors32 = mesh.colors32,
+            indexBufferTarget = mesh.indexBufferTarget,
+            indexFormat = mesh.indexFormat,
+            subMeshCount = mesh.subMeshCount,
+            boneWeights = mesh.boneWeights,
+            bindposes = mesh.bindposes,
+        };
+
+        // copy submeshes
+        for (int i = 0; i < mesh.subMeshCount; ++i)
+        {
+            var submesh = mesh.GetSubMesh(i);
+            m.SetIndices(mesh.GetIndices(i), submesh.topology, i);
+        }
+
+        return m;
     }
 
     public static void FlipFaces(this Mesh mesh, int subMeshIndex = -1)
@@ -469,4 +540,33 @@ public static class UnityHelper
             mesh.SetTriangles(triangles, i);
         }
     }
+
+    public static void RunGeneratorsPreBake(BakeType type)
+    {
+        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
+        foreach (var assetGenerator in assetGenerators)
+        {
+            assetGenerator.Generate();
+            assetGenerator.OnPreBake(type);
+        }
+    }
+
+    public static void RunGeneratorsPostBake(BakeType type)
+    {
+        var assetGenerators = GameObject.FindObjectsOfType<BaseAssetGenerator>();
+        foreach (var assetGenerator in assetGenerators)
+        {
+            assetGenerator.OnPostBake(type);
+        }
+    }
+}
+
+public enum TextureSize
+{
+    _32,
+    _64,
+    _128,
+    _256,
+    _512,
+    _1024
 }

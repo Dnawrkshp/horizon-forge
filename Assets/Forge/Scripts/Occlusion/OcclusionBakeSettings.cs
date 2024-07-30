@@ -17,12 +17,13 @@ public class OcclusionBakeSettings : MonoBehaviour
         _4096
     }
 
-    public OcclusionBakeResolution Resolution = OcclusionBakeResolution._256;
+    //public OcclusionBakeResolution Resolution = OcclusionBakeResolution._256;
     public float RenderDistance = 1000f;
-    public LayerMask CullingMask = -1;
     [Range(0f, 179f), Tooltip("Default is 90. Increasing will increase the number of objects included in each octant.")] public float RenderFov = 90f;
     [Range(0, 4)] public int FeatherOctantRadius = 0;
     //[Range(0f, 1f)] public float ClipPercent = 0f;
     //[Min(1)] public int ClipPixelCount = 1;
     public Vector3 OctantOffset = Vector3.zero;
+
+    public LayerMask CullingMask => LayerMask.GetMask("OCCLUSION_BAKE", "TFRAG", "TIE", "SHRUB");
 }

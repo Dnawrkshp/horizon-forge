@@ -61,8 +61,6 @@ public class MapRenderEditor : Editor
             render(mapRender, depth: true);
         }
 
-        var p = mapRender.transform.position + mapRender.transform.rotation * mapRender.transform.localScale;
-
         GUILayout.Label($"Minimap Coordinates:\npX: {mapRender.transform.position.x}\npY: {mapRender.transform.position.z}\nsX: {mapRender.transform.localScale.x}\nsY: {mapRender.transform.localScale.z}");
     }
 
@@ -72,9 +70,10 @@ public class MapRenderEditor : Editor
         if (scene == null) return;
 
         var resourcesFolder = FolderNames.GetMapFolder(scene.name);
-        var outPath = EditorUtility.SaveFilePanelInProject("Save Minimap Render", "minimap", "png", "", resourcesFolder);
+        var lastPath = string.IsNullOrEmpty(mapRender.SavePath) ? resourcesFolder : mapRender.SavePath;
+        var outPath = EditorUtility.SaveFilePanelInProject("Save Minimap Render", "minimap", "png", "", lastPath);
         if (String.IsNullOrEmpty(outPath)) return;
-        var fi = new FileInfo(outPath);
+        mapRender.SavePath = outPath;
 
         // setup render texture
         int width = mapRender.RenderScale;
@@ -86,6 +85,8 @@ public class MapRenderEditor : Editor
 
         try
         {
+            UnityHelper.RunGeneratorsPreBake(BakeType.MAPRENDER);
+
             if (depth)
                 Shader.EnableKeyword("_DEPTH");
             else
@@ -111,6 +112,8 @@ public class MapRenderEditor : Editor
         }
         finally
         {
+            UnityHelper.RunGeneratorsPostBake(BakeType.MAPRENDER);
+
             Shader.DisableKeyword("_MAPRENDER");
             Shader.DisableKeyword("_DEPTH");
             rt.Release();

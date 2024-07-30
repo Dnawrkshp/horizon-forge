@@ -440,23 +440,38 @@ public class PackerImporterWindow : EditorWindow
                     if (!Directory.Exists(matAssetDir))
                         AssetDatabase.CreateFolder(UnityHelper.GetProjectRelativePath(Directory.GetParent(matAssetDir).FullName), "Materials");
 
+                    // check if material already exists
+                    mat = AssetDatabase.LoadAssetAtPath<Material>(matAssetPath);
+                    bool matAlreadyExists = mat;
+
                     switch (texConfig.Import.AssetType)
                     {
                         case "Sky":
                             {
-                                mat = new Material(skyShader);
+                                if (!mat)
+                                    mat = new Material(skyShader);
+                                else
+                                    mat.shader = skyShader;
                                 break;
                             }
                         default:
                             {
-                                mat = new Material(shader);
+                                if (!mat)
+                                    mat = new Material(shader);
+                                else
+                                    mat.shader = shader;
                                 break;
                             }
                     }
 
                     var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texConfig.Path);
                     mat.SetTexture("_MainTex", tex);
-                    AssetDatabase.CreateAsset(mat, matAssetPath);
+                    EditorUtility.SetDirty(mat);
+
+                    if (matAlreadyExists)
+                        AssetDatabase.SaveAssetIfDirty(mat);
+                    else
+                        AssetDatabase.CreateAsset(mat, matAssetPath);
 
                     EditorUtility.DisplayProgressBar($"Importing Textures", $"{texConfig} ({i}/{texturesToConfigureImporterSettings.Count})", i / (float)texturesToConfigureImporterSettings.Count);
                     ++i;

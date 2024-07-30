@@ -2,6 +2,7 @@ import sys
 import bpy
 import os
 import time
+import bmesh
 
 def add(obj, face, u_off, v_off):
     for vert_idx, loop_idx in zip(face.vertices, face.loop_indices):
@@ -25,6 +26,49 @@ def avg(obj, face):
         return (uAvg / count, vAvg / count)
     
     return 0
+
+
+def create_merged(objs):
+    bpy.ops.object.select_all(action='DESELECT')
+    
+    # create root
+    otherMesh = bpy.data.meshes.new('merged')
+    otherRoot = bpy.data.objects.new("merged", otherMesh)
+    otherRoot.location = (0,0,0)
+    C.collection.objects.link(otherRoot)
+    C.view_layer.objects.active = otherRoot
+    otherRoot.select_set(state=True)
+    
+    # merge objs into root
+    for merge_obj in objs:
+        copy = merge_obj.copy()
+        copy.data = merge_obj.data.copy()
+        C.collection.objects.link(copy)
+        copy.select_set(state=True)
+        merge_obj.select_set(state=False)
+        
+    # merge
+    C.view_layer.objects.active = otherRoot
+    bpy.ops.object.join()
+    
+    # remove materials from merged
+    for s in [x.name for x in otherRoot.material_slots]:
+        print('removing slot %s' % s)
+        otherRoot.active_material_index = 0
+        bpy.ops.object.material_slot_remove()
+        
+    # recalculate normals
+    bpy.ops.object.select_all(action='DESELECT')
+    otherRoot.select_set(True)
+    bpy.context.view_layer.objects.active = otherRoot
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold = 0.001)
+    bpy.ops.mesh.normals_tools(mode='RESET')
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.editmode_toggle()
+    
+    return otherRoot
 
 argv = sys.argv
 try:
@@ -65,6 +109,33 @@ uvlayer = me.uv_layers.active
 # Object Mode
 bpy.ops.object.mode_set(mode='OBJECT')
 
+# todo: new fix normals
+if fix_normals and False:
+    all_objects = [x for x in C.scene.objects]
+    all_objects_merged = create_merged(all_objects)
+
+    for obj in all_objects:
+        modDT = obj.modifiers.new("DataTransfer", type="DATA_TRANSFER")
+        modDT.object = all_objects_merged
+        modDT.use_loop_data = True
+        modDT.data_types_loops = {'CUSTOM_NORMAL'}
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(modifier=modDT.name)
+
+        # recalculate normals
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        #bpy.ops.mesh.remove_doubles(threshold = 0.001)
+        #bpy.ops.mesh.normals_tools(mode='RESET')
+        #bpy.ops.mesh.normals_make_consistent(inside=False)
+        bpy.ops.object.editmode_toggle()
+        
+    bpy.data.objects.remove(all_objects_merged)
+
+# old fix normals
 if fix_normals:
     all_objects = [x for x in C.scene.objects]
     for obj in all_objects:

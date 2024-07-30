@@ -10,37 +10,16 @@ using UnityEngine;
 
 public static class OcclusionBaker
 {
-    [MenuItem("Forge/Tools/Occlusion/Clear Occlusion For Selected")]
-    public static void ClearOcclusion()
-    {
-        var selectedOcclusionDatas = UnityHelper.GetAllOcclusionDataInSelection();
-        if (selectedOcclusionDatas == null || selectedOcclusionDatas.Count == 0)
-        {
-            EditorUtility.DisplayDialog("Occlusion Builder", "Please select at least one object with OcclusionData!", "Ok");
-            return;
-        }
-
-        foreach (var selectedOcclusionData in selectedOcclusionDatas)
-            selectedOcclusionData.Octants = new Vector3[0];
-    }
-
-    [MenuItem("Forge/Tools/Occlusion/Bake Occlusion For Selected")]
+    [MenuItem("Forge/Tools/Occlusion/Bake Occlusion")]
     public static void BakeOcclusion()
     {
         ComputeBuffer parsedIdsBuffer = null;
-
-        var selectedOcclusionDatas = UnityHelper.GetAllOcclusionDataInSelection();
-        if (selectedOcclusionDatas == null || selectedOcclusionDatas.Count == 0)
-        {
-            EditorUtility.DisplayDialog("Occlusion Builder", "Please select at least one object with OcclusionData!", "Ok");
-            return;
-        }
 
         var bakeSettings = GameObject.FindObjectOfType<OcclusionBakeSettings>();
         if (!bakeSettings)
             bakeSettings = new OcclusionBakeSettings();
 
-        var renderResolution = (int)Mathf.Pow(2, (int)bakeSettings.Resolution + 5);
+        var renderResolution = 1024; // (int)Mathf.Pow(2, (int)bakeSettings.Resolution + 5);
         //var clipPixelCount = (int)Math.Max(bakeSettings.ClipPixelCount, bakeSettings.ClipPercent * renderResolution * renderResolution);
         var octants = UnityHelper.GetAllOctants();
         var graph = GameObject.FindObjectOfType<OcclusionGraph>();
@@ -82,9 +61,20 @@ public static class OcclusionBaker
         Shader.EnableKeyword("_OCCLUSION");
         try
         {
-            // pass pre event to OcclusionData
+            // run generators
+            UnityHelper.RunGeneratorsPreBake(BakeType.OCCLUSION);
+
+            // get occluders
+            IOcclusionData.Refresh();
             var allOcclusionDatas = IOcclusionData.AllOcclusionDatas;
-            var occlusionDatas = selectedOcclusionDatas; // GameObject.FindObjectsOfType<OcclusionData>();
+            if (allOcclusionDatas == null || allOcclusionDatas.Count == 0)
+            {
+                EditorUtility.DisplayDialog("Occlusion Builder", "No objects with occlusion to bake!", "Ok");
+                return;
+            }
+
+            // pass pre event to OcclusionData
+            var occlusionDatas = allOcclusionDatas; // GameObject.FindObjectsOfType<OcclusionData>();
             var occlusionDatasWithDupeIds = occlusionDatas.Where(x => allOcclusionDatas.Count(y => y.OcclusionType == x.OcclusionType && y.OcclusionId == x.OcclusionId) > 1).ToList();
             if (occlusionDatasWithDupeIds.Count > 0)
             {
@@ -252,6 +242,9 @@ public static class OcclusionBaker
         }
         finally
         {
+            // cleanup generators
+            UnityHelper.RunGeneratorsPostBake(BakeType.OCCLUSION);
+
             Shader.DisableKeyword("_OCCLUSION");
             rtColor.Release();
             parsedIdsBuffer?.Release();

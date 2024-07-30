@@ -15,8 +15,14 @@ public class DzoConfig : MonoBehaviour
     public bool Sky = true;
     public GameObject[] IncludeInExport;
 
+    [Header("Export Brightness")]
+    public float TieBrightness = 1f;
+    public float ShrubBrightness = 1f;
+    public float TfragBrightness = 1f;
+
     [Header("Export Misc")]
     public bool Lights = true;
+    public int MinimapResolution = 512;
 
     [Header("Post Processing")]
     public float PostExposure = 0f;
@@ -47,6 +53,7 @@ public class DzoMapMetadata
     public string TieShrubTfragCombinedName;
     public string SkymeshName;
     public SkymeshShellMetadata[] SkymeshShells;
+    public string MinimapMeshName;
     public LightMetadata[] Lights;
     public Vector3 DefaultCameraPosition;
     public Vector3 DefaultCameraEuler;

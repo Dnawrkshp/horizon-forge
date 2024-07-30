@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -322,7 +323,7 @@ public static class WrenchHelper
         if (value == "true") return true;
         if (value.StartsWith("\"") && value.EndsWith("\"")) return value.Substring(1, value.Length - 2);
         if (int.TryParse(value, out var intValue)) return intValue;
-        if (float.TryParse(value, out var floatValue)) return floatValue;
+        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var floatValue)) return floatValue;
 
         // array
         if (value.StartsWith("[") && value.EndsWith("]"))

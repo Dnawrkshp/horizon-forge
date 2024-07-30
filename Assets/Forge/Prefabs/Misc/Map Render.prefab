@@ -47,6 +47,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   RenderScale: 4096
   BackgroundColor: {r: 0.4, g: 0.4, b: 0.4, a: 0.5019608}
+  SavePath: 
+  _version: 1
 --- !u!20 &1410257974286344073
 Camera:
   m_ObjectHideFlags: 0
@@ -86,7 +88,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 448
+    m_Bits: 6528
   m_RenderingPath: 1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0

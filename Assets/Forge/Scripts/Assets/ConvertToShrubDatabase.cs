@@ -307,7 +307,7 @@ public class ConvertToShrubDatabase : ScriptableObject
 
                     // try and export texture
                     var texPath = Path.Combine(workingDir, $"tex.{t:D4}.0.png");
-                    var tex = mat.mainTexture as Texture2D; //mat.GetTexture("baseColorTexture") as Texture2D;
+                    var tex = mat.GetMainTexture();
                     if (matData.TextureOverride) tex = matData.TextureOverride;
                     if (!tex) tex = new Texture2D(32, 32, TextureFormat.ARGB32, false);
 
@@ -480,7 +480,7 @@ public class ConvertToShrubDatabase : ScriptableObject
         UnityHelper.CloneHierarchy(go.transform, rootCopyGo.transform, (srcT, dstT) =>
         {
             // skip inactive or hidden objects
-            if (!srcT.gameObject.activeSelf || srcT.gameObject.hideFlags.HasFlag(HideFlags.HideInHierarchy))
+            if (!srcT.gameObject.activeSelf || srcT.gameObject.hideFlags.HasFlag(HideFlags.DontSave))
                 return false;
 
             // skip objects that belong to another prefab
@@ -630,16 +630,6 @@ public class ConvertToShrubData
 [Serializable]
 public class ConvertToShrubMaterialData
 {
-    public enum TextureSize
-    {
-        _32,
-        _64,
-        _128,
-        _256,
-        _512,
-        _1024
-    }
-
 
     [SerializeField, HideInInspector] public string Name;
     public TextureSize MaxTextureSize = TextureSize._128;

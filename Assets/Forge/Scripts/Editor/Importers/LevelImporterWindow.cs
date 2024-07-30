@@ -117,6 +117,12 @@ public class LevelImporterWindow : EditorWindow
             default: throw new NotImplementedException();
         }
     }
+    string GetInputLevelName()
+    {
+        if (ImportSourceIsWad()) return Path.GetFileNameWithoutExtension(wadPath);
+
+        return GetSelectedLevelName();
+    }
     int GetLevelId()
     {
         switch (ImportSourceRacVersion())
@@ -548,7 +554,7 @@ public class LevelImporterWindow : EditorWindow
             PrepareMapResourceFolder(destMapFolder, destMapBinFolder);
             PrepareNewScene(destSceneFile);
 
-            rootGo = new GameObject(GetSelectedLevelName());
+            rootGo = new GameObject(GetInputLevelName());
             rootGo.transform.SetAsFirstSibling();
 
             var mapConfig = FindObjectOfType<MapConfig>();
@@ -685,7 +691,7 @@ public class LevelImporterWindow : EditorWindow
         var assetImports = new List<PackerImporterWindow.PackerAssetImport>();
         var reimportOcclusion = (importTfrags == 1) || (importTies > 0) || (importMobys > 0);
         var postActions = new List<Action>();
-        var rootGo = new GameObject(GetSelectedLevelName());
+        var rootGo = new GameObject(GetInputLevelName());
         rootGo.transform.SetAsFirstSibling();
 
         // base map isn't set when importing into current map
@@ -809,7 +815,6 @@ public class LevelImporterWindow : EditorWindow
             map.UYABaseMap = Enum.Parse<UYAMapIds>(UYABaseMaps[importBaseLevelIdx]);
 
         var occBakeSettings = mapGameObject.AddComponent<OcclusionBakeSettings>();
-        occBakeSettings.CullingMask = LayerMask.GetMask("OCCLUSION_BAKE");
 
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
@@ -1293,7 +1298,7 @@ public class LevelImporterWindow : EditorWindow
         var worldInstanceTiesFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceTiesFolder(racVersion));
         var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion));
         var tieWorldInstanceDirs = Directory.EnumerateDirectories(worldInstanceTiesFolder).OrderBy(x => int.Parse(Path.GetFileName(x).Split('_')[0])).ToList();
-        var tieOcclusion = File.ReadAllBytes(Path.Combine(worldInstanceOcclusionFolder, "tie.bin"));
+        var tieOcclusionFile = Path.Combine(worldInstanceOcclusionFolder, "tie.bin");
 
         var tieRootGo = new GameObject("Ties");
         tieRootGo.transform.SetParent(rootGo.transform, true);
@@ -1320,17 +1325,21 @@ public class LevelImporterWindow : EditorWindow
         }
 
         // read occlusion
-        using (var ms = new MemoryStream(tieOcclusion))
+        if (File.Exists(tieOcclusionFile))
         {
-            using (var occlusionReader = new BinaryReader(ms))
+            var tieOcclusion = File.ReadAllBytes(tieOcclusionFile);
+            using (var ms = new MemoryStream(tieOcclusion))
             {
-                while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                using (var occlusionReader = new BinaryReader(ms))
                 {
-                    var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
-                    if (instancesByOcclId.TryGetValue(occlusionId, out var tie))
-                        tie.Octants = octants;
-                    else
-                        Debug.LogWarning($"Occlusion block with no matching tie!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                    {
+                        var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
+                        if (instancesByOcclId.TryGetValue(occlusionId, out var tie))
+                            tie.Octants = octants;
+                        else
+                            Debug.LogWarning($"Occlusion block with no matching tie!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    }
                 }
             }
         }
@@ -1789,7 +1798,9 @@ public class LevelImporterWindow : EditorWindow
         var terrainBinFile = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainBinFile);
         var terrainBinFolder = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainFolder);
         var terrainOutColladaFile = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainFolder, "terrain.dae");
-        var terrainMapResourcesFolder = Path.Combine(mapResourcesFolder, FolderNames.TfragFolder, $"rc{ImportSourceRacVersion()}_level{GetLevelId()}");
+        var terrainFolderName = $"rc{ImportSourceRacVersion()}_level{GetLevelId()}";
+        if (ImportSourceIsWad()) terrainFolderName = $"rc{ImportSourceRacVersion()}_{Path.GetFileNameWithoutExtension(wadPath)}";
+        var terrainMapResourcesFolder = Path.Combine(mapResourcesFolder, FolderNames.TfragFolder, terrainFolderName);
         var terrainTexturesMapResourcesFolder = Path.Combine(terrainMapResourcesFolder, "Textures");
         var terrainMaterialsMapResourcesFolder = Path.Combine(terrainMapResourcesFolder, "Materials");
         var shader = Shader.Find("Horizon Forge/Universal");
@@ -1827,9 +1838,15 @@ public class LevelImporterWindow : EditorWindow
 
             // create material
             var outMatFile = Path.Combine(terrainMaterialsMapResourcesFolder, $"tfrags-{texIdx}.mat");
-            var mat = new Material(shader);
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(outMatFile);
+            bool matAlreadyExists = mat;
+
+            if (!mat) mat = new Material(shader);
             mat.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(outTexFile));
-            AssetDatabase.CreateAsset(mat, outMatFile);
+            EditorUtility.SetDirty(mat);
+
+            if (matAlreadyExists) AssetDatabase.SaveAssetIfDirty(mat);
+            else AssetDatabase.CreateAsset(mat, outMatFile);
         }
 
         BlenderHelper.ImportMesh(terrainOutColladaFile, terrainMapResourcesFolder, "tfrags", overwrite: true, out var outMeshFile, fixNormals: false);
@@ -1840,17 +1857,30 @@ public class LevelImporterWindow : EditorWindow
         var tfragPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(UnityHelper.GetProjectRelativePath(outMeshFile));
         if (tfragPrefab)
         {
-            var tfragGo = (GameObject)PrefabUtility.InstantiatePrefab(tfragPrefab);
+            var tfragGo = (GameObject)GameObject.Instantiate(tfragPrefab);
             if (tfragGo)
             {
+                tfragGo.name = "tfrags";
                 tfragGo.transform.SetParent(rootGo.transform, true);
                 var tfrag = tfragGo.AddComponent<Tfrag>();
-                tfragGo.layer = LayerMask.NameToLayer("OCCLUSION_BAKE");
+                tfragGo.layer = LayerMask.NameToLayer("TFRAG");
                 UnityHelper.RecurseHierarchy(tfragGo.transform, (t) => t.gameObject.layer = tfragGo.layer);
+
+                // clone each tfrag mesh before we delete the tfrag model
+                for (int i = 0; i < tfragGo.transform.childCount; ++i)
+                {
+                    var child = tfragGo.transform.GetChild(i);
+                    var mf = child.GetComponent<MeshFilter>();
+                    if (mf)
+                        mf.sharedMesh = mf.sharedMesh.Clone();
+                }
 
                 // populate tfrag chunks
                 ReadTfragChunks(mapBinFolder, tfrag);
             }
+
+            // destroy prefab
+            AssetDatabase.DeleteAsset(UnityHelper.GetProjectRelativePath(outMeshFile));
         }
     }
 
@@ -1859,7 +1889,7 @@ public class LevelImporterWindow : EditorWindow
         var racVersion = ImportSourceRacVersion();
         var terrainBinFile = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainBinFile);
         var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion));
-        var tfragOcclusion = File.ReadAllBytes(Path.Combine(worldInstanceOcclusionFolder, "tfrag.bin"));
+        var tfragOcclusionFile = Path.Combine(worldInstanceOcclusionFolder, "tfrag.bin");
 
         if (!File.Exists(terrainBinFile))
             return;
@@ -1917,17 +1947,21 @@ public class LevelImporterWindow : EditorWindow
         }
 
         // read occlusion
-        using (var ms = new MemoryStream(tfragOcclusion))
+        if (File.Exists(tfragOcclusionFile))
         {
-            using (var occlusionReader = new BinaryReader(ms))
+            var tfragOcclusion = File.ReadAllBytes(tfragOcclusionFile);
+            using (var ms = new MemoryStream(tfragOcclusion))
             {
-                while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                using (var occlusionReader = new BinaryReader(ms))
                 {
-                    var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
-                    if (instancesById.TryGetValue(instanceIdx, out var chunk))
-                        chunk.Octants = octants;
-                    else
-                        Debug.LogWarning($"Occlusion block with no matching tfrag!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    while (occlusionReader != null && occlusionReader.BaseStream.Position < occlusionReader.BaseStream.Length)
+                    {
+                        var octants = PackerHelper.ReadOcclusionBlock(occlusionReader, out var instanceIdx, out var occlusionId).ToArray();
+                        if (instancesById.TryGetValue(instanceIdx, out var chunk))
+                            chunk.Octants = octants;
+                        else
+                            Debug.LogWarning($"Occlusion block with no matching tfrag!! instance:{instanceIdx} id:{occlusionId} octants:{octants.Length}");
+                    }
                 }
             }
         }

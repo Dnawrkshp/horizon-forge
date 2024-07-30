@@ -20,6 +20,7 @@ public class RenderHandle
     public bool IsPicking { get => _isPicking; set { _changed |= value != _isPicking; _isPicking = value; } }
     public int WorldLightIndex { get => _worldLightingIndex; set { _changed |= value != _worldLightingIndex; _worldLightingIndex = value; } }
     public Color IdColor { get => _idColor; set { _changed |= value != _idColor; _idColor = value; } }
+    public int? Layer { get => _layer; set { _changed |= value != _layer; _layer = value; } }
 
     private bool _changed = false;
     private Matrix4x4 _reflection = Matrix4x4.identity;
@@ -30,6 +31,7 @@ public class RenderHandle
     private bool _isHidden = false;
     private bool _isPicking = false;
     private int _worldLightingIndex = 0;
+    private int? _layer = null;
     private Color _idColor = Color.clear;
     private GameObject _prefab = null;
     private IRenderHandlePrefab _assetInstanceHandle = null;
@@ -108,7 +110,7 @@ public class RenderHandle
                 {
                     _assetInstanceHandle = AssetInstance.GetComponent<IRenderHandlePrefab>();
 
-                    UnityHelper.RecurseHierarchy(AssetInstance.transform, (t) => t.gameObject.layer = parent.layer);
+                    UnityHelper.RecurseHierarchy(AssetInstance.transform, (t) => t.gameObject.layer = Layer ?? parent.layer);
                     UnityHelper.RecurseHierarchy(AssetInstance.transform, (t) =>
                     {
                         Hide(t.gameObject);

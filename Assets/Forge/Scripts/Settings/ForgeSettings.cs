@@ -7,6 +7,8 @@ public class ForgeSettings : ScriptableObject
 {
     public static readonly string FORGE_SETTINGS_PATH = "Assets/ForgeSettings.asset";
 
+    public int Version = 0;
+
     public string PathToCleanDeadlockedIso;
     public string PathToCleanUyaNtscIso;
     public string PathToCleanUyaPalIso;

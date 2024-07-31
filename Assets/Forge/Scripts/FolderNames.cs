@@ -55,19 +55,23 @@ public static class FolderNames
     public static string GetWorldWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? null : $"level{levelId}.2.wad";
     public static string GetSoundWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? $"level{levelId}.2.wad" : $"level{levelId}.1.wad";
 
-    public static string GetGlobalPrefabFolder(string prefabType)
+    public static string GetGlobalPrefabFolder(string prefabType, int racVersion = 0)
     {
+        if (prefabType == MobyFolder) return $"{ForgeFolder}/Prefabs/{GetMapMobyFolder(racVersion)}";
         return $"{ForgeFolder}/Prefabs/{prefabType}";
     }
 
-    public static string GetGlobalAssetFolder(string assetType)
+    public static string GetGlobalAssetFolder(string assetType, int racVersion = 0)
     {
+        if (assetType == MobyFolder) return $"{ResourcesFolder}/{GetMapMobyFolder(racVersion)}";
         return $"{ResourcesFolder}/{assetType}";
     }
 
-    public static string GetLocalAssetFolder(string assetType)
+    public static string GetLocalAssetFolder(string assetType, int racVersion = 0)
     {
         var sceneName = SceneManager.GetActiveScene().name;
+
+        if (assetType == MobyFolder) return $"{GetMapFolder(sceneName)}/{GetMapMobyFolder(racVersion)}";
         return $"{GetMapFolder(sceneName)}/{assetType}";
     }
 
@@ -79,6 +83,12 @@ public static class FolderNames
     public static string GetMapCodeFolder(int racVersion, GameRegion region)
     {
         return $"{CodeFolder}/rc{racVersion}-{region}";
+    }
+
+    public static string GetMapMobyFolder(int racVersion)
+    {
+        if (racVersion != 3 && racVersion != 4) throw new NotImplementedException();
+        return $"{MobyFolder}/rc{racVersion}";
     }
 
     public static string GetMapBinFolder(string map, int racVersion)

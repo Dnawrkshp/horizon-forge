@@ -124,7 +124,7 @@ public class Tie : RenderSelectionBase, IOcclusionData, IAsset, IInstancedCollid
     public void ValidateColors()
     {
         // determine color size
-        var prefab = UnityHelper.GetAssetPrefab(FolderNames.TieFolder, OClass.ToString(), false);
+        var prefab = UnityHelper.GetAssetPrefab(FolderNames.TieFolder, OClass.ToString(), includeGlobal: false);
         var assetPath = AssetDatabase.GetAssetPath(prefab);
         var assetDir = Path.GetDirectoryName(assetPath);
         var tieBinFilePath = Path.Combine(assetDir, "core.bin");

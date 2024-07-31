@@ -57,7 +57,7 @@ public class MobyAsset : MonoBehaviour
         }
 
         // check if oclass exists in local map
-        var localMobyAssetFolder = Path.Combine(FolderNames.GetLocalAssetFolder(FolderNames.MobyFolder), oclass.ToString());
+        var localMobyAssetFolder = Path.Combine(FolderNames.GetLocalAssetFolder(FolderNames.MobyFolder, racVersion), oclass.ToString());
         if (!Directory.Exists(localMobyAssetFolder))
         {
             // 

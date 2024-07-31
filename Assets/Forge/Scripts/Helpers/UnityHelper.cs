@@ -111,31 +111,31 @@ public static class UnityHelper
         return (GetPath(root, t.parent) + "/" + t.name).TrimStart('/');
     }
 
-    public static GameObject GetAssetPrefab(string assetType, string oClass, bool includeGlobal = false)
+    public static GameObject GetAssetPrefab(string assetType, string oClass, int racVersion = 0, bool includeGlobal = false)
     {
         // always return local asset path
-        var path = FolderNames.GetLocalAssetFolder(assetType);
+        var path = FolderNames.GetLocalAssetFolder(assetType, racVersion);
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}.fbx"));
 
         if (includeGlobal && !prefab)
         {
-            path = FolderNames.GetGlobalAssetFolder(assetType);
+            path = FolderNames.GetGlobalAssetFolder(assetType, racVersion);
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}.fbx"));
         }
 
         return prefab;
     }
 
-    public static GameObject GetAssetColliderPrefab(string assetType, string oClass, bool includeGlobal = false)
+    public static GameObject GetAssetColliderPrefab(string assetType, string oClass, int racVersion = 0, bool includeGlobal = false)
     {
         // always return local asset path
-        var path = FolderNames.GetLocalAssetFolder(assetType);
+        var path = FolderNames.GetLocalAssetFolder(assetType, racVersion);
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.fbx"));
         if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.blend"));
 
         if (includeGlobal && !prefab)
         {
-            path = FolderNames.GetGlobalAssetFolder(assetType);
+            path = FolderNames.GetGlobalAssetFolder(assetType, racVersion);
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.fbx"));
             if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.blend"));
         }

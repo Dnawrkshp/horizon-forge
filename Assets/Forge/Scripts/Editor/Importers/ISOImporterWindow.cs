@@ -220,7 +220,7 @@ public class ISOImporterWindow : EditorWindow
                 if (importTies)
                 {
                     var tieAssetDir = Path.Combine(assetsFolder, FolderNames.TieFolder);
-                    var tieGlobalDir = FolderNames.GetGlobalAssetFolder(FolderNames.TieFolder);
+                    var tieGlobalDir = FolderNames.GetGlobalAssetFolder(FolderNames.TieFolder, racVersion);
                     var tieDirs = Directory.EnumerateDirectories(tieAssetDir).ToList();
 
                     // convert ties -- convert on export now, not on import
@@ -254,7 +254,7 @@ public class ISOImporterWindow : EditorWindow
                 if (importShrubs)
                 {
                     var shrubAssetDir = Path.Combine(assetsFolder, FolderNames.ShrubFolder);
-                    var shrubGlobalDir = FolderNames.GetGlobalAssetFolder(FolderNames.ShrubFolder);
+                    var shrubGlobalDir = FolderNames.GetGlobalAssetFolder(FolderNames.ShrubFolder, racVersion);
                     var shrubDirs = Directory.EnumerateDirectories(shrubAssetDir).ToList();
 
                     foreach (var shrubDir in shrubDirs)
@@ -281,7 +281,7 @@ public class ISOImporterWindow : EditorWindow
                 if (importMobys)
                 {
                     var mobyAssetDir = Path.Combine(assetsFolder, FolderNames.MobyFolder);
-                    var mobyGlobalDir = FolderNames.GetGlobalAssetFolder(FolderNames.MobyFolder);
+                    var mobyGlobalDir = FolderNames.GetGlobalAssetFolder(FolderNames.MobyFolder, racVersion);
                     var mobyDirs = Directory.EnumerateDirectories(mobyAssetDir).ToList();
 
                     // missions may have more mobys

@@ -709,27 +709,27 @@ public class Moby : RenderSelectionBase, IAsset
         {
             case (RCVER.DL, 9278):
                 {
-                    prefab = GetGadgetPickupPrefab();
+                    prefab = GetDLGadgetPickupPrefab();
                     break;
                 }
             case (RCVER.DL, 9838):
                 {
-                    prefab = GetFlagBasePrefab();
+                    prefab = GetDLFlagBasePrefab();
                     break;
                 }
             default:
                 {
-                    var prefabPath = Path.Combine(FolderNames.GetGlobalPrefabFolder(FolderNames.MobyFolder), $"rc{RCVersion}", $"{OClass}", $"{OClass}.prefab");
+                    var prefabPath = Path.Combine(FolderNames.GetGlobalPrefabFolder(FolderNames.MobyFolder, RCVersion), $"{OClass}", $"{OClass}.prefab");
                     prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
                     break;
                 }
         }
 
-        if (!prefab) prefab = UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, OClass.ToString());
+        if (!prefab) prefab = UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, OClass.ToString(), this.RCVersion);
         return prefab;
     }
 
-    private GameObject GetFlagBasePrefab()
+    private GameObject GetDLFlagBasePrefab()
     {
         if (PVars == null || PVars.Length < 1) return null;
 
@@ -742,10 +742,10 @@ public class Moby : RenderSelectionBase, IAsset
             default: _tintColor = Color.white; break;
         }
 
-        return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "8309", includeGlobal: true);
+        return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "8309", this.RCVersion, includeGlobal: true);
     }
 
-    private GameObject GetGadgetPickupPrefab()
+    private GameObject GetDLGadgetPickupPrefab()
     {
         if (PVars == null || PVars.Length < 1) return null;
 
@@ -755,16 +755,16 @@ public class Moby : RenderSelectionBase, IAsset
 
         switch (PVars[0])
         {
-            case 0: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "9210", includeGlobal: true);
-            case 2: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4244", includeGlobal: true);
-            case 3: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4231", includeGlobal: true);
-            case 4: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "6244", includeGlobal: true);
-            case 5: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4246", includeGlobal: true);
-            case 6: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "8340", includeGlobal: true);
-            case 7: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4234", includeGlobal: true);
-            case 12: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "8454", includeGlobal: true);
-            case 13: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "9773", includeGlobal: true);
-            case 16: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4261", includeGlobal: true);
+            case 0: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "9210", this.RCVersion, includeGlobal: true);
+            case 2: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4244", this.RCVersion, includeGlobal: true);
+            case 3: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4231", this.RCVersion, includeGlobal: true);
+            case 4: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "6244", this.RCVersion, includeGlobal: true);
+            case 5: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4246", this.RCVersion, includeGlobal: true);
+            case 6: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "8340", this.RCVersion, includeGlobal: true);
+            case 7: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4234", this.RCVersion, includeGlobal: true);
+            case 12: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "8454", this.RCVersion, includeGlobal: true);
+            case 13: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "9773", this.RCVersion, includeGlobal: true);
+            case 16: return UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, "4261", this.RCVersion, includeGlobal: true);
         }
 
         return null;

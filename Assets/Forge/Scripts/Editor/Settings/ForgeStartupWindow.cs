@@ -140,7 +140,10 @@ public class ForgeStartupWindow : EditorWindow
         // check for the existent of ForgeSettings scriptableobject
         var settings = ForgeSettings.Load();
         if (!settings)
+        {
             settings = ScriptableObject.CreateInstance<ForgeSettings>();
+            ForgeUpgradeScripts.CheckForUpgrade(); // run upgrade when new settings are created
+        }
 
         return forgeSettings = settings;
     }

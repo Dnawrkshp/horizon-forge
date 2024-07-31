@@ -612,6 +612,8 @@ public class Moby : RenderSelectionBase, IAsset
     {
         GameObject prefab = null;
 
+        if (RCVersion == 0) return null;
+
         switch ((RCVersion, OClass))
         {
             case (4, 9278):

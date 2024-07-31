@@ -290,7 +290,7 @@ public class MapConfig : MonoBehaviour
             case 1: // USE Moby/rc# folder for map mobys
                 {
                     var srcMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.MobyFolder}";
-                    var dstMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.GetMapMobyFolder(4)}";
+                    var dstMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.GetMapMobyFolder(RCVER.DL)}";
                     if (!Directory.Exists(dstMobyDir)) Directory.CreateDirectory(dstMobyDir);
 
                     // check if moby folder has mobys

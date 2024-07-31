@@ -87,7 +87,7 @@ public static class FolderNames
 
     public static string GetMapMobyFolder(int racVersion)
     {
-        if (racVersion != 3 && racVersion != 4) throw new NotImplementedException();
+        if (racVersion != RCVER.UYA && racVersion != RCVER.DL) throw new NotImplementedException();
         return $"{MobyFolder}/rc{racVersion}";
     }
 

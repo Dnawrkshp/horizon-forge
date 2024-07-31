@@ -707,6 +707,10 @@ public class Moby : RenderSelectionBase, IAsset
 
         switch ((RCVersion, OClass))
         {
+            case (0, 0):
+                {
+                    return null;
+                }
             case (RCVER.DL, 9278):
                 {
                     prefab = GetDLGadgetPickupPrefab();

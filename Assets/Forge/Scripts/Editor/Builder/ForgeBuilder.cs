@@ -323,7 +323,7 @@ public static class ForgeBuilder
         var buildPath = FolderNames.GetMapBuildFolder(ctx.MapSceneName, ctx.RacVersion);
         var baseMap = ctx.RacVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
         var wadPath = Path.Combine(binFolder, FolderNames.GetLevelWadFilename(baseMap, ctx.RacVersion));
-        var worldPath = Path.Combine(binFolder, FolderNames.GetWorldWadFilename(baseMap, ctx.RacVersion));
+        var worldPath = ctx.RacVersion == RCVER.DL ? null : Path.Combine(binFolder, FolderNames.GetWorldWadFilename(baseMap, ctx.RacVersion));
         var soundPath = Path.Combine(binFolder, FolderNames.GetSoundWadFilename(baseMap, ctx.RacVersion));
         var bgPngPath = AssetDatabase.GetAssetPath(mapConfig.DLLoadingScreen);
         var minimapPngPath = AssetDatabase.GetAssetPath(mapConfig.DLMinimap);
@@ -333,7 +333,7 @@ public static class ForgeBuilder
 
         // copy files
         if (File.Exists(wadPath)) File.Copy(wadPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.wad"), true);
-        if (File.Exists(worldPath)) File.Copy(worldPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.world"), true);
+        if (!string.IsNullOrEmpty(worldPath) && File.Exists(worldPath)) File.Copy(worldPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.world"), true);
         if (File.Exists(soundPath)) File.Copy(soundPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}.sound"), true);
 
         // build version file
@@ -1039,7 +1039,7 @@ public static class ForgeBuilder
     static void RebuildMobys(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mobyAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryMobyFolder);
-        var mobyResourcesFolder = Path.Combine(resourcesFolder, FolderNames.GetMapMobyFolder(4));
+        var mobyResourcesFolder = Path.Combine(resourcesFolder, FolderNames.GetMapMobyFolder(ctx.RacVersion));
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
 
         // build list of mobys to export

@@ -967,7 +967,7 @@ public static class ForgeBuilder
     static void RebuildMobys(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mobyAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryMobyFolder);
-        var mobyResourcesFolder = Path.Combine(resourcesFolder, FolderNames.MobyFolder);
+        var mobyResourcesFolder = Path.Combine(resourcesFolder, FolderNames.GetMapMobyFolder(4));
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
 
         // build list of mobys to export
@@ -992,7 +992,7 @@ public static class ForgeBuilder
             if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Mobys", (float)i / mobyClasses.Length))
                 return;
 
-            var srcMobyDir = Path.Combine(resourcesFolder, FolderNames.MobyFolder, mobyClass.ToString());
+            var srcMobyDir = Path.Combine(mobyResourcesFolder, mobyClass.ToString());
             var srcMobyGo = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(srcMobyDir, mobyClass.ToString() + ".fbx"));
             var mobyDir = Path.Combine(mobyAssetsFolder, $"{mobyClass:00000}_{mobyClass:X4}");
             var texCnt = 0;

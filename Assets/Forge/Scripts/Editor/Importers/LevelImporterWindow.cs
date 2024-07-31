@@ -1487,8 +1487,8 @@ public class LevelImporterWindow : EditorWindow
     {
         var mobyAssetFolder = Path.Combine(mapBinFolder, FolderNames.BinaryMobyFolder);
         var mobyDirs = Directory.EnumerateDirectories(mobyAssetFolder).ToList();
-        var localMobyDir = Path.Combine(mapResourcesFolder, FolderNames.MobyFolder);
         var racVersion = ImportSourceRacVersion();
+        var localMobyDir = Path.Combine(mapResourcesFolder, FolderNames.GetMapMobyFolder(racVersion));
 
         UpdateImportProgressBar(ImportStage.Importing_Mobys);
         foreach (var mobyDir in mobyDirs)

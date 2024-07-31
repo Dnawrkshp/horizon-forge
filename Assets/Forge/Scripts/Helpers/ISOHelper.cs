@@ -9,7 +9,7 @@ public static class ISOHelper
     private static List<(int, GameRegion, OffsetValue[])> _validationChecks = new()
     {
         {
-            (4, GameRegion.NTSC,
+            (RCVER.DL, GameRegion.NTSC,
             new OffsetValue[]
             {
                 // level toc
@@ -17,7 +17,7 @@ public static class ISOHelper
             })
         },
         {
-            (3, GameRegion.NTSC,
+            (RCVER.UYA, GameRegion.NTSC,
             new OffsetValue[]
             {
                 // level toc
@@ -25,7 +25,7 @@ public static class ISOHelper
             })
         },
         {
-            (3, GameRegion.PAL,
+            (RCVER.UYA, GameRegion.PAL,
             new OffsetValue[]
             {
                 // level toc
@@ -33,7 +33,7 @@ public static class ISOHelper
             })
         },
         {
-            (2, GameRegion.NTSC,
+            (RCVER.GC, GameRegion.NTSC,
             new OffsetValue[]
             {
                 // level toc -- Greatest Hits
@@ -41,7 +41,7 @@ public static class ISOHelper
             })
         },
         {
-            (2, GameRegion.NTSC,
+            (RCVER.GC, GameRegion.NTSC,
             new OffsetValue[]
             {
                 // level toc -- Black Label

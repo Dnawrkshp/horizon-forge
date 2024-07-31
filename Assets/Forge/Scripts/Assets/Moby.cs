@@ -279,8 +279,8 @@ public class Moby : RenderSelectionBase, IAsset
                     writer.Write(this.transform.localScale.x);
                     writer.Write(DrawDistance);
                     writer.Write(UpdateDistance);
-                    writer.Write(0);
-                    writer.Write(0);
+                    writer.Write(0x20);
+                    writer.Write(0x40);
                     writer.Write(this.transform.position.x);
                     writer.Write(this.transform.position.z);
                     writer.Write(this.transform.position.y);
@@ -290,7 +290,7 @@ public class Moby : RenderSelectionBase, IAsset
                     writer.Write(GroupId);
                     writer.Write(IsRooted);
                     writer.Write(RootedDistance);
-                    writer.Write(0);
+                    writer.Write(1);
                     writer.Write(PvarIndex);
                     writer.Write(Occlusion);
                     writer.Write(ModeBits);
@@ -300,7 +300,7 @@ public class Moby : RenderSelectionBase, IAsset
                     writer.Write((byte)Light1);
                     writer.Write((byte)Light2);
                     writer.Write(Light3);
-                    writer.Write(0);
+                    writer.Write(-1);
                     break;
                 }
             case 4:
@@ -542,14 +542,14 @@ public class Moby : RenderSelectionBase, IAsset
 
         var cuboids = mapConfig.GetCuboids();
         var splines = mapConfig.GetSplines();
-        var mobys = mapConfig.GetMobys();
+        var mobys = mapConfig.GetMobys(RCVersion);
         var areas = mapConfig.GetAreas();
 
         // handle special moby class pvars
         switch ((RCVersion, OClass))
         {
-            //case (3, 0x106a): // mp config
-            case (4, 0x106a): // mp config
+            //case (RCVER.UYA, 0x106a): // mp config
+            case (RCVER.DL, 0x106a): // mp config
                 UpdateMPConfigPVars(cuboids);
                 break;
         }
@@ -707,12 +707,12 @@ public class Moby : RenderSelectionBase, IAsset
 
         switch ((RCVersion, OClass))
         {
-            case (4, 9278):
+            case (RCVER.DL, 9278):
                 {
                     prefab = GetGadgetPickupPrefab();
                     break;
                 }
-            case (4, 9838):
+            case (RCVER.DL, 9838):
                 {
                     prefab = GetFlagBasePrefab();
                     break;

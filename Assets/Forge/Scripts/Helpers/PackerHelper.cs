@@ -330,25 +330,25 @@ public static class PackerHelper
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_WORLD_INSTANCES))
         {
             // pack shrubs
-            result = RunPacker(out _, "pack-world-instance-shrubs", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceShrubsFolder(racVersion)), "-o", Path.Combine(inFolder, worldInstanceFolder));
+            result = RunPacker(out _, "pack-world-instance-shrubs", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceShrubsFolder(racVersion)), "-o", Path.Combine(inFolder, worldInstanceFolder), "-v", racVersion.ToString());
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.1f);
 
             // pack ties
-            result = RunPacker(out _, "pack-world-instance-ties", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceTiesFolder(racVersion)), "-o", Path.Combine(inFolder, worldInstanceFolder));
+            result = RunPacker(out _, "pack-world-instance-ties", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceTiesFolder(racVersion)), "-o", Path.Combine(inFolder, worldInstanceFolder), "-v", racVersion.ToString());
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.2f);
 
             // pack occlusion before world instances
             if (ops.HasFlag(PACKER_PACK_OPS.PACK_OCCLUSION))
             {
-                result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion)), "--out-mapping", Path.Combine(inFolder, worldInstanceFolder, racVersion == 4 ? "28.bin" : "144.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
+                result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion)), "--out-mapping", Path.Combine(inFolder, worldInstanceFolder, racVersion == RCVER.DL ? "28.bin" : "144.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
                 if (result != PACKER_STATUS_CODES.SUCCESS) return result;
                 onProgressCallback?.Invoke(0.3f);
             }
 
             // pack world instances
-            if (racVersion == 4)
+            if (racVersion == RCVER.DL)
             {
                 result = RunPacker(out _, "pack-world-instances", "-i", Path.Combine(inFolder, worldInstanceFolder), "-o", Path.Combine(inFolder, "58.wad"));
                 if (result != PACKER_STATUS_CODES.SUCCESS) return result;
@@ -359,7 +359,7 @@ public static class PackerHelper
         // occlusion
         else if (ops.HasFlag(PACKER_PACK_OPS.PACK_OCCLUSION))
         {
-            result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion)), "--out-mapping", Path.Combine(inFolder, worldInstanceFolder, racVersion == 4 ? "28.bin" : "144.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
+            result = RunPacker(out _, "pack-occlusion", "-i", Path.Combine(inFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion)), "--out-mapping", Path.Combine(inFolder, worldInstanceFolder, racVersion == RCVER.DL ? "28.bin" : "144.bin"), "--out-level", Path.Combine(inFolder, FolderNames.BinaryOcclusionFile));
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.3f);
         }
@@ -367,7 +367,7 @@ public static class PackerHelper
         // code
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_CODE))
         {
-            result = RunPacker(out _, "pack-code", "-i", Path.Combine(inFolder, FolderNames.BinaryCodeFolder), "-o", Path.Combine(inFolder, racVersion == 4 ? "08.bin" : "00.bin"));
+            result = RunPacker(out _, "pack-code", "-i", Path.Combine(inFolder, FolderNames.BinaryCodeFolder), "-o", Path.Combine(inFolder, racVersion == RCVER.DL ? "08.bin" : "00.bin"));
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.5f);
         }
@@ -375,7 +375,7 @@ public static class PackerHelper
         // gameplay
         if (ops.HasFlag(PACKER_PACK_OPS.PACK_GAMEPLAY))
         {
-            result = RunPacker(out _, "pack-gameplay", "-i", Path.Combine(inFolder, FolderNames.BinaryGameplayFolder), "-o", Path.Combine(inFolder, racVersion == 4 ? "60.wad" : worldWadFilename), "-v", racVersion.ToString());
+            result = RunPacker(out _, "pack-gameplay", "-i", Path.Combine(inFolder, FolderNames.BinaryGameplayFolder), "-o", Path.Combine(inFolder, racVersion == RCVER.DL ? "60.wad" : worldWadFilename), "-v", racVersion.ToString());
             if (result != PACKER_STATUS_CODES.SUCCESS) return result;
             onProgressCallback?.Invoke(0.6f);
         }
@@ -409,6 +409,9 @@ public static class PackerHelper
 
     public static PACKER_STATUS_CODES Patch(string inFolder, string targetIsoPath, string cleanIsoPath, int baseLevelId, int racVersion)
     {
+        if (racVersion == RCVER.UYA)
+            return RunPacker(out _, "patch", "--input", inFolder, "--id", baseLevelId.ToString(), "-i", targetIsoPath, "--cleaniso", cleanIsoPath, "-v", racVersion.ToString());
+
         return RunPacker(out _, "patch-old", "--input", inFolder, "--id", baseLevelId.ToString(), "-i", targetIsoPath, "--cleaniso", cleanIsoPath, "-v", racVersion.ToString());
     }
 
@@ -456,9 +459,9 @@ public static class PackerHelper
     public static PACKER_STATUS_CODES ConvertCollision(string inBinFile, string outBinFile, int fromGameVersion, int toGameVersion)
     {
         string op = null;
-        if (fromGameVersion == 3 && toGameVersion == 4) op = "UYA_TO_DL";
-        else if (fromGameVersion == 2 && toGameVersion == 4) op = "UYA_TO_DL";
-        else if (fromGameVersion == 4 && toGameVersion == 3) op = "DL_TO_UYA";
+        if (fromGameVersion == RCVER.UYA && toGameVersion == RCVER.DL) op = "UYA_TO_DL";
+        else if (fromGameVersion == RCVER.GC && toGameVersion == RCVER.DL) op = "UYA_TO_DL";
+        else if (fromGameVersion == RCVER.DL && toGameVersion == RCVER.UYA) op = "DL_TO_UYA";
         if (string.IsNullOrEmpty(op)) return PACKER_STATUS_CODES.SUCCESS;
 
         return RunPacker(out _, "collision", "-i", inBinFile, "-o", outBinFile, "-m", op);
@@ -469,7 +472,7 @@ public static class PackerHelper
         if (fromGameVersion == toGameVersion) return PACKER_STATUS_CODES.SUCCESS;
 
         // gc tie need to be fixed
-        if (fromGameVersion == 2)
+        if (fromGameVersion == RCVER.GC)
         {
             var tieFixGcResult = RunPacker(out _, "tie-fix-gc", "-i", inTiesFolder);
             if (tieFixGcResult != PACKER_STATUS_CODES.SUCCESS)
@@ -477,9 +480,9 @@ public static class PackerHelper
         }
 
         string op = null;
-        if (fromGameVersion == 3 && toGameVersion == 4) op = "UYA_TO_DL";
-        else if (fromGameVersion == 2 && toGameVersion == 4) op = "UYA_TO_DL";
-        else if (fromGameVersion == 4 && toGameVersion == 3) op = "DL_TO_UYA";
+        if (fromGameVersion == RCVER.UYA && toGameVersion == RCVER.DL) op = "UYA_TO_DL";
+        else if (fromGameVersion == RCVER.GC && toGameVersion == RCVER.DL) op = "UYA_TO_DL";
+        else if (fromGameVersion == RCVER.DL && toGameVersion == RCVER.UYA) op = "DL_TO_UYA";
         if (string.IsNullOrEmpty(op)) return PACKER_STATUS_CODES.SUCCESS;
 
         return RunPacker(out _, "tie", "-i", inTiesFolder, "-r", "-m", op);
@@ -488,9 +491,9 @@ public static class PackerHelper
     public static PACKER_STATUS_CODES ConvertSky(string inBinFile, string outBinFile, int fromGameVersion, int toGameVersion)
     {
         string op = null;
-        if (fromGameVersion == 3 && toGameVersion == 4) op = "UYA_TO_DL";
-        else if (fromGameVersion == 2 && toGameVersion == 4) op = "UYA_TO_DL";
-        else if (fromGameVersion == 4 && toGameVersion == 3) op = "DL_TO_UYA";
+        if (fromGameVersion == RCVER.UYA && toGameVersion == RCVER.DL) op = "UYA_TO_DL";
+        else if (fromGameVersion == RCVER.GC && toGameVersion == RCVER.DL) op = "UYA_TO_DL";
+        else if (fromGameVersion == RCVER.DL && toGameVersion == RCVER.UYA) op = "DL_TO_UYA";
         if (string.IsNullOrEmpty(op)) return PACKER_STATUS_CODES.SUCCESS;
 
         return RunPacker(out _, "skybox", "-i", inBinFile, "-o", outBinFile, "-m", op);

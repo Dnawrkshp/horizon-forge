@@ -17,9 +17,9 @@ public static class ForgeBuilder
 {
     static readonly (int RacVersion, GameRegion Region)[] BUILD_VERSIONS = new (int RacVersion, GameRegion Region)[]
     {
-        (4, GameRegion.NTSC),
-        (3, GameRegion.NTSC),
-        (3, GameRegion.PAL)
+        (RCVER.DL, GameRegion.NTSC),
+        (RCVER.UYA, GameRegion.NTSC),
+        //(RCVER.UYA, GameRegion.PAL)
     };
 
     [MenuItem("Forge/Builder/Rebuild")]
@@ -80,11 +80,11 @@ public static class ForgeBuilder
         {
             var racVersion = buildVersion.RacVersion;
             var region = buildVersion.Region;
-            var baseMap = racVersion == 4 ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
+            var baseMap = racVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
             var isoPath = settings.PathToOutputDeadlockedIso;
             var cleanIsoPath = settings.PathToCleanDeadlockedIso;
 
-            if (racVersion == 3)
+            if (racVersion == RCVER.UYA)
             {
                 if (region == GameRegion.NTSC)
                 {
@@ -98,12 +98,12 @@ public static class ForgeBuilder
                 }
             }
 
-            if (racVersion == 4 && !mapConfig.HasDeadlockedBaseMap())
+            if (racVersion == RCVER.DL && !mapConfig.HasDeadlockedBaseMap())
             {
                 continue; // skip
             }
 
-            if (racVersion == 3 && !mapConfig.HasUYABaseMap())
+            if (racVersion == RCVER.UYA && !mapConfig.HasUYABaseMap())
             {
                 continue; // skip
             }
@@ -186,14 +186,14 @@ public static class ForgeBuilder
         {
             var racVersion = buildVersion.RacVersion;
             var region = buildVersion.Region;
-            var baseMap = racVersion == 4 ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
+            var baseMap = racVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
 
             var resourcesFolder = FolderNames.GetMapFolder(scene.name);
             var binFolder = FolderNames.GetMapBinFolder(scene.name, racVersion);
 
             // skip if not configured
-            if (racVersion == 4 && !mapConfig.HasDeadlockedBaseMap()) continue;
-            if (racVersion == 3 && !mapConfig.HasUYABaseMap()) continue;
+            if (racVersion == RCVER.DL && !mapConfig.HasDeadlockedBaseMap()) continue;
+            if (racVersion == RCVER.UYA && !mapConfig.HasUYABaseMap()) continue;
 
             // validate resources folder
             if (!Directory.Exists(resourcesFolder))
@@ -298,11 +298,11 @@ public static class ForgeBuilder
             return;
         }
 
-        for (int racVersion = 3; racVersion <= 4; ++racVersion)
+        for (int racVersion = RCVER.UYA; racVersion <= RCVER.DL; ++racVersion)
         {
             var binFolder = FolderNames.GetMapBinFolder(scene.name, racVersion);
             var mapBuildFolder = FolderNames.GetMapBuildFolder(scene.name, racVersion);
-            var buildFolders = racVersion == 4 ? settings.DLBuildFolders : settings.UYABuildFolders;
+            var buildFolders = racVersion == RCVER.DL ? settings.DLBuildFolders : settings.UYABuildFolders;
             if (!Directory.Exists(mapBuildFolder)) return;
             if (buildFolders == null) return;
 
@@ -321,7 +321,7 @@ public static class ForgeBuilder
         var regionExt = ctx.Region == GameRegion.NTSC ? "" : ".pal";
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var buildPath = FolderNames.GetMapBuildFolder(ctx.MapSceneName, ctx.RacVersion);
-        var baseMap = ctx.RacVersion == 4 ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
+        var baseMap = ctx.RacVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
         var wadPath = Path.Combine(binFolder, FolderNames.GetLevelWadFilename(baseMap, ctx.RacVersion));
         var worldPath = Path.Combine(binFolder, FolderNames.GetWorldWadFilename(baseMap, ctx.RacVersion));
         var soundPath = Path.Combine(binFolder, FolderNames.GetSoundWadFilename(baseMap, ctx.RacVersion));
@@ -718,7 +718,7 @@ public static class ForgeBuilder
         //foreach (var file in Directory.EnumerateFiles(terrainAssetsFolder, "tex.*.palette")) File.Delete(file);
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(terrainAssetsFolder, mipmaps: true, outSwizzle: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(terrainAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert tfrag textures");
             ctx.Cancel = true;
@@ -889,7 +889,7 @@ public static class ForgeBuilder
         }
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(tieAssetsFolder, mipmaps: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(tieAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert tie textures");
             ctx.Cancel = true;
@@ -1029,7 +1029,7 @@ public static class ForgeBuilder
         }
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(shrubAssetsFolder, mipmaps: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(shrubAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert shrub textures");
             ctx.Cancel = true;
@@ -1045,9 +1045,9 @@ public static class ForgeBuilder
         // build list of mobys to export
         // start with default list of mobys
         // then add the mobys in the scene that aren't already in the list
-        var mobysToExport = ctx.RacVersion == 4 ? mapConfig.DLMobysIncludedInExport.ToList() : mapConfig.UYAMobysIncludedInExport.ToList();
-        var mobys = mapConfig.GetMobys();
-        foreach (var moby in mobys.Where(x => x.RCVersion == ctx.RacVersion))
+        var mobysToExport = ctx.RacVersion == RCVER.DL ? mapConfig.DLMobysIncludedInExport.ToList() : mapConfig.UYAMobysIncludedInExport.ToList();
+        var mobys = mapConfig.GetMobys(ctx.RacVersion);
+        foreach (var moby in mobys)
             if (!mobysToExport.Contains(moby.OClass))
                 mobysToExport.Add(moby.OClass);
 
@@ -1163,7 +1163,7 @@ public static class ForgeBuilder
         }
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(mobyAssetsFolder, mipmaps: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(mobyAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert moby textures");
             ctx.Cancel = true;
@@ -1430,7 +1430,7 @@ public static class ForgeBuilder
         var mobyOcclusionFile = Path.Combine(occlusionFolder, "moby.bin");
 
         // build list of mobys in scene
-        var mobys = mapConfig.GetMobys().Where(x => x.OClass == ctx.RacVersion);
+        var mobys = mapConfig.GetMobys(ctx.RacVersion);
         var mobysCount = mobys.Count();
 
         // clear moby instance dir
@@ -1454,6 +1454,18 @@ public static class ForgeBuilder
                 {
                     moby.MakeUidUnique();
                     moby.Write(writer);
+                }
+            }
+
+            // create group.bin
+            if (ctx.RacVersion == RCVER.UYA && moby.GroupId >= 0)
+            {
+                using (var fs = File.Create(Path.Combine(mobyDir, "group.bin")))
+                {
+                    using (var writer = new BinaryWriter(fs))
+                    {
+                        writer.Write(moby.GroupId);
+                    }
                 }
             }
 
@@ -1552,7 +1564,7 @@ public static class ForgeBuilder
 
     static void RebuildAreas(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
-        if (ctx.RacVersion != 4) return; // dl only
+        if (ctx.RacVersion != RCVER.DL) return; // dl only
 
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var areaFile = Path.Combine(binFolder, FolderNames.BinaryGameplayAreaFile);
@@ -1655,7 +1667,8 @@ public static class ForgeBuilder
         if (!mapConfig) return;
 
         // copy code
-        var files = Directory.EnumerateFiles(Path.Combine(resourcesFolder, FolderNames.GetMapCodeFolder(ctx.RacVersion, ctx.Region)), "code.*.*");
+        var codeFolder = Path.Combine(resourcesFolder, FolderNames.GetMapCodeFolder(ctx.RacVersion, ctx.Region));
+        var files = Directory.EnumerateFiles(codeFolder, "code.*.*");
         foreach (var file in files)
         {
             var ext = Path.GetExtension(file);
@@ -1666,7 +1679,7 @@ public static class ForgeBuilder
         }
 
         // update radar map pos/scale
-        if (ctx.RacVersion == 4)
+        if (ctx.RacVersion == RCVER.DL)
         {
             var codeSegmentBinPath = Path.Combine(binFolder, FolderNames.BinaryCodeFolder, "code.0002.bin");
             if (!File.Exists(codeSegmentBinPath)) return;
@@ -1686,7 +1699,7 @@ public static class ForgeBuilder
                 }
             }
         }
-        else if (ctx.RacVersion == 3)
+        else if (ctx.RacVersion == RCVER.UYA)
         {
             // todo
         }
@@ -1726,7 +1739,7 @@ public static class ForgeBuilder
         var worldLights = mapConfig.GetWorldLights();
         if (worldLights != null && worldLights.Any())
         {
-            var worldLightBinFile = Path.Combine(binFolder, FolderNames.GetWorldInstanceFolder(ctx.RacVersion), ctx.RacVersion == 4 ? "0.bin" : "4.bin");
+            var worldLightBinFile = Path.Combine(binFolder, FolderNames.GetWorldInstanceFolder(ctx.RacVersion), ctx.RacVersion == RCVER.DL ? "0.bin" : "4.bin");
             if (File.Exists(worldLightBinFile))
             {
                 using (var fs = File.OpenWrite(worldLightBinFile))

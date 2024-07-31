@@ -197,9 +197,9 @@ public class MapConfig : MonoBehaviour
 
     #region Mobys
 
-    public Moby[] GetMobys()
+    public Moby[] GetMobys(int racVersion)
     {
-        return HierarchicalSorting.Sort(FindObjectsOfType<Moby>());
+        return HierarchicalSorting.Sort(FindObjectsOfType<Moby>().Where(x => x.RCVersion == racVersion).ToArray());
     }
 
     public Moby GetMobyAtIndex(int idx)

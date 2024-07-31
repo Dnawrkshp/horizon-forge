@@ -155,7 +155,7 @@ public class ISOImporterWindow : EditorWindow
                 }
 
                 // unpack wad
-                var wadPath = racVersion == 4 ? Path.Combine(levelFolder, "core_level.wad") : Path.Combine(levelFolder, $"level{(int)level}.0.wad");
+                var wadPath = racVersion == RCVER.DL ? Path.Combine(levelFolder, "core_level.wad") : Path.Combine(levelFolder, $"level{(int)level}.0.wad");
                 result = PackerHelper.DecompressAndUnpackLevelWad(wadPath, levelFolder);
                 if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
                 {
@@ -177,18 +177,15 @@ public class ISOImporterWindow : EditorWindow
                 var levelFolder = Path.Combine(tempFolder, $"rc{racVersion}-{(int)level}");
                 var assetsFolder = Path.Combine(levelFolder, FolderNames.AssetsFolder);
 
-                // unpack sounds -- DL only supported atm
-                if (racVersion == 4)
+                // unpack sounds
+                var soundPath = racVersion == RCVER.DL ? Path.Combine(levelFolder, "sound.bnk") : Path.Combine(levelFolder, $"level{(int)level}.1.wad");
+                var soundsFolder = Path.Combine(levelFolder, FolderNames.BinarySoundsFolder);
+                result = PackerHelper.UnpackSounds(soundPath, soundsFolder, racVersion);
+                if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
                 {
-                    var soundPath = racVersion == 4 ? Path.Combine(levelFolder, "sound.bnk") : Path.Combine(levelFolder, $"level{(int)level}.1.wad");
-                    var soundsFolder = Path.Combine(levelFolder, FolderNames.BinarySoundsFolder);
-                    result = PackerHelper.UnpackSounds(soundPath, soundsFolder, racVersion);
-                    if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
-                    {
-                        Debug.LogError($"Error unpacking sounds {level}: {result}");
-                        cancel = true;
-                        continue;
-                    }
+                    Debug.LogError($"Error unpacking sounds {level}: {result}");
+                    cancel = true;
+                    continue;
                 }
 
                 if (CancelProgressBar(ref cancel, $"Gathering {isoLabelStr} Level Assets ({assetImports.Count} total assets to import)", level.ToString(), i / (float)levelsToImport.Length))

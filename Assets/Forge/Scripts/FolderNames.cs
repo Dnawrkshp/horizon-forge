@@ -51,9 +51,9 @@ public static class FolderNames
     public static readonly string ForgeFolder = $"{AssetsFolder}/Forge";
     public static readonly string BlenderScriptFolder = $"{ForgeFolder}/Blender";
 
-    public static string GetLevelWadFilename(int levelId, int racVersion) => (racVersion == 4) ? $"level{levelId}.1.wad" : $"level{levelId}.0.wad";
-    public static string GetWorldWadFilename(int levelId, int racVersion) => (racVersion == 4) ? null : $"level{levelId}.2.wad";
-    public static string GetSoundWadFilename(int levelId, int racVersion) => (racVersion == 4) ? $"level{levelId}.2.wad" : $"level{levelId}.1.wad";
+    public static string GetLevelWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? $"level{levelId}.1.wad" : $"level{levelId}.0.wad";
+    public static string GetWorldWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? null : $"level{levelId}.2.wad";
+    public static string GetSoundWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? $"level{levelId}.2.wad" : $"level{levelId}.1.wad";
 
     public static string GetGlobalPrefabFolder(string prefabType)
     {
@@ -103,8 +103,8 @@ public static class FolderNames
 
     public static string GetWorldInstanceFolder(int racVersion)
     {
-        if (racVersion == 4) return "world-instances";
-        if (racVersion == 3) return BinaryGameplayFolder;
+        if (racVersion == RCVER.DL) return "world-instances";
+        if (racVersion == RCVER.UYA) return BinaryGameplayFolder;
 
         throw new NotImplementedException();
     }

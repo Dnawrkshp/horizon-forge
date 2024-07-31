@@ -524,11 +524,14 @@ public class LevelImporterWindow : EditorWindow
         if (!ValidateImportDestination()) return;
         if (!ImportSourceIsDL() && !ImportSourceIsUYA()) return;
 
+        var forgeSettings = ForgeSettings.Load();
+
         // get dest paths
         var destSceneFile = FolderNames.GetScenePath(mapName);
         var destMapFolder = FolderNames.GetMapFolder(mapName);
         var destMapHUDFolder = Path.Combine(destMapFolder, FolderNames.HUDFolder);
         var destMapBinFolder = FolderNames.GetMapBinFolder(mapName, ImportSourceRacVersion());
+        var tempPalBinFolder = Path.Combine(FolderNames.GetTempFolder(), "level-import-pal");
         var destMapWadFile = Path.Combine(destMapBinFolder, $"{mapName}.wad");
         var chunkId = importChunkId;
         var assetImports = new List<PackerImporterWindow.PackerAssetImport>();
@@ -548,6 +551,8 @@ public class LevelImporterWindow : EditorWindow
 
             // clear map assets folder on fresh import
             if (Directory.Exists(destMapFolder)) Directory.Delete(destMapFolder, true);
+            if (Directory.Exists(tempPalBinFolder)) Directory.Delete(tempPalBinFolder, true);
+            Directory.CreateDirectory(tempPalBinFolder);
 
             // prepare
             UpdateImportProgressBar(ImportStage.Preparing_Map_Files);
@@ -586,8 +591,19 @@ public class LevelImporterWindow : EditorWindow
             // unpack level wad
             if (!DecompressAndUnpackLevelWad(destMapWadFile, chunkId)) return;
 
+            // if uya we also need the PAL version of the map
+            if (ImportSourceIsUYA())
+            {
+                var palWadFile = Path.Combine(tempPalBinFolder, "pal.wad");
+                ExtractWadFromISO(forgeSettings.PathToCleanUyaPalIso, GetLevelId(), palWadFile);
+                if (!DecompressAndUnpackLevelCodeFromWad(palWadFile)) return;
+                
+                // import PAL code
+                ImportCode(tempPalBinFolder, destMapFolder, GameRegion.PAL, assetImports, rootGo);
+            }
+
             // import assets
-            ImportCode(destMapBinFolder, destMapFolder, assetImports, rootGo);
+            ImportCode(destMapBinFolder, destMapFolder, GameRegion.NTSC, assetImports, rootGo);
             ImportSky(destMapBinFolder, destMapFolder, assetImports, rootGo);
             ImportCollision(destMapBinFolder, destMapFolder, assetImports, rootGo);
             ImportTies(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -623,7 +639,7 @@ public class LevelImporterWindow : EditorWindow
 
                 // configure always export mobys to all imported mobys that don't have instances
                 // since the final exported moby assets will be all classes in this list + all classes from active moby instances
-                var mobyInstanceClasses = mapConfig.GetMobys().Where(x => x.RCVersion == 4).Select(x => x.OClass).ToArray();
+                var mobyInstanceClasses = mapConfig.GetMobys(RCVER.DL).Select(x => x.OClass).ToArray();
                 mapConfig.DLMobysIncludedInExport = assetImports
                     .Where(x => x.AssetType == FolderNames.MobyFolder)
                     .Select(x => int.TryParse(x.Name, out var oclass) ? oclass : -1)
@@ -640,7 +656,7 @@ public class LevelImporterWindow : EditorWindow
 
                 // configure always export mobys to all imported mobys that don't have instances
                 // since the final exported moby assets will be all classes in this list + all classes from active moby instances
-                var mobyInstanceClasses = mapConfig.GetMobys().Where(x => x.RCVersion == 3).Select(x => x.OClass).ToArray();
+                var mobyInstanceClasses = mapConfig.GetMobys(RCVER.UYA).Select(x => x.OClass).ToArray();
                 mapConfig.UYAMobysIncludedInExport = assetImports
                     .Where(x => x.AssetType == FolderNames.MobyFolder)
                     .Select(x => int.TryParse(x.Name, out var oclass) ? oclass : -1)
@@ -736,7 +752,13 @@ public class LevelImporterWindow : EditorWindow
             if (!DecompressAndUnpackLevelWad(destMapWadFile, chunkId)) return;
 
             // move assets over
-            if (importSky == 1) CopySky(tempMapBinFolder, destMapBinFolder);
+            if (importSky == 1)
+            {
+                // since the sky isn't rebuilt from the Maps/ folder assets
+                // we need to manually copy (and convert) the sky to the DL and UYA level folders
+                CopySky(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion), mapConfig.FirstRacVersion);
+                CopySky(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.SecondRacVersion), mapConfig.SecondRacVersion);
+            }
             if (importCollision == 1) CopyCollision(tempMapBinFolder, destMapBinFolder);
             if (importTfrags == 1) CopyTfrags(tempMapBinFolder, destMapBinFolder);
 
@@ -840,7 +862,7 @@ public class LevelImporterWindow : EditorWindow
         var result = PackerHelper.ExtractLevelWads(isoPath, outDir, levelId, racVersion);
         var dstDir = Path.GetDirectoryName(outWadFilePath);
 
-        if (racVersion == 4)
+        if (racVersion == RCVER.DL)
         {
             var addFilesToCopy = new[]
             {
@@ -906,7 +928,7 @@ public class LevelImporterWindow : EditorWindow
         if (!CheckResult(scResult, $"Failed to unpack level wad: {scResult}.")) return false;
 
         // unpack sounds
-        if (racVersion == 4 || racVersion == 3)
+        if (racVersion == RCVER.DL || racVersion == RCVER.UYA)
         {
             UpdateImportProgressBar(ImportStage.Unpacking_Sounds);
             scResult = PackerHelper.UnpackSounds(Path.Combine(workingDir, "sound.bnk"), soundsFolder, racVersion);
@@ -936,8 +958,8 @@ public class LevelImporterWindow : EditorWindow
         UpdateImportProgressBar(ImportStage.Unpacking_Sky);
         var bResult = WrenchHelper.ExportSky(Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile), Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyFolder), racVersion);
         if (!CheckResult(bResult, $"Failed to unpack sky.")) return false;
-        scResult = PackerHelper.ConvertSky(skybinFile, skybinFile, racVersion, 4);
-        if (!CheckResult(scResult, $"Failed to convert skybox: {scResult}.")) return false;
+        //scResult = PackerHelper.ConvertSky(skybinFile, skybinFile, racVersion, RCVER.DL);
+        //if (!CheckResult(scResult, $"Failed to convert skybox: {scResult}.")) return false;
 
         // unpack gameplay
         UpdateImportProgressBar(ImportStage.Unpacking_Gameplay);
@@ -945,7 +967,7 @@ public class LevelImporterWindow : EditorWindow
         if (!CheckResult(scResult, $"Failed to unpack gameplay: {scResult}.")) return false;
 
         // unpack world instances
-        if (racVersion == 4)
+        if (racVersion == RCVER.DL)
         {
             UpdateImportProgressBar(ImportStage.Unpacking_World_Instances);
             scResult = PackerHelper.UnpackWorldInstances(workingDir, worldInstanceFolder, racVersion);
@@ -995,14 +1017,31 @@ public class LevelImporterWindow : EditorWindow
         return true;
     }
 
+    bool DecompressAndUnpackLevelCodeFromWad(string wadPath)
+    {
+        var racVersion = ImportSourceRacVersion();
+        var workingDir = Path.GetDirectoryName(wadPath);
+
+        // decompress and unpack level wad
+        UpdateImportProgressBar(ImportStage.Unpacking_Level_WAD);
+        var scResult = PackerHelper.DecompressAndUnpackLevelWad(wadPath, workingDir);
+        if (!CheckResult(scResult, $"Failed to unpack level wad: {scResult}.")) return false;
+
+        // unpack code
+        UpdateImportProgressBar(ImportStage.Unpacking_Code);
+        scResult = PackerHelper.UnpackCode(workingDir, Path.Combine(workingDir, FolderNames.BinaryCodeFolder), racVersion);
+        if (!CheckResult(scResult, $"Failed to unpack code: {scResult}.")) return false;
+
+        return true;
+    }
+
     #endregion
 
     #region Import Code
 
-    void ImportCode(string mapBinFolder, string mapResourcesFolder, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
+    void ImportCode(string mapBinFolder, string mapResourcesFolder, GameRegion racRegion, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
     {
         var racVersion = ImportSourceRacVersion();
-        var racRegion = GameRegion.NTSC;
         var binCodeFolder = Path.Combine(mapBinFolder, FolderNames.CodeFolder);
         var resourcesCodeFolder = Path.Combine(mapResourcesFolder, FolderNames.GetMapCodeFolder(racVersion, racRegion));
         if (Directory.Exists(resourcesCodeFolder)) Directory.Delete(resourcesCodeFolder, true);
@@ -1144,15 +1183,24 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void CopySky(string srcMapBinFolder, string destMapBinFolder)
+    void CopySky(string srcMapBinFolder, string destMapBinFolder, int destRacVersion)
     {
+        if (destRacVersion <= 0) return;
+
         var srcSkyBinFile = Path.Combine(srcMapBinFolder, FolderNames.BinarySkyBinFile);
         var srcSkyFolder = Path.Combine(srcMapBinFolder, FolderNames.BinarySkyFolder);
         var destSkyFolder = Path.Combine(destMapBinFolder, FolderNames.BinarySkyFolder);
+        var destSkyBinFile = Path.Combine(destMapBinFolder, FolderNames.BinarySkyBinFile);
 
         // copy sky bin
         if (File.Exists(srcSkyBinFile))
-            File.Copy(srcSkyBinFile, Path.Combine(destMapBinFolder, FolderNames.BinarySkyBinFile), true);
+        {
+            File.Copy(srcSkyBinFile, destSkyBinFile, true);
+
+            // convert
+            var scResult = PackerHelper.ConvertSky(destSkyBinFile, destSkyBinFile, ImportSourceRacVersion(), destRacVersion);
+            CheckResult(scResult, $"Failed to convert skybox: {scResult}.");
+        }
 
         // move sky folder
         if (Directory.Exists(srcSkyFolder))

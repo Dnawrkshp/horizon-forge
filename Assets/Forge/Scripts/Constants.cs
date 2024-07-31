@@ -334,3 +334,10 @@ public static class Constants
     };
 
 }
+
+public static class RCVER
+{
+    public const int DL = 4;
+    public const int UYA = 3;
+    public const int GC = 2;
+}

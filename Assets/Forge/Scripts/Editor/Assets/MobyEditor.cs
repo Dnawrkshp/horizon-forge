@@ -132,7 +132,7 @@ public class MobyEditor : Editor
         // view in project window
         if (HasOneTarget && GUILayout.Button("Select in Project Window"))
         {
-            var asset = UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, (target as Moby).OClass.ToString());
+            var asset = UnityHelper.GetAssetPrefab(FolderNames.MobyFolder, (target as Moby).OClass.ToString(), (target as Moby).RCVersion);
             if (asset)
             {
                 EditorGUIUtility.PingObject(asset);

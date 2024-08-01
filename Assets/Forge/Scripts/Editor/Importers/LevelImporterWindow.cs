@@ -65,6 +65,8 @@ public class LevelImporterWindow : EditorWindow
     static readonly List<string> AssetImportOptions = new List<string>() { "Skip", "Add" };
     static readonly List<string> AssetMobyImportOptions = new List<string>() { "Skip", "Add" };
 
+    public static bool IsImporting { get; private set; }
+
     int importSource = 0;
     int importBaseLevelIdx = 0;
     int importLevelIdx = 0;
@@ -537,6 +539,8 @@ public class LevelImporterWindow : EditorWindow
 
         try
         {
+            IsImporting = true;
+
             //ImportWorldConfig(destMapBinFolder, destMapFolder, assetImports);
             //ImportSky(destMapBinFolder, destMapFolder, assetImports);
             //ImportMobys(destMapBinFolder, destMapFolder, assetImports);
@@ -641,6 +645,8 @@ public class LevelImporterWindow : EditorWindow
         }
         finally
         {
+            IsImporting = false;
+
             foreach (var postAction in postActions)
                 postAction?.Invoke();
 
@@ -682,6 +688,8 @@ public class LevelImporterWindow : EditorWindow
 
         try
         {
+            IsImporting = true;
+
             // prepare
             UpdateImportProgressBar(ImportStage.Preparing_Map_Files);
             PrepareMapResourceFolder(destMapFolder, tempMapBinFolder);
@@ -744,6 +752,7 @@ public class LevelImporterWindow : EditorWindow
         }
         finally
         {
+            IsImporting = false;
             foreach (var postAction in postActions)
                 postAction?.Invoke();
 
@@ -777,6 +786,7 @@ public class LevelImporterWindow : EditorWindow
         // create map object
         var mapGameObject = new GameObject("Map");
         var map = mapGameObject.AddComponent<MapConfig>();
+        map.InitializeVersion();
         map.DLBaseMap = Enum.Parse<DLMapIds>(DLBaseMaps[importBaseLevelIdx]);
         map.MapVersion = 0;
         map.MapName = map.MapFilename = mapName;
@@ -1487,8 +1497,8 @@ public class LevelImporterWindow : EditorWindow
     {
         var mobyAssetFolder = Path.Combine(mapBinFolder, FolderNames.BinaryMobyFolder);
         var mobyDirs = Directory.EnumerateDirectories(mobyAssetFolder).ToList();
-        var localMobyDir = Path.Combine(mapResourcesFolder, FolderNames.MobyFolder);
         var racVersion = ImportSourceRacVersion();
+        var localMobyDir = Path.Combine(mapResourcesFolder, FolderNames.GetMapMobyFolder(racVersion));
 
         UpdateImportProgressBar(ImportStage.Importing_Mobys);
         foreach (var mobyDir in mobyDirs)
@@ -2207,7 +2217,10 @@ public class LevelImporterWindow : EditorWindow
 
                     var mapRenderComponent = mapRender.GetComponent<MapRender>();
                     if (mapRenderComponent)
+                    {
+                        mapRenderComponent.InitializeVersion();
                         mapRenderComponent.UpdateCamera();
+                    }
                 }
             }
         }

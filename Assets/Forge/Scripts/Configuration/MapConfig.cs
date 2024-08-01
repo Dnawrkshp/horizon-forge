@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -8,6 +9,8 @@ using UnityEngine.SceneManagement;
 [ExecuteInEditMode]
 public class MapConfig : MonoBehaviour
 {
+    const int MAP_CONFIG_VERSION = 1;
+
     [Header("Map Build")]
     [Min(0)] public int MapVersion = 0;
     public string MapName;
@@ -35,6 +38,8 @@ public class MapConfig : MonoBehaviour
     [Range(0f, 0.99f)] public float FogNearIntensity = 0;
     [Range(0.01f, 1f)] public float FogFarIntensity = 0.75f;
 
+    [SerializeField, HideInInspector] private int _version = 0;
+
     private int sceneCameraCount = -1;
     private ForgeSettings forgeSettings;
 
@@ -60,6 +65,7 @@ public class MapConfig : MonoBehaviour
 
     private void OnValidate()
     {
+        Upgrade();
         UpdateShaderGlobals();
 
         if (FogFarIntensity < FogNearIntensity)
@@ -237,6 +243,82 @@ public class MapConfig : MonoBehaviour
     public int GetIndexOfWorldLight(WorldLight area)
     {
         return Array.IndexOf(HierarchicalSorting.Sort(FindObjectsOfType<WorldLight>()), area);
+    }
+
+    #endregion
+
+    #region Versioning
+
+    public void InitializeVersion()
+    {
+        _version = MAP_CONFIG_VERSION;
+    }
+
+    private void Upgrade()
+    {
+        // wait for import to finish before upgrading
+        if (LevelImporterWindow.IsImporting) return;
+
+        // upgrade
+        if (_version < MAP_CONFIG_VERSION)
+        {
+            while (_version < MAP_CONFIG_VERSION)
+            {
+                RunMigration(_version + 1);
+                ++_version;
+            }
+
+            Debug.Log($"Map Config upgraded to v{_version}");
+        }
+    }
+
+    private void RunMigration(int version)
+    {
+        switch (version)
+        {
+            case 1: // USE Moby/rc# folder for map mobys
+                {
+                    var srcMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.MobyFolder}";
+                    var dstMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.GetMapMobyFolder(4)}";
+                    if (!Directory.Exists(dstMobyDir)) Directory.CreateDirectory(dstMobyDir);
+
+                    // check if moby folder has mobys
+                    var dirsToMove = new List<string>();
+                    var subdirs = Directory.EnumerateDirectories(srcMobyDir);
+                    foreach (var subdir in subdirs)
+                    {
+                        // moby folder is a whole number (base 10)
+                        var subdirName = Path.GetFileName(subdir);
+                        if (int.TryParse(subdirName, out _))
+                        {
+                            dirsToMove.Add(Path.GetFullPath(subdir));
+                        }
+                    }
+
+                    // prompt user and migrate data
+                    if (dirsToMove.Any())
+                    {
+                        if (!EditorUtility.DisplayDialog("Map Upgrade", $"Forge needs to migrate {dirsToMove.Count} mobys in {srcMobyDir} to {dstMobyDir}.\n", "Okay"))
+                            throw new InvalidOperationException();
+
+                        // migrate
+                        foreach (var dir in dirsToMove)
+                        {
+                            IOHelper.CopyDirectory(dir, Path.Combine(dstMobyDir, Path.GetFileName(dir)));
+                            Directory.Delete(dir, true);
+                            File.Delete(dir + ".meta");
+                        }
+
+                        // refresh assets
+                        AssetDatabase.Refresh();
+                        var assets = GameObject.FindObjectsOfType<MonoBehaviour>().Where(x => x is IAsset).Select(x => x as IAsset);
+                        foreach (var asset in assets)
+                            asset.UpdateAsset();
+                    }
+
+                    break;
+                }
+        }
     }
 
     #endregion

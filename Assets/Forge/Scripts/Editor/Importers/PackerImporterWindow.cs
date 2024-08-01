@@ -108,9 +108,9 @@ public class PackerImporterWindow : EditorWindow
 
         // output to current scene's resources path
         if (destDropdown.index == 1)
-            return FolderNames.GetLocalAssetFolder(assetType);
+            return FolderNames.GetLocalAssetFolder(assetType, Constants.GameVersion);
 
-        return FolderNames.GetGlobalAssetFolder(assetType);
+        return FolderNames.GetGlobalAssetFolder(assetType, Constants.GameVersion);
     }
 
     private void OnImport()

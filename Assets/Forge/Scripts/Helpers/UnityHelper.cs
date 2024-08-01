@@ -111,31 +111,31 @@ public static class UnityHelper
         return (GetPath(root, t.parent) + "/" + t.name).TrimStart('/');
     }
 
-    public static GameObject GetAssetPrefab(string assetType, string oClass, bool includeGlobal = false)
+    public static GameObject GetAssetPrefab(string assetType, string oClass, int racVersion = 0, bool includeGlobal = false)
     {
         // always return local asset path
-        var path = FolderNames.GetLocalAssetFolder(assetType);
+        var path = FolderNames.GetLocalAssetFolder(assetType, racVersion);
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}.fbx"));
 
         if (includeGlobal && !prefab)
         {
-            path = FolderNames.GetGlobalAssetFolder(assetType);
+            path = FolderNames.GetGlobalAssetFolder(assetType, racVersion);
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}.fbx"));
         }
 
         return prefab;
     }
 
-    public static GameObject GetAssetColliderPrefab(string assetType, string oClass, bool includeGlobal = false)
+    public static GameObject GetAssetColliderPrefab(string assetType, string oClass, int racVersion = 0, bool includeGlobal = false)
     {
         // always return local asset path
-        var path = FolderNames.GetLocalAssetFolder(assetType);
+        var path = FolderNames.GetLocalAssetFolder(assetType, racVersion);
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.fbx"));
         if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.blend"));
 
         if (includeGlobal && !prefab)
         {
-            path = FolderNames.GetGlobalAssetFolder(assetType);
+            path = FolderNames.GetGlobalAssetFolder(assetType, racVersion);
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.fbx"));
             if (!prefab) prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, oClass, $"{oClass}_col.blend"));
         }
@@ -145,7 +145,7 @@ public static class UnityHelper
 
     public static GameObject GetCuboidPrefab(CuboidType type, CuboidSubType subtype)
     {
-        var path = FolderNames.GetGlobalPrefabFolder("Cuboid");
+        var path = FolderNames.GetGlobalPrefabFolder("Cuboid", Constants.GameVersion);
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, $"{type}.prefab"));
         if (subtype != CuboidSubType.Default && (type == CuboidType.Player || type == CuboidType.None))
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, $"{subtype}.prefab"));
@@ -155,14 +155,14 @@ public static class UnityHelper
 
     public static GameObject GetSNDPrefab(string prefabName)
     {
-        var path = FolderNames.GetGlobalPrefabFolder("SND");
+        var path = FolderNames.GetGlobalPrefabFolder("SND", Constants.GameVersion);
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, $"{prefabName}.prefab"));
         return prefab;
     }
 
     public static GameObject GetMiscPrefab(string prefabName)
     {
-        var path = FolderNames.GetGlobalPrefabFolder("Misc");
+        var path = FolderNames.GetGlobalPrefabFolder("Misc", Constants.GameVersion);
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, $"{prefabName}.prefab"));
         return prefab;
     }

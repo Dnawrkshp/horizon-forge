@@ -7,7 +7,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-[ExecuteInEditMode, SelectionBase]
+[ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
 public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
 {
     [HideInInspector] public int OClass;

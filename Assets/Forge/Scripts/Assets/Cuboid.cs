@@ -5,7 +5,9 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using NaughtyAttributes;
 
+[Obsolete]
 public enum CuboidType
 {
     None,
@@ -15,6 +17,7 @@ public enum CuboidType
     Camera,
 }
 
+[Obsolete]
 public enum CuboidSubType
 {
     Default,
@@ -24,18 +27,38 @@ public enum CuboidSubType
     OrangeFlagSpawn,
 }
 
-[ExecuteInEditMode, SelectionBase]
+[Serializable, Flags]
+public enum CuboidMaskType
+{
+    None = 0,
+    Player = 1 << 0,
+    BlueFlagSpawn = 1 << 1,
+    RedFlagSpawn = 1 << 2,
+    GreenFlagSpawn = 1 << 3,
+    OrangeFlagSpawn = 1 << 4,
+    HillSquare = 1 << 5,
+    HillCircle = 1 << 6,
+    Camera = 1 << 7,
+}
+
+[ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
 public class Cuboid : RenderSelectionBase
 {
-    public CuboidType Type;
-    public CuboidSubType Subtype;
+    const int CUBOID_VERSION = 1;
+
+    [Obsolete, SerializeField, HideInInspector]
+    private CuboidType Type;
+    [Obsolete, SerializeField, HideInInspector]
+    private CuboidSubType Subtype;
+
+    [SerializeField, EnumFlags] public CuboidMaskType CuboidType;
+    [SerializeField, HideInInspector] private int _version = 0;
 
     private bool changed = true;
     private bool lastHidden = false;
     private bool lastPicking = false;
     private bool lastSelected = false;
-    private CuboidType lastType = (CuboidType)100;
-    private CuboidSubType lastSubtype = (CuboidSubType)100;
+    private CuboidMaskType lastType = (CuboidMaskType)100;
     private GameObject assetInstance;
 
     public Renderer[] GetRenderers() => assetInstance?.GetComponentsInChildren<Renderer>();
@@ -68,12 +91,11 @@ public class Cuboid : RenderSelectionBase
             lastSelected = selected;
         }
 
-        if (Type != lastType || Subtype != lastSubtype)
+        if (CuboidType != lastType)
         {
             changed = true;
             if (assetInstance) DestroyImmediate(assetInstance.gameObject);
-            lastType = Type;
-            lastSubtype = Subtype;
+            lastType = CuboidType;
         }
 
         if (!assetInstance)
@@ -98,6 +120,7 @@ public class Cuboid : RenderSelectionBase
 
     private void OnValidate()
     {
+        Upgrade();
         UpdateTransform();
         UpdateMaterials();
     }
@@ -106,7 +129,7 @@ public class Cuboid : RenderSelectionBase
     {
         if (assetInstance)
         {
-            if (Type == CuboidType.HillCircle)
+            if (CuboidType.HasFlag(CuboidMaskType.HillCircle))
             {
                 var scale = Vector3.one;
                 scale.x = this.transform.localScale.z / this.transform.localScale.x;
@@ -147,7 +170,7 @@ public class Cuboid : RenderSelectionBase
             DestroyImmediate(transform.GetChild(0).gameObject);
 
         // instantiate
-        var prefab = UnityHelper.GetCuboidPrefab(Type, Subtype);
+        var prefab = UnityHelper.GetCuboidPrefab(CuboidType);
         if (prefab)
         {
             GameObject go = null;
@@ -212,19 +235,19 @@ public class Cuboid : RenderSelectionBase
         writer.Write(iEuler.z * Mathf.Deg2Rad);
         writer.Write(0f);
 
-        if (Type == CuboidType.HillCircle)
+        if (Type == global::CuboidType.HillCircle)
         {
             writer.BaseStream.Position = offset + 0x28;
             writer.Write(2f);
             writer.BaseStream.Position = offset + 0x80;
         }
-        else if (Type == CuboidType.HillSquare)
+        else if (Type == global::CuboidType.HillSquare)
         {
             writer.BaseStream.Position = offset + 0x28;
             writer.Write(1f);
             writer.BaseStream.Position = offset + 0x80;
         }
-        else if (Type == CuboidType.Player)
+        else if (Type == global::CuboidType.Player)
         {
             writer.BaseStream.Position = offset + 0x70;
             writer.Write(0f);
@@ -262,6 +285,69 @@ public class Cuboid : RenderSelectionBase
 
     #endregion
 
+
+    #region Versioning
+
+    public void InitializeVersion()
+    {
+        _version = CUBOID_VERSION;
+    }
+
+    private void Upgrade()
+    {
+        // wait for import to finish before upgrading
+        if (LevelImporterWindow.IsImporting) return;
+
+        // upgrade
+        if (_version < CUBOID_VERSION)
+        {
+            while (_version < CUBOID_VERSION)
+            {
+                RunMigration(_version + 1);
+                ++_version;
+            }
+
+            Debug.Log($"Cuboid upgraded to v{_version}");
+            UnityHelper.MarkActiveSceneDirty();
+        }
+    }
+
+    private void RunMigration(int version)
+    {
+        switch (version)
+        {
+            case 1: // CONVERT CUBOIDTYPE + CUBOIDSUBTYPE TO CUBOIDMASKTYPE
+                {
+                    if (Type == global::CuboidType.Player)
+                    {
+                        CuboidType |= CuboidMaskType.Player;
+
+                        switch (Subtype)
+                        {
+                            case CuboidSubType.BlueFlagSpawn: CuboidType |= CuboidMaskType.BlueFlagSpawn; break;
+                            case CuboidSubType.RedFlagSpawn: CuboidType |= CuboidMaskType.RedFlagSpawn; break;
+                            case CuboidSubType.GreenFlagSpawn: CuboidType |= CuboidMaskType.GreenFlagSpawn; break;
+                            case CuboidSubType.OrangeFlagSpawn: CuboidType |= CuboidMaskType.OrangeFlagSpawn; break;
+                        }
+                    }
+                    else if (Type == global::CuboidType.HillSquare)
+                    {
+                        CuboidType |= CuboidMaskType.HillSquare;
+                    }
+                    else if (Type == global::CuboidType.HillCircle)
+                    {
+                        CuboidType |= CuboidMaskType.HillCircle;
+                    }
+                    else if (Type == global::CuboidType.Camera)
+                    {
+                        CuboidType |= CuboidMaskType.Camera;
+                    }
+                    break;
+                }
+        }
+    }
+
+    #endregion
 
     public bool IsInCuboid(Vector3 position)
     {

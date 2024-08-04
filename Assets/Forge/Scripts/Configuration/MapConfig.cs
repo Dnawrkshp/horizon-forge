@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -280,6 +281,7 @@ public class MapConfig : MonoBehaviour
             }
 
             Debug.Log($"Map Config upgraded to v{_version}");
+            UnityHelper.MarkActiveSceneDirty();
         }
     }
 

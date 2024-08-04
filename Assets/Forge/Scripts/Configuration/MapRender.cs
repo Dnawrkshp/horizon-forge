@@ -54,6 +54,7 @@ public class MapRender : MonoBehaviour
             }
 
             Debug.Log($"Map Render upgraded to v{_version}");
+            UnityHelper.MarkActiveSceneDirty();
         }
     }
 

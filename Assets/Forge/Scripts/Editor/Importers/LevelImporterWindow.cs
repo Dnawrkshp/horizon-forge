@@ -2051,10 +2051,7 @@ public class LevelImporterWindow : EditorWindow
 
     void ImportCuboids(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
     {
-        var gameplayMobysFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayMobyFolder);
         var gameplayCuboidsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCuboidFolder);
-        var mobyDirs = Directory.EnumerateDirectories(gameplayMobysFolder).ToList();
-        var mpInitMobyDir = mobyDirs.FirstOrDefault(x => x.EndsWith("_106A"));
         var cuboids = new List<Cuboid>();
 
         UpdateImportProgressBar(ImportStage.Importing_Cuboids);
@@ -2074,6 +2071,7 @@ public class LevelImporterWindow : EditorWindow
                 {
                     var cuboidGo = new GameObject(i.ToString());
                     var cuboid = cuboidGo.AddComponent<Cuboid>();
+                    cuboid.InitializeVersion();
                     cuboid.Read(reader);
 
                     reader.BaseStream.Position = 0x28;
@@ -2086,6 +2084,18 @@ public class LevelImporterWindow : EditorWindow
 
             ++i;
         }
+
+        if (ImportSourceIsDL()) ImportCuboidTypes_DL(mapBinFolder, cuboids);
+        else if (ImportSourceIsUYA()) ImportCuboidTypes_UYA(mapBinFolder, cuboids);
+    }
+
+    void ImportCuboidTypes_DL(string mapBinFolder, List<Cuboid> cuboids)
+    {
+        var i = 0;
+        var gameplayMobysFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayMobyFolder);
+        var gameplayCuboidsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCuboidFolder);
+        var mobyDirs = Directory.EnumerateDirectories(gameplayMobysFolder).ToList();
+        var mpInitMobyDir = mobyDirs.FirstOrDefault(x => x.EndsWith("_106A"));
 
         // read multiplayer init moby pvars
         // contains cuboid assignments (player, hill, ctf spawn)
@@ -2128,7 +2138,7 @@ public class LevelImporterWindow : EditorWindow
                                     }
                                 }
 
-                                SetCuboidType(cuboids, idx, CuboidType.Player);
+                                AddCuboidType(cuboids, idx, CuboidMaskType.Player);
                                 idx = reader.ReadInt32();
 
                                 ++i;
@@ -2136,19 +2146,19 @@ public class LevelImporterWindow : EditorWindow
 
                             // read flag spawns
                             reader.BaseStream.Position = 0;
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.BlueFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.BlueFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.BlueFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.RedFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.RedFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.RedFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
                             reader.BaseStream.Position = 0x168;
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.GreenFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.GreenFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.GreenFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.OrangeFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.OrangeFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.OrangeFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.GreenFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.GreenFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.GreenFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.OrangeFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.OrangeFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.OrangeFlagSpawn);
                         }
                         catch { }
                     }
@@ -2157,16 +2167,77 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void SetCuboidType(List<Cuboid> cuboids, int idx, CuboidType type)
+    void ImportCuboidTypes_UYA(string mapBinFolder, List<Cuboid> cuboids)
     {
-        if (idx < 0 || idx >= cuboids.Count) return;
-        cuboids[idx].Type = type;
+        var i = 0;
+        var gameplayMobysFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayMobyFolder);
+        var gameplayCuboidsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCuboidFolder);
+        var mobyDirs = Directory.EnumerateDirectories(gameplayMobysFolder).ToList();
+        var mpInitMobyDir = mobyDirs.FirstOrDefault(x => x.EndsWith("_106A"));
+
+        // read multiplayer init moby pvars
+        // contains cuboid assignments (player, hill, ctf spawn)
+        if (mpInitMobyDir != null && Directory.Exists(mpInitMobyDir))
+        {
+            var mpInitPvarsFilePath = Path.Combine(mpInitMobyDir, "pvar.bin");
+            if (File.Exists(mpInitPvarsFilePath))
+            {
+                using (var fs = File.OpenRead(mpInitPvarsFilePath))
+                {
+                    using (var reader = new BinaryReader(fs))
+                    {
+                        try
+                        {
+                            // read deathmatch spawns
+                            reader.BaseStream.Position = 0x200;
+                            var idx = reader.ReadInt32();
+                            i = 0;
+                            while (idx >= 0 && i < 64)
+                            {
+                                // recompute rotation based off euler rotation
+                                // we don't need this for vanilla maps because the euler is always the inverse of the rotation matrix
+                                // but for custom maps we historically haven't recomputed the rotation matrix for player spawns
+                                // so to be compatible with importing old custom maps we need to recompute it here
+                                var cuboidFile = Path.Combine(gameplayCuboidsFolder, $"{idx:0000}.bin");
+                                if (File.Exists(cuboidFile))
+                                {
+                                    using (var cfs = File.OpenRead(cuboidFile))
+                                    {
+                                        using (var creader = new BinaryReader(cfs))
+                                        {
+                                            var cuboid = cuboids?.ElementAtOrDefault(idx);
+                                            if (cuboid)
+                                            {
+                                                creader.BaseStream.Position = 0x78;
+                                                var yaw = creader.ReadSingle();
+                                                cuboid.transform.rotation = Quaternion.Euler(0, -(yaw * Mathf.Rad2Deg) + 90, 0);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                AddCuboidType(cuboids, idx, CuboidMaskType.Player);
+                                idx = reader.ReadInt32();
+
+                                ++i;
+                            }
+
+                            // read flag spawns
+                            reader.BaseStream.Position = 0;
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
+                        }
+                        catch { }
+                    }
+                }
+            }
+        }
     }
 
-    void SetCuboidSubType(List<Cuboid> cuboids, int idx, CuboidSubType subtype)
+    void AddCuboidType(List<Cuboid> cuboids, int idx, CuboidMaskType type)
     {
         if (idx < 0 || idx >= cuboids.Count) return;
-        cuboids[idx].Subtype = subtype;
+        cuboids[idx].CuboidType |= type;
     }
 
     void FindAndSetHillCuboidTypes(string mapBinFolder, string mapResourcesFolder, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
@@ -2190,7 +2261,7 @@ public class LevelImporterWindow : EditorWindow
             {
                 foreach (var cuboid in area.Cuboids)
                 {
-                    cuboid.Type = CuboidType.HillSquare;
+                    cuboid.CuboidType = CuboidMaskType.HillSquare;
                     var cuboidIdx = mapConfig.GetIndexOfCuboid(cuboid);
                     if (cuboidIdx < 0) continue;
 
@@ -2203,7 +2274,7 @@ public class LevelImporterWindow : EditorWindow
                         {
                             reader.BaseStream.Position = 0x28;
                             var isCircular = reader.ReadSingle() >= 1.99;
-                            cuboid.Type = isCircular ? CuboidType.HillCircle : CuboidType.HillSquare;
+                            cuboid.CuboidType = isCircular ? CuboidMaskType.HillCircle : CuboidMaskType.HillSquare;
                         }
                     }
                 }
@@ -2369,7 +2440,7 @@ public class LevelImporterWindow : EditorWindow
         var cuboids = mapConfig.GetCuboids();
         var center = Vector3.zero;
         var count = 0;
-        foreach (var cuboid in cuboids.Where(x => x.Type == CuboidType.Player))
+        foreach (var cuboid in cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.Player)))
         {
             center += cuboid.transform.position;
             count++;

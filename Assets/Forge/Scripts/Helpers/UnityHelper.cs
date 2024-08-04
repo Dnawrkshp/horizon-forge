@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -53,6 +54,14 @@ public static class UnityHelper
                 prop.floatValue = m[x, y];
             }
         }
+    }
+
+    public static void MarkActiveSceneDirty()
+    {
+        Dispatcher.RunOnMainThread(() =>
+        {
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        });
     }
 
     public static void RecurseHierarchy(Transform root, Action<Transform> onNode)
@@ -143,12 +152,17 @@ public static class UnityHelper
         return prefab;
     }
 
-    public static GameObject GetCuboidPrefab(CuboidType type, CuboidSubType subtype)
+    public static GameObject GetCuboidPrefab(CuboidMaskType cuboidType)
     {
         var path = FolderNames.GetGlobalPrefabFolder("Cuboid");
-        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, $"{type}.prefab"));
-        if (subtype != CuboidSubType.Default && (type == CuboidType.Player || type == CuboidType.None))
-            prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, $"{subtype}.prefab"));
+        GameObject prefab = null;
+
+        foreach (var type in (CuboidMaskType[])Enum.GetValues(typeof(CuboidMaskType)))
+        {
+            if (!cuboidType.HasFlag(type)) continue;
+
+            prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Path.Combine(path, $"{type}.prefab"));
+        }
 
         return prefab;
     }

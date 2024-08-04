@@ -8,7 +8,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-[ExecuteInEditMode, SelectionBase]
+[ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
 public class Tie : RenderSelectionBase, IOcclusionData, IAsset, IInstancedCollider
 {
     public static bool RenderOctants;

@@ -7,7 +7,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, AddComponentMenu("")]
 public class Sky : MonoBehaviour
 {
     public int MaxSpriteCount = 0;
@@ -36,6 +36,7 @@ public class Sky : MonoBehaviour
 
     private void OnRender(Camera camera)
     {
+        if (LevelImporterWindow.IsImporting) return;
         if (layers == null) return;
         if (mapConfig == null) mapConfig = FindObjectOfType<MapConfig>();
 

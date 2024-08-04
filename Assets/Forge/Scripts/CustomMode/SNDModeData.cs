@@ -44,8 +44,8 @@ public class SNDModeData : CustomModeData
         }
 
         var cuboids = mapConfig.GetCuboids();
-        var blueSpawnCuboid = cuboids?.FirstOrDefault(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.BlueFlagSpawn);
-        var redSpawnCuboid = cuboids?.FirstOrDefault(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.RedFlagSpawn);
+        var blueSpawnCuboid = cuboids?.FirstOrDefault(x => x.CuboidType.HasFlag(CuboidMaskType.BlueFlagSpawn));
+        var redSpawnCuboid = cuboids?.FirstOrDefault(x => x.CuboidType.HasFlag(CuboidMaskType.RedFlagSpawn));
 
         CopyTransform(blueSpawnCuboid ? blueSpawnCuboid.transform : null, sndData.DefendTeamSpawn);
         CopyTransform(redSpawnCuboid ? redSpawnCuboid.transform : null, sndData.AttackTeamSpawn);

@@ -5,7 +5,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, AddComponentMenu("")]
 public class WaterTriStripMoby : MonoBehaviour, IRenderHandlePrefab
 {
     private MeshRenderer m_Renderer;

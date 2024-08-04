@@ -6,7 +6,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-[ExecuteInEditMode, SelectionBase]
+[ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
 public class Moby : RenderSelectionBase, IAsset
 {
     private static readonly Color mobyLinkColor = new Color(1, 0.75f, 0.75f);
@@ -548,9 +548,11 @@ public class Moby : RenderSelectionBase, IAsset
         // handle special moby class pvars
         switch ((RCVersion, OClass))
         {
-            //case (RCVER.UYA, 0x106a): // mp config
+            case (RCVER.UYA, 0x106a): // mp config
+                UpdateMPConfigPVars_UYA(cuboids);
+                break;
             case (RCVER.DL, 0x106a): // mp config
-                UpdateMPConfigPVars(cuboids);
+                UpdateMPConfigPVars_DL(cuboids);
                 break;
         }
 
@@ -630,7 +632,7 @@ public class Moby : RenderSelectionBase, IAsset
         }
     }
 
-    private void UpdateMPConfigPVars(Cuboid[] cuboids)
+    private void UpdateMPConfigPVars_DL(Cuboid[] cuboids)
     {
         using (var ms = new MemoryStream(PVars, true))
         {
@@ -638,7 +640,7 @@ public class Moby : RenderSelectionBase, IAsset
             {
                 // write deathmatch cuboids
                 writer.BaseStream.Position = 0x1F8;
-                var playerSpawns = cuboids.Where(x => x.Type == CuboidType.Player).ToArray();
+                var playerSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.Player)).ToArray();
                 if (playerSpawns.Length > 64) Debug.LogWarning("More than 64 player spawn cuboids detected. Truncating to first 64.");
                 if (playerSpawns.Length == 0) Debug.LogWarning("No player spawn cuboids detected. Player spawns will not work.");
                 for (int i = 0; i < 64; ++i)
@@ -651,7 +653,7 @@ public class Moby : RenderSelectionBase, IAsset
 
                 // write flag spawns
                 writer.BaseStream.Position = 0;
-                var blueFlagSpawns = cuboids.Where(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.BlueFlagSpawn).ToArray();
+                var blueFlagSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.BlueFlagSpawn)).ToArray();
                 if (blueFlagSpawns.Length != 3) Debug.LogWarning($"Expected 3 blue flag player spawn cuboids found {blueFlagSpawns.Length}.");
                 for (int i = 0; i < 3; ++i)
                 {
@@ -661,7 +663,7 @@ public class Moby : RenderSelectionBase, IAsset
                 }
 
                 writer.BaseStream.Position = 0x0c;
-                var redFlagSpawns = cuboids.Where(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.RedFlagSpawn).ToArray();
+                var redFlagSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.RedFlagSpawn)).ToArray();
                 if (redFlagSpawns.Length != 3) Debug.LogWarning($"Expected 3 red flag player spawn cuboids found {redFlagSpawns.Length}.");
                 for (int i = 0; i < 3; ++i)
                 {
@@ -671,7 +673,7 @@ public class Moby : RenderSelectionBase, IAsset
                 }
 
                 writer.BaseStream.Position = 0x168;
-                var greenFlagSpawns = cuboids.Where(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.GreenFlagSpawn).ToArray();
+                var greenFlagSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.GreenFlagSpawn)).ToArray();
                 if (greenFlagSpawns.Length != 3) Debug.LogWarning($"Expected 3 green flag player spawn cuboids found {greenFlagSpawns.Length}.");
                 for (int i = 0; i < 3; ++i)
                 {
@@ -681,11 +683,55 @@ public class Moby : RenderSelectionBase, IAsset
                 }
 
                 writer.BaseStream.Position = 0x174;
-                var orangeFlagSpawns = cuboids.Where(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.OrangeFlagSpawn).ToArray();
+                var orangeFlagSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.OrangeFlagSpawn)).ToArray();
                 if (orangeFlagSpawns.Length != 3) Debug.LogWarning($"Expected 3 orange flag player spawn cuboids found {orangeFlagSpawns.Length}.");
                 for (int i = 0; i < 3; ++i)
                 {
                     var cuboid = orangeFlagSpawns.ElementAtOrDefault(orangeFlagSpawns.Length > 0 ? (i % orangeFlagSpawns.Length) : 0);
+                    var idx = cuboid ? Array.IndexOf(cuboids, cuboid) : -1;
+                    writer.Write(idx);
+                }
+            }
+        }
+
+    }
+
+    private void UpdateMPConfigPVars_UYA(Cuboid[] cuboids)
+    {
+        using (var ms = new MemoryStream(PVars, true))
+        {
+            using (var writer = new BinaryWriter(ms))
+            {
+                // write deathmatch cuboids
+                writer.BaseStream.Position = 0x200;
+                var playerSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.Player)).ToArray();
+                if (playerSpawns.Length > 64) Debug.LogWarning("More than 64 player spawn cuboids detected. Truncating to first 64.");
+                if (playerSpawns.Length == 0) Debug.LogWarning("No player spawn cuboids detected. Player spawns will not work.");
+                for (int i = 0; i < 64; ++i)
+                {
+                    var cuboid = playerSpawns.ElementAtOrDefault(i);
+                    var idx = cuboid ? Array.IndexOf(cuboids, cuboid) : -1;
+
+                    writer.Write(idx);
+                }
+
+                // write flag spawns
+                writer.BaseStream.Position = 0;
+                var blueFlagSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.BlueFlagSpawn)).ToArray();
+                if (blueFlagSpawns.Length < 1) Debug.LogWarning($"Expected 1 blue flag player spawn cuboids found {blueFlagSpawns.Length}.");
+                for (int i = 0; i < 1; ++i)
+                {
+                    var cuboid = blueFlagSpawns.ElementAtOrDefault(blueFlagSpawns.Length > 0 ? (i % blueFlagSpawns.Length) : 0);
+                    var idx = cuboid ? Array.IndexOf(cuboids, cuboid) : -1;
+                    writer.Write(idx);
+                }
+
+                writer.BaseStream.Position = 4;
+                var redFlagSpawns = cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.RedFlagSpawn)).ToArray();
+                if (redFlagSpawns.Length < 1) Debug.LogWarning($"Expected 1 red flag player spawn cuboids found {redFlagSpawns.Length}.");
+                for (int i = 0; i < 1; ++i)
+                {
+                    var cuboid = redFlagSpawns.ElementAtOrDefault(redFlagSpawns.Length > 0 ? (i % redFlagSpawns.Length) : 0);
                     var idx = cuboid ? Array.IndexOf(cuboids, cuboid) : -1;
                     writer.Write(idx);
                 }

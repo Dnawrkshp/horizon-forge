@@ -5,7 +5,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-[ExecuteInEditMode, SelectionBase]
+[ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
 public class TfragChunk : MonoBehaviour, IOcclusionData, IAsset
 {
     public static bool RenderOctants;

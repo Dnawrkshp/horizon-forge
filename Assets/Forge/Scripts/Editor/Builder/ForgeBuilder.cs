@@ -51,11 +51,11 @@ public static class ForgeBuilder
         BuildDZOFiles(EditorSceneManager.GetActiveScene());
     }
 
-    static bool RebuildLevelProgress(ref bool cancel, string info, float progress)
+    static bool RebuildLevelProgress(RebuildContext ctx, string info, float progress)
     {
-        cancel |= EditorUtility.DisplayCancelableProgressBar($"Rebuilding Level", info, progress);
+        ctx.Cancel |= EditorUtility.DisplayCancelableProgressBar($"Rebuilding Level (rc{ctx.RacVersion} {ctx.Region})", info, progress);
         System.Threading.Thread.Sleep(1);
-        return cancel;
+        return ctx.Cancel;
     }
 
     static void PatchLevel(UnityEngine.SceneManagement.Scene scene)
@@ -83,6 +83,7 @@ public static class ForgeBuilder
             var baseMap = racVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
             var isoPath = settings.PathToOutputDeadlockedIso;
             var cleanIsoPath = settings.PathToCleanDeadlockedIso;
+            var regionExt = region == GameRegion.NTSC ? "" : ".pal";
 
             if (racVersion == RCVER.UYA)
             {
@@ -160,12 +161,12 @@ public static class ForgeBuilder
                 Debug.Log($"{isoPath} patched!");
 
             // patch minimap
-            var mapPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, racVersion), $"{mapConfig.MapFilename}.map");
+            var mapPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, racVersion), $"{mapConfig.MapFilename}{regionExt}.map");
             if (File.Exists(mapPath))
                 PackerHelper.PatchMinimap(isoPath, cleanIsoPath, mapPath, baseMap, racVersion);
 
             // patch transition
-            var bgPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, racVersion), $"{mapConfig.MapFilename}.bg");
+            var bgPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, racVersion), $"{mapConfig.MapFilename}{regionExt}.bg");
             if (File.Exists(bgPath))
                 PackerHelper.PatchTransitionBackground(isoPath, cleanIsoPath, bgPath, baseMap, racVersion);
         }
@@ -224,7 +225,7 @@ public static class ForgeBuilder
                 // run generators
                 UnityHelper.RunGeneratorsPreBake(BakeType.BUILD);
 
-                //RebuildSky(ref ctx.Cancel, resourcesFolder, binFolder); if (cancel) return;
+                //RebuildSky(ctx, resourcesFolder, binFolder); if (cancel) return;
                 //await RebuildCollision(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                 //return false;
 
@@ -261,7 +262,7 @@ public static class ForgeBuilder
                                                                                         | PackerHelper.PACKER_PACK_OPS.PACK_ASSETS
                                                                                         | PackerHelper.PACKER_PACK_OPS.PACK_LEVEL_WAD
                                                                                         | PackerHelper.PACKER_PACK_OPS.PACK_SOUND_WAD
-                                                                                        , (p) => EditorUtility.DisplayProgressBar("Rebuilding Level", "Packing", p));
+                                                                                        , (p) => EditorUtility.DisplayProgressBar($"Rebuilding Level (rc{racVersion} {region})", "Packing", p));
 
                 if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
                 {
@@ -326,7 +327,7 @@ public static class ForgeBuilder
         var worldPath = ctx.RacVersion == RCVER.DL ? null : Path.Combine(binFolder, FolderNames.GetWorldWadFilename(baseMap, ctx.RacVersion));
         var soundPath = Path.Combine(binFolder, FolderNames.GetSoundWadFilename(baseMap, ctx.RacVersion));
         var bgPngPath = AssetDatabase.GetAssetPath(mapConfig.DLLoadingScreen);
-        var minimapPngPath = AssetDatabase.GetAssetPath(mapConfig.DLMinimap);
+        var minimapPngPath = ctx.RacVersion == RCVER.DL ? AssetDatabase.GetAssetPath(mapConfig.DLMinimap) : AssetDatabase.GetAssetPath(mapConfig.UYAMinimap);
         var customModeDatas = GameObject.FindObjectsOfType<CustomModeData>()?.Where(x => x.IsEnabled)?.ToArray();
 
         if (!Directory.Exists(buildPath)) Directory.CreateDirectory(buildPath);
@@ -380,18 +381,32 @@ public static class ForgeBuilder
         {
             var tempPngPath = Path.Combine(FolderNames.GetTempFolder(), $"{mapConfig.MapFilename}.png");
             var minimap = AssetDatabase.LoadAssetAtPath<Texture2D>(minimapPngPath);
+            var outPif2File = Path.Combine(buildPath, $"minimap.map");
             if (minimap)
             {
-                File.Copy(AssetDatabase.GetAssetPath(minimap), tempPngPath, true);
-
-                var result = PackerHelper.ConvertPngToPif4bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: true);
-                if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                if (ctx.RacVersion == RCVER.DL)
                 {
-                    Debug.LogError($"Failed to pack minimap. {result}");
-                    return;
+                    File.Copy(AssetDatabase.GetAssetPath(minimap), tempPngPath, true);
+                    var result = PackerHelper.ConvertPngToPif4bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: true);
+                    if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                    {
+                        Debug.LogError($"Failed to pack minimap. {result}");
+                        return;
+                    }
+                }
+                else
+                {
+                    UnityHelper.SaveTexture(UnityHelper.ResizeTexture(minimap, 256, 256), tempPngPath, Color.white, hasAlpha: true);
+                    var result = PackerHelper.ConvertPngToPif8bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: false);
+                    if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                    {
+                        Debug.LogError($"Failed to pack minimap. {result}");
+                        return;
+                    }
+
+                    outPif2File = Path.Combine(buildPath, $"{Path.GetFileNameWithoutExtension(tempPngPath)}.pif2");
                 }
 
-                var outPif2File = Path.Combine(buildPath, $"minimap.map");
                 var outMapFile = Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.map");
                 if (File.Exists(outMapFile)) File.Delete(outMapFile);
                 if (File.Exists(outPif2File)) File.Move(outPif2File, outMapFile);
@@ -399,7 +414,7 @@ public static class ForgeBuilder
         }
     
         // build loading screen
-        if (File.Exists(bgPngPath))
+        if (File.Exists(bgPngPath) && ctx.RacVersion == RCVER.DL)
         {
             var tempPngPath = Path.Combine(FolderNames.GetTempFolder(), $"{mapConfig.MapFilename}.png");
             var bg = UnityHelper.ResizeTexture(AssetDatabase.LoadAssetAtPath<Texture2D>(bgPngPath), 512, 512);
@@ -453,7 +468,7 @@ public static class ForgeBuilder
             return;
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0))
             return;
 
         // export as glb
@@ -465,7 +480,7 @@ public static class ForgeBuilder
             return;
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0.25f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0.25f))
             return;
 
         // export textures
@@ -497,7 +512,7 @@ public static class ForgeBuilder
             fxTextures.Add(outTexFileName);
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0.5f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0.5f))
             return;
 
         // build sky.asset
@@ -566,7 +581,7 @@ public static class ForgeBuilder
             }
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0.75f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0.75f))
             return;
 
         // build
@@ -586,7 +601,7 @@ public static class ForgeBuilder
         var materials = new List<Material>();
         var chunks = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<TfragChunk>());
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Tfrags", 0.5f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Tfrags", 0.5f))
             return;
 
         // clear tfrag assets dir
@@ -767,7 +782,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var tieClass in tieClasses)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Ties", (float)i / tieClasses.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Ties", (float)i / tieClasses.Length))
                 return;
 
             var srcTieDir = Path.Combine(resourcesFolder, FolderNames.TieFolder, tieClass.ToString());
@@ -930,7 +945,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var shrubClass in shrubClasses)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Shrubs", (float)i / shrubClasses.Count))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Shrubs", (float)i / shrubClasses.Count))
                 return;
 
             var srcShrubDir = Path.Combine(resourcesFolder, FolderNames.ShrubFolder, shrubClass.ToString());
@@ -1061,7 +1076,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var mobyClass in mobyClasses)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Mobys", (float)i / mobyClasses.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Mobys", (float)i / mobyClasses.Length))
                 return;
 
             var srcMobyDir = Path.Combine(mobyResourcesFolder, mobyClass.ToString());
@@ -1189,7 +1204,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var tie in ties)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Ties  ({i + 1}/{ties.Length})", (float)i / ties.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Ties  ({i + 1}/{ties.Length})", (float)i / ties.Length))
                 return;
 
             var classIdx = Array.IndexOf(tieClasses, tie.OClass);
@@ -1290,7 +1305,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var shrub in shrubs)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
                 return;
 
             var classIdx = shrubClasses.IndexOf(shrub.OClass);
@@ -1352,7 +1367,7 @@ public static class ForgeBuilder
         // build dynamic shrubs
         foreach (var shrub in dynamicShrubs)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
                 return;
 
             var children = shrub.GetChildren();
@@ -1441,7 +1456,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var moby in mobys)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Mobys ({i+1}/{mobysCount})", (float)i / mobysCount))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Mobys ({i+1}/{mobysCount})", (float)i / mobysCount))
                 return;
 
             var mobyDir = Path.Combine(mobyInstancesFolder, $"{i:D4}_{moby.OClass:00000}_{moby.OClass:X4}");
@@ -1514,7 +1529,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var cuboid in cuboids)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Cuboids ({i + 1}/{cuboids.Length})", (float)i / cuboids.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Cuboids ({i + 1}/{cuboids.Length})", (float)i / cuboids.Length))
                 return;
 
             // create cuboid .bin
@@ -1546,7 +1561,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var spline in splines)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Splines ({i + 1}/{splines.Length})", (float)i / splines.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Splines ({i + 1}/{splines.Length})", (float)i / splines.Length))
                 return;
 
             // create cuboid .bin
@@ -1600,7 +1615,7 @@ public static class ForgeBuilder
                 int i = 0;
                 foreach (var area in areas)
                 {
-                    if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Areas ({i + 1}/{areas.Length})", (float)i / areas.Length))
+                    if (RebuildLevelProgress(ctx, $"Rebuilding Areas ({i + 1}/{areas.Length})", (float)i / areas.Length))
                         return;
 
                     // add splines + cuboids to indices arrays
@@ -1679,29 +1694,15 @@ public static class ForgeBuilder
         }
 
         // update radar map pos/scale
-        if (ctx.RacVersion == RCVER.DL)
-        {
-            var codeSegmentBinPath = Path.Combine(binFolder, FolderNames.BinaryCodeFolder, "code.0002.bin");
-            if (!File.Exists(codeSegmentBinPath)) return;
+        var codeSegmentBinPath = Path.Combine(binFolder, FolderNames.BinaryCodeFolder, "code.0002.bin");
+        if (!File.Exists(codeSegmentBinPath)) return;
 
-            using (var fs = File.OpenWrite(codeSegmentBinPath))
+        using (var fs = File.OpenWrite(codeSegmentBinPath))
+        {
+            using (var writer = new BinaryWriter(fs))
             {
-                using (var writer = new BinaryWriter(fs))
-                {
-                    var mapIdx = (int)mapConfig.DLBaseMap - 41;
-                    fs.Position = 0x175C8 + (0x10 * mapIdx);
-
-                    // write map render pos/scale
-                    writer.Write(mapRender.transform.position.x);
-                    writer.Write(mapRender.transform.position.z);
-                    writer.Write(mapRender.transform.localScale.x);
-                    writer.Write(mapRender.transform.localScale.z);
-                }
+                mapRender.Write(writer, ctx.RacVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap, ctx.RacVersion, ctx.Region);
             }
-        }
-        else if (ctx.RacVersion == RCVER.UYA)
-        {
-            // todo
         }
     }
 

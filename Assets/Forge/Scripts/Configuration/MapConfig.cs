@@ -7,7 +7,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, AddComponentMenu("")]
 public class MapConfig : MonoBehaviour
 {
     const int MAP_CONFIG_VERSION = 1;
@@ -26,7 +26,6 @@ public class MapConfig : MonoBehaviour
 
     [Header("UYA")]
     [ReadOnly] public UYAMapIds UYABaseMap = UYAMapIds.SP_Veldin;
-    public Texture2D UYALoadingScreen;
     public Texture2D UYAMinimap;
     public int[] UYAMobysIncludedInExport;
 
@@ -54,6 +53,8 @@ public class MapConfig : MonoBehaviour
     public bool HasUYABaseMap() => UYABaseMap >= UYAMapIds.MP_Bakisi_Isles;
     public int FirstRacVersion => HasDeadlockedBaseMap() ? 4 : (HasUYABaseMap() ? 3 : -1);
     public int SecondRacVersion => (HasDeadlockedBaseMap() && HasUYABaseMap()) ? 3 : -1;
+    public int ImportDLBaseMapIdx { get; set; } = 0;
+    public int ImportUYABaseMapIdx { get; set; } = 0;
 
     private void OnEnable()
     {

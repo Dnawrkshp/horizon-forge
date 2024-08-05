@@ -446,9 +446,9 @@ public static class PackerHelper
         return RunPacker(out _, "texture", "-i", inFile, "-m", "PNG_TO_PIF_4BPP", "-o", outFolder, half_alpha ? "--half-alpha" : "", outSwizzle ? "--out-swizzle" : "");
     }
 
-    public static PACKER_STATUS_CODES ConvertPngToPif8bpp(string inFile, string outFolder, bool outSwizzle = true)
+    public static PACKER_STATUS_CODES ConvertPngToPif8bpp(string inFile, string outFolder, bool half_alpha = true, bool outSwizzle = true)
     {
-        return RunPacker(out _, "texture", "-i", inFile, "-m", "PNG_TO_PIF_8BPP", "-o", outFolder, outSwizzle ? "--out-swizzle" : "");
+        return RunPacker(out _, "texture", "-i", inFile, "-m", "PNG_TO_PIF_8BPP", "-o", outFolder, half_alpha ? "--half-alpha" : "", outSwizzle ? "--out-swizzle" : "");
     }
 
     public static PACKER_STATUS_CODES ConvertPngToLoadingScreen(string inFile, string outFolder)

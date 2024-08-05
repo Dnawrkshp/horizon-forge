@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using NaughtyAttributes;
 
 [Obsolete]
 public enum CuboidType
@@ -51,7 +50,7 @@ public class Cuboid : RenderSelectionBase
     [Obsolete, SerializeField, HideInInspector]
     private CuboidSubType Subtype;
 
-    [SerializeField, EnumFlags] public CuboidMaskType CuboidType;
+    [SerializeField] public CuboidMaskType CuboidType;
     [SerializeField, HideInInspector] private int _version = 0;
 
     private bool changed = true;

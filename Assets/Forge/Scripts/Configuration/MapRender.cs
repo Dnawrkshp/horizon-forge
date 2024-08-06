@@ -115,29 +115,31 @@ public class MapRender : MonoBehaviour
 
     private int GetUYAMinimapTableOffset(UYAMapIds mapId, GameRegion region)
     {
+        // code.0002.bin
         switch ((region, mapId))
         {
             case (GameRegion.NTSC, UYAMapIds.MP_Bakisi_Isles): return 0x203A0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Hoven_Gorge): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Outpost_X12): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Korgon_Outpost): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Metropolis): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Blackwater_City): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Command_Center): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Blackwater_Docks): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Aquatos_Sewers): return 0;
-            case (GameRegion.NTSC, UYAMapIds.MP_Marcadia_Palace): return 0;
+            case (GameRegion.NTSC, UYAMapIds.MP_Hoven_Gorge): return 0x20460;
+            case (GameRegion.NTSC, UYAMapIds.MP_Outpost_X12): return 0x20460;
+            case (GameRegion.NTSC, UYAMapIds.MP_Korgon_Outpost): return 0x203A0;
+            case (GameRegion.NTSC, UYAMapIds.MP_Metropolis): return 0x20320;
+            case (GameRegion.NTSC, UYAMapIds.MP_Blackwater_City): return 0x20360;
+            case (GameRegion.NTSC, UYAMapIds.MP_Command_Center): return 0x201E0;
+            case (GameRegion.NTSC, UYAMapIds.MP_Blackwater_Docks): return 0x20260;
+            case (GameRegion.NTSC, UYAMapIds.MP_Aquatos_Sewers): return 0x201E0;
+            case (GameRegion.NTSC, UYAMapIds.MP_Marcadia_Palace): return 0x201E0;
 
-            case (GameRegion.PAL, UYAMapIds.MP_Bakisi_Isles): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Hoven_Gorge): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Outpost_X12): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Korgon_Outpost): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Metropolis): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Blackwater_City): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Command_Center): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Blackwater_Docks): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Aquatos_Sewers): return 0;
-            case (GameRegion.PAL, UYAMapIds.MP_Marcadia_Palace): return 0;
+            case (GameRegion.PAL, UYAMapIds.MP_Bakisi_Isles): return 0x203E0;
+            case (GameRegion.PAL, UYAMapIds.MP_Hoven_Gorge): return 0x204A0;
+            case (GameRegion.PAL, UYAMapIds.MP_Outpost_X12): return 0x204A0;
+            case (GameRegion.PAL, UYAMapIds.MP_Korgon_Outpost): return 0x203E0;
+            case (GameRegion.PAL, UYAMapIds.MP_Metropolis): return 0x20360;
+            case (GameRegion.PAL, UYAMapIds.MP_Blackwater_City): return 0x203A0;
+            case (GameRegion.PAL, UYAMapIds.MP_Command_Center): return 0x20220;
+            case (GameRegion.PAL, UYAMapIds.MP_Blackwater_Docks): return 0x202A0;
+            case (GameRegion.PAL, UYAMapIds.MP_Aquatos_Sewers): return 0x20220;
+            case (GameRegion.PAL, UYAMapIds.MP_Marcadia_Palace): return 0x20220;
+
             default: return 0;
         }
     }

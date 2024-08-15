@@ -343,15 +343,26 @@ public static class ForgeBuilder
             using (var writer = new BinaryWriter(fs))
             {
                 // write header
-                writer.Write(mapConfig.MapVersion);
-                writer.Write((int)mapConfig.DLBaseMap);
-                writer.Write((int)mapConfig.DLForceCustomMode); // forced custom mode id
-                writer.Write((short)(customModeDatas?.Length ?? 0)); // extra data count
-                writer.Write((short)mapConfig.ShrubMinRenderDistance); // shrub min render distance
-                writer.WriteString(mapConfig.MapName, 32);
+                if (ctx.RacVersion == RCVER.DL)
+                {
+                    writer.Write(mapConfig.MapVersion);
+                    writer.Write((int)mapConfig.DLBaseMap);
+                    writer.Write((int)mapConfig.DLForceCustomMode); // forced custom mode id
+                    writer.Write((short)(customModeDatas?.Length ?? 0)); // extra data count
+                    writer.Write((short)mapConfig.ShrubMinRenderDistance); // shrub min render distance
+                    writer.WriteString(mapConfig.MapName, 32);
+                }
+                else
+                {
+                    writer.Write(mapConfig.MapVersion);
+                    writer.Write((int)mapConfig.UYABaseMap);
+                    writer.Write((int)0); // forced custom mode id
+                    writer.Write((int)0); // padding
+                    writer.WriteString(mapConfig.MapName, 32);
+                }
 
-                // write extra data
-                if (customModeDatas != null)
+                // write extra data (DL only)
+                if (customModeDatas != null && ctx.RacVersion == RCVER.DL)
                 {
                     // write table entries
                     foreach (var customModeData in customModeDatas)

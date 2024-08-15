@@ -83,7 +83,7 @@ public class LevelImporterWindow : EditorWindow
     string mapName = "New Map";
     string wadPath = "";
 
-    [MenuItem("Forge/Tools/Importers/Level Importer")]
+    [MenuItem("Forge/Tools/Importers/Open Level Importer")]
     public static void CreateNewWindow()
     {
         var wnd = GetWindow<LevelImporterWindow>();

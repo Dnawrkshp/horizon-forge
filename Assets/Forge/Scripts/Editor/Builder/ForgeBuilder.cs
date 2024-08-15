@@ -58,7 +58,7 @@ public static class ForgeBuilder
         return ctx.Cancel;
     }
 
-    static void PatchLevel(UnityEngine.SceneManagement.Scene scene)
+    public static void PatchLevel(UnityEngine.SceneManagement.Scene scene)
     {
         if (scene == null) return;
 
@@ -172,7 +172,7 @@ public static class ForgeBuilder
         }
     }
 
-    static async Task<bool> RebuildLevel(UnityEngine.SceneManagement.Scene scene)
+    public static async Task<bool> RebuildLevel(UnityEngine.SceneManagement.Scene scene)
     {
         if (scene == null) return false;
 
@@ -249,7 +249,7 @@ public static class ForgeBuilder
                     RebuildSplines(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     RebuildAreas(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     RebuildCode(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-                    RebuildPostProcess(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildWorldLighting(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                 }
 
                 EditorUtility.ClearProgressBar();
@@ -290,7 +290,7 @@ public static class ForgeBuilder
         return true;
     }
 
-    static void CopyToBuildFolders(UnityEngine.SceneManagement.Scene scene)
+    public static void CopyToBuildFolders(UnityEngine.SceneManagement.Scene scene)
     {
         var settings = ForgeSettings.Load();
         if (settings == null)
@@ -317,7 +317,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildMapFiles(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildMapFiles(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var regionExt = ctx.Region == GameRegion.NTSC ? "" : ".pal";
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
@@ -449,7 +449,7 @@ public static class ForgeBuilder
         }
     }
 
-    static async Task RebuildCollision(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static async Task RebuildCollision(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         if (!await CollisionBaker.BakeCollision())
         {
@@ -457,7 +457,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildSky(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildSky(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var skyMeshFile = Path.Combine(binFolder, FolderNames.BinarySkyMeshFile);
         var skyBinFolder = Path.Combine(binFolder, FolderNames.BinarySkyFolder + "2");
@@ -603,7 +603,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildTfrags(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildTfrags(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var terrainAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryTerrainFolder);
         var terrainBinFile = Path.Combine(binFolder, FolderNames.BinaryTerrainBinFile);
@@ -775,7 +775,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildTies(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildTies(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var tieDb = mapConfig.GetTieDatabase();
@@ -922,7 +922,7 @@ public static class ForgeBuilder
         }
     }
 
-    static async Task RebuildShrubs(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static async Task RebuildShrubs(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var shrubAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryShrubFolder);
@@ -1062,7 +1062,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildMobys(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildMobys(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mobyAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryMobyFolder);
         var mobyResourcesFolder = Path.Combine(resourcesFolder, FolderNames.GetMapMobyFolder(ctx.RacVersion));
@@ -1196,7 +1196,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildTieInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildTieInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var tieInstancesFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceTiesFolder(ctx.RacVersion));
         var occlusionFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceOcclusionFolder(ctx.RacVersion));
@@ -1294,7 +1294,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildShrubInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildShrubInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var shrubInstancesFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceShrubsFolder(ctx.RacVersion));
@@ -1448,7 +1448,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildMobyInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildMobyInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var mobyInstancesFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayMobyFolder);
@@ -1524,7 +1524,7 @@ public static class ForgeBuilder
         if (File.Exists(mobyOcclusionFile)) File.Delete(mobyOcclusionFile);
     }
 
-    static void RebuildCuboids(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildCuboids(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var cuboidsFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayCuboidFolder);
@@ -1556,7 +1556,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildSplines(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildSplines(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var splinesFolder = Path.Combine(binFolder, FolderNames.BinaryGameplaySplineFolder);
@@ -1588,7 +1588,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildAreas(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildAreas(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         if (ctx.RacVersion != RCVER.DL) return; // dl only
 
@@ -1683,7 +1683,7 @@ public static class ForgeBuilder
 
     }
 
-    static void RebuildCode(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildCode(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var mapRender = GameObject.FindObjectOfType<MapRender>();
@@ -1717,7 +1717,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildPostProcess(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildWorldLighting(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
@@ -1795,7 +1795,7 @@ public static class ForgeBuilder
         }
     }
 
-    static async void BuildDZOFiles(UnityEngine.SceneManagement.Scene scene)
+    public static async void BuildDZOFiles(UnityEngine.SceneManagement.Scene scene)
     {
         // dzo is DL (rc4) only
         var binFolder = FolderNames.GetMapBinFolder(scene.name, 4);
@@ -1806,7 +1806,7 @@ public static class ForgeBuilder
             return;
         }
 
-        if (!scene.isLoaded || !mapConfig)
+        if (!scene.isLoaded || !mapConfig || !mapConfig.HasDeadlockedBaseMap())
             return;
 
         var buildFolder = FolderNames.GetMapBuildFolder(scene.name, 4);
@@ -1823,7 +1823,7 @@ public static class ForgeBuilder
         Debug.Log("DZO build complete");
     }
 
-    class RebuildContext
+    public class RebuildContext
     {
         public string MapSceneName;
         public int RacVersion;

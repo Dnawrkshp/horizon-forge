@@ -21,7 +21,7 @@ public class ISOImporterWindow : EditorWindow
     Toggle[] assetToggles;
     Button importButton;
 
-    [MenuItem("Forge/Tools/Importers/ISO Importer")]
+    [MenuItem("Forge/Tools/Importers/Open ISO Importer")]
     public static void CreateNewWindow()
     {
         var wnd = GetWindow<ISOImporterWindow>();

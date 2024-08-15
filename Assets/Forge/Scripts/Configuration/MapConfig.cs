@@ -241,6 +241,25 @@ public class MapConfig : MonoBehaviour
 
     #endregion
 
+    #region Ties
+
+    public Tie[] GetTies()
+    {
+        return HierarchicalSorting.Sort(FindObjectsOfType<Tie>().ToArray());
+    }
+
+    public Tie GetTieAtIndex(int idx)
+    {
+        return HierarchicalSorting.Sort(FindObjectsOfType<Tie>())?.ElementAtOrDefault(idx);
+    }
+
+    public int GetIndexOfTie(Tie tie)
+    {
+        return Array.IndexOf(HierarchicalSorting.Sort(FindObjectsOfType<Tie>()), tie);
+    }
+
+    #endregion
+
     #region World Lights
 
     public WorldLight[] GetWorldLights()

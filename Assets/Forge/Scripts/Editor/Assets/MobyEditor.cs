@@ -329,6 +329,30 @@ public class MobyEditor : Editor
                     WritePVarData(b, def.Offset, def.DataSize ?? 4);
                     break;
                 }
+            case "mobygroupid":
+                {
+                    // read value
+                    ReadPVarData(_buffer, def.Offset, 4);
+                    var value = BitConverter.ToInt32(_buffer, 0);
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (value < def.Min) value = (int)def.Min;
+                    if (value > def.Max) value = (int)def.Max;
+                    var b = BitConverter.GetBytes(value);
+                    WritePVarData(b, def.Offset, 4);
+                    break;
+                }
+            case "tiegroupid":
+                {
+                    // read value
+                    ReadPVarData(_buffer, def.Offset, 4);
+                    var value = BitConverter.ToInt32(_buffer, 0);
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (value < def.Min) value = (int)def.Min;
+                    if (value > def.Max) value = (int)def.Max;
+                    var b = BitConverter.GetBytes(value);
+                    WritePVarData(b, def.Offset, 4);
+                    break;
+                }
             case "cuboidref":
                 {
                     var refIdx = def.Offset / 4;

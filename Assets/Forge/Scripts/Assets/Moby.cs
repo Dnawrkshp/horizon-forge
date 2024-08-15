@@ -13,6 +13,7 @@ public class Moby : RenderSelectionBase, IAsset
     private static readonly Color cuboidLinkColor = new Color(0.5f, 0.25f, 1f);
     private static readonly Color splineLinkColor = new Color(0.5f, 0.25f, 1f);
     private static readonly Color areaLinkColor = new Color(0.25f, 0.5f, 1f);
+    private static readonly Color groupLinkColor = new Color(0.25f, 1f, 0.5f);
 
     [HideInInspector, SerializeField]
     public int RCVersion = 0;
@@ -132,6 +133,49 @@ public class Moby : RenderSelectionBase, IAsset
                 }
             }
         }
+
+        if (PVars != null)
+        {
+            var mapConfig = FindObjectOfType<MapConfig>();
+            var pvarOverlay = PvarOverlay.GetPvarOverlay(this.OClass, this.RCVersion);
+            if (pvarOverlay != null)
+            {
+                var mobys = mapConfig.GetMobys(this.RCVersion);
+                var ties = mapConfig.GetTies();
+
+                // get moby groups and draw lines to all mobys in group
+                if (mobys != null)
+                {
+                    foreach (var mobyGroupId in pvarOverlay.Overlay.Where(x => x.DataType?.ToLower() == "mobygroupid"))
+                    {
+                        var groupId = BitConverter.ToInt32(PVars, mobyGroupId.Offset);
+                        if (groupId >= 0)
+                        {
+                            foreach (var moby in mobys.Where(x => x && x != this && x.GroupId == groupId))
+                            {
+                                UnityHelper.DrawLine(transform.position, moby.transform.position, groupLinkColor, 5);
+                            }
+                        }
+                    }
+                }
+
+                // get tie groups and draw lines to all ties in group
+                if (ties != null)
+                {
+                    foreach (var tieGroupId in pvarOverlay.Overlay.Where(x => x.DataType?.ToLower() == "tiegroupid"))
+                    {
+                        var groupId = BitConverter.ToInt32(PVars, tieGroupId.Offset);
+                        if (groupId >= 0)
+                        {
+                            foreach (var tie in ties.Where(x => x && x != this && x.GroupId == groupId))
+                            {
+                                UnityHelper.DrawLine(transform.position, tie.transform.position, groupLinkColor, 5);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private void DrawMobyRefs(HashSet<Moby> visited)
@@ -148,7 +192,6 @@ public class Moby : RenderSelectionBase, IAsset
                 moby.DrawMobyRefs(visited);
             }
         }
-
     }
 
     public void UpdateAsset()

@@ -1486,7 +1486,7 @@
     "Overlay": [
       {
         "Name": "Base Defenses Group",
-        "DataType": "MobyGroupRef",
+        "DataType": "MobyGroupId",
         "Offset": 176
       },
       {
@@ -1870,7 +1870,7 @@
       },
       {
         "Name": "Attached Moby Group",
-        "DataType": "MobyGroupRef",
+        "DataType": "MobyGroupId",
         "Offset": 52
       },
       {
@@ -1989,7 +1989,7 @@
       },
       {
         "Name": "Spawn Moby Group",
-        "DataType": "MobyGroupRef",
+        "DataType": "MobyGroupId",
         "Offset": 1124
       },
       {
@@ -2009,7 +2009,7 @@
     "Overlay": [
       {
         "Name": "Spawn Moby Group",
-        "DataType": "MobyGroupRef",
+        "DataType": "MobyGroupId",
         "Offset": 0
       },
       {
@@ -2319,17 +2319,17 @@
       },
       {
         "Name": "Attached Tie Group 1",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 656
       },
       {
         "Name": "Attached Tie Group 2",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 660
       },
       {
         "Name": "Attached Tie Group 3",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 664
       }
     ]
@@ -2621,7 +2621,7 @@
     "Overlay": [
       {
         "Name": "Drone Moby Group",
-        "DataType": "MobyGroupRef",
+        "DataType": "MobyGroupId",
         "Offset": 188
       }
     ]
@@ -2899,7 +2899,7 @@
       },
       {
         "Name": "Tie Group",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 12
       }
     ]
@@ -2919,7 +2919,7 @@
       },
       {
         "Name": "Tie Group",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 12
       }
     ]
@@ -2954,12 +2954,12 @@
       },
       {
         "Name": "Destroyed Tie Group",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 28
       },
       {
         "Name": "Center Tie Group",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 32
       }
     ]
@@ -2994,12 +2994,12 @@
       },
       {
         "Name": "Destroyed Tie Group",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 28
       },
       {
         "Name": "Center Tie Group",
-        "DataType": "TieGroupRef",
+        "DataType": "TieGroupId",
         "Offset": 32
       }
     ]

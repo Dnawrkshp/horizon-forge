@@ -106,6 +106,11 @@ public static class MathHelper
         reflection = id;
     }
 
+    public static Vector3 WrapEuler(Vector3 v)
+    {
+        return new Vector3(Mathf.DeltaAngle(0, v.x), Mathf.DeltaAngle(0, v.y), Mathf.DeltaAngle(0, v.z));
+    }
+
     public static Vector3 Average(this IEnumerable<Vector3> vectors)
     {
         if (!vectors.Any()) return Vector3.zero;

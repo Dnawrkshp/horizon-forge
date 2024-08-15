@@ -228,25 +228,31 @@ public class Cuboid : RenderSelectionBase
         for (int i = 0; i < 12; ++i)
             writer.Write(inverse[i]);
 
-        var iEuler = (Quaternion.Inverse(this.transform.rotation) * Quaternion.Euler(0, 90f, 0)).eulerAngles.SwizzleXZY();
+        var iEuler = -MathHelper.WrapEuler(this.transform.rotation * Quaternion.Euler(0, -90f, 0).eulerAngles).SwizzleXZY();
         writer.Write(iEuler.x * Mathf.Deg2Rad);
         writer.Write(iEuler.y * Mathf.Deg2Rad);
         writer.Write(iEuler.z * Mathf.Deg2Rad);
         writer.Write(0f);
 
-        if (Type == global::CuboidType.HillCircle)
+        if (CuboidType.HasFlag(CuboidMaskType.HillCircle))
         {
-            writer.BaseStream.Position = offset + 0x28;
-            writer.Write(2f);
+            writer.BaseStream.Position = offset + 0x20;
+            var v = new Vector3(trs[8], trs[9], trs[10]).normalized * 2;
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
             writer.BaseStream.Position = offset + 0x80;
         }
-        else if (Type == global::CuboidType.HillSquare)
+        else if (CuboidType.HasFlag(CuboidMaskType.HillSquare))
         {
-            writer.BaseStream.Position = offset + 0x28;
-            writer.Write(1f);
+            writer.BaseStream.Position = offset + 0x20;
+            var v = new Vector3(trs[8], trs[9], trs[10]).normalized;
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
             writer.BaseStream.Position = offset + 0x80;
         }
-        else if (Type == global::CuboidType.Player)
+        else if (CuboidType.HasFlag(CuboidMaskType.Player))
         {
             writer.BaseStream.Position = offset + 0x70;
             writer.Write(0f);

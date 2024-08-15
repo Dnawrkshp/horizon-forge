@@ -167,7 +167,7 @@ public class Moby : RenderSelectionBase, IAsset
                         var groupId = BitConverter.ToInt32(PVars, tieGroupId.Offset);
                         if (groupId >= 0)
                         {
-                            foreach (var tie in ties.Where(x => x && x != this && x.GroupId == groupId))
+                            foreach (var tie in ties.Where(x => x && x.GroupId == groupId))
                             {
                                 UnityHelper.DrawLine(transform.position, tie.transform.position, groupLinkColor, 5);
                             }

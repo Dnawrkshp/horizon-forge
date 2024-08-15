@@ -868,10 +868,6 @@ public class LevelImporterWindow : EditorWindow
         var reimportOcclusion = (importTfrags == 1) || (importTies > 0) || (importMobys > 0);
         var postActions = new List<Action>();
 
-        // create map render object
-        CreateMapRenderObject(destMapBinFolder, destMapFolder);
-        return;
-
         var rootGo = new GameObject(GetInputLevelName());
         rootGo.transform.SetAsFirstSibling();
 
@@ -926,8 +922,16 @@ public class LevelImporterWindow : EditorWindow
                 CopySky(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion), ImportSourceRacVersion(), mapConfig.FirstRacVersion);
                 CopySky(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.SecondRacVersion), ImportSourceRacVersion(), mapConfig.SecondRacVersion);
             }
-            if (importCollision == 1) CopyCollision(tempMapBinFolder, destMapBinFolder);
-            if (importTfrags == 1) CopyTfrags(tempMapBinFolder, destMapBinFolder);
+            if (importCollision == 1)
+            {
+                CopyCollision(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion), mapConfig.FirstRacVersion);
+                CopyCollision(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.SecondRacVersion), mapConfig.SecondRacVersion);
+            }
+            if (importTfrags == 1)
+            {
+                CopyTfrags(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion), mapConfig.FirstRacVersion);
+                CopyTfrags(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.SecondRacVersion), mapConfig.SecondRacVersion);
+            }
 
             // import assets
             if (importSky == 1) ImportSky(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -1402,8 +1406,10 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void CopyCollision(string srcMapBinFolder, string destMapBinFolder)
+    void CopyCollision(string srcMapBinFolder, string destMapBinFolder, int destRacVersion)
     {
+        if (destRacVersion <= 0) return;
+
         var srcCollisionBinFile = Path.Combine(srcMapBinFolder, FolderNames.BinaryCollisionBinFile);
         var srcCollisionColladaFile = Path.Combine(srcMapBinFolder, FolderNames.BinaryCollisionColladaFile);
 
@@ -2179,13 +2185,15 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void CopyTfrags(string srcMapBinFolder, string destMapBinFolder)
+    void CopyTfrags(string srcMapBinFolder, string destMapBinFolder, int destRacVersion)
     {
+        if (destRacVersion <= 0) return;
+
         var racVersion = ImportSourceRacVersion();
         var srcFolder = Path.Combine(srcMapBinFolder, FolderNames.BinaryTerrainFolder);
         var destFolder = Path.Combine(destMapBinFolder, FolderNames.BinaryTerrainFolder);
         var srcTfragOcclusionFile = Path.Combine(srcMapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion), "tfrag.bin");
-        var destTfragOcclusionFile = Path.Combine(destMapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion), "tfrag.bin");
+        var destTfragOcclusionFile = Path.Combine(destMapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(destRacVersion), "tfrag.bin");
 
         // copy folder
         if (Directory.Exists(srcFolder))
@@ -2287,6 +2295,7 @@ public class LevelImporterWindow : EditorWindow
                                                 creader.BaseStream.Position = 0x78;
                                                 var yaw = creader.ReadSingle();
                                                 cuboid.transform.rotation = Quaternion.Euler(0, -(yaw * Mathf.Rad2Deg) + 90, 0);
+                                                cuboid.transform.localScale = Vector3.one;
                                             }
                                         }
                                     }

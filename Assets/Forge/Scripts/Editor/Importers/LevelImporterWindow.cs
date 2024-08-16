@@ -47,6 +47,8 @@ public class LevelImporterWindow : EditorWindow
         Importing_Mobys,
         Importing_Cuboids,
         Importing_Splines,
+        Importing_Cameras,
+        Importing_Ambient_Sounds,
         Importing_Areas,
         Importing_Tfrags,
         Importing_Occlusion,
@@ -602,6 +604,8 @@ public class LevelImporterWindow : EditorWindow
             ImportMobyInstances(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportCuboids(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportSplines(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportCameras(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportAmbientSounds(destMapBinFolder, destMapFolder, postActions, rootGo);
             if (ImportSourceIsDL()) ImportAreas(destMapBinFolder, destMapFolder, postActions, rootGo);
 
             // postprocess hill moby cuboids
@@ -773,6 +777,8 @@ public class LevelImporterWindow : EditorWindow
             ImportMobyInstances(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportCuboids(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportSplines(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportCameras(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportAmbientSounds(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportAreas(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportTfrags(destMapBinFolder, destMapFolder, assetImports, rootGo);
             ImportOcclusion(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -944,6 +950,8 @@ public class LevelImporterWindow : EditorWindow
             if (importMobys > 0) ImportMobyInstances(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1) ImportCuboids(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1) ImportSplines(tempMapBinFolder, destMapFolder, postActions, rootGo);
+            if (importMisc == 1) ImportCameras(destMapBinFolder, destMapFolder, postActions, rootGo);
+            if (importMisc == 1) ImportAmbientSounds(destMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1 && ImportSourceIsDL()) ImportAreas(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importTfrags == 1) ImportTfrags(destMapBinFolder, destMapFolder, assetImports, rootGo);
             if (reimportOcclusion) ImportOcclusion(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -2009,6 +2017,84 @@ public class LevelImporterWindow : EditorWindow
                     }
                 }
             }
+        }
+    }
+
+    #endregion
+
+    #region Import Cameras
+
+    void ImportCameras(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
+    {
+        var gameplayCamerasFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCameraFolder);
+        var idx = 0;
+        var cameraRootGo = new GameObject("Cameras");
+        cameraRootGo.transform.SetParent(rootGo.transform, true);
+
+        UpdateImportProgressBar(ImportStage.Importing_Cameras);
+        while (true)
+        {
+            var cameraFilePath = Path.Combine(gameplayCamerasFolder, $"{idx:D4}", "camera.bin");
+            var cameraPVarFilePath = Path.Combine(gameplayCamerasFolder, $"{idx:D4}", "pvar.bin");
+            if (!File.Exists(cameraFilePath)) break;
+
+            var cameraGo = new GameObject(idx.ToString());
+            cameraGo.transform.SetParent(cameraRootGo.transform, false);
+            var camera = cameraGo.AddComponent<RatchetCamera>();
+
+            // read camera
+            using (var fs = File.OpenRead(cameraFilePath))
+            {
+                using (var reader = new BinaryReader(fs))
+                {
+                    camera.Read(reader);
+                }
+            }
+
+            // read pvars
+            if (File.Exists(cameraPVarFilePath))
+                camera.PVars = File.ReadAllBytes(cameraPVarFilePath);
+
+            ++idx;
+        }
+    }
+
+    #endregion
+
+    #region Import Ambient Sounds
+
+    void ImportAmbientSounds(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
+    {
+        var gameplayAmbientSoundsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayAmbientSoundFolder);
+        var idx = 0;
+        var ambientSoundRootGo = new GameObject("Ambient Sounds");
+        ambientSoundRootGo.transform.SetParent(rootGo.transform, true);
+
+        UpdateImportProgressBar(ImportStage.Importing_Ambient_Sounds);
+        while (true)
+        {
+            var soundFilePath = Path.Combine(gameplayAmbientSoundsFolder, $"{idx:D4}", "sound.bin");
+            var soundPVarFilePath = Path.Combine(gameplayAmbientSoundsFolder, $"{idx:D4}", "pvar.bin");
+            if (!File.Exists(soundFilePath)) break;
+
+            var ambientSoundGo = new GameObject(idx.ToString());
+            ambientSoundGo.transform.SetParent(ambientSoundRootGo.transform, false);
+            var ambientSound = ambientSoundGo.AddComponent<AmbientSound>();
+
+            // read camera
+            using (var fs = File.OpenRead(soundFilePath))
+            {
+                using (var reader = new BinaryReader(fs))
+                {
+                    ambientSound.Read(reader);
+                }
+            }
+
+            // read pvars
+            if (File.Exists(soundPVarFilePath))
+                ambientSound.PVars = File.ReadAllBytes(soundPVarFilePath);
+
+            ++idx;
         }
     }
 

@@ -29,6 +29,8 @@ public static class FolderNames
     public static readonly string BinaryGameplayMobyFolder = $"{BinaryGameplayFolder}/moby";
     public static readonly string BinaryGameplaySplineFolder = $"{BinaryGameplayFolder}/spline";
     public static readonly string BinaryGameplayCuboidFolder = $"{BinaryGameplayFolder}/cuboid";
+    public static readonly string BinaryGameplayCameraFolder = $"{BinaryGameplayFolder}/camera";
+    public static readonly string BinaryGameplayAmbientSoundFolder = $"{BinaryGameplayFolder}/ambient_sound";
     public static readonly string BinaryGameplayAreaFile = $"{BinaryGameplayFolder}/116.bin";
     public static readonly string BinaryOcclusionFile = $"{BinaryAssetsFolder}/occlusion.bin";
     public static readonly string BinaryCollisionBinFile = $"{BinaryAssetsFolder}/collision.bin";

@@ -24,7 +24,6 @@ public class MapConfigEditor : Editor
     SerializedProperty m_DLMobysIncludedInExport;
 
     SerializedProperty m_UYABaseMap;
-    SerializedProperty m_UYALoadingScreen;
     SerializedProperty m_UYAMinimap;
     SerializedProperty m_UYAMobysIncludedInExport;
 
@@ -53,7 +52,6 @@ public class MapConfigEditor : Editor
         m_DLMobysIncludedInExport = serializedObject.FindProperty("DLMobysIncludedInExport");
 
         m_UYABaseMap = serializedObject.FindProperty("UYABaseMap");
-        m_UYALoadingScreen = serializedObject.FindProperty("UYALoadingScreen");
         m_UYAMinimap = serializedObject.FindProperty("UYAMinimap");
         m_UYAMobysIncludedInExport = serializedObject.FindProperty("UYAMobysIncludedInExport");
 
@@ -105,7 +103,6 @@ public class MapConfigEditor : Editor
         EditorGUILayout.PropertyField(m_UYABaseMap);
         if ((target as MapConfig).HasUYABaseMap())
         {
-            EditorGUILayout.PropertyField(m_UYALoadingScreen);
             EditorGUILayout.PropertyField(m_UYAMinimap);
             EditorGUILayout.PropertyField(m_UYAMobysIncludedInExport);
         }

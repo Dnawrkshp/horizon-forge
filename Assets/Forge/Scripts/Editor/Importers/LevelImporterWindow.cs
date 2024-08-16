@@ -1091,6 +1091,7 @@ public class LevelImporterWindow : EditorWindow
         var soundsFolder = Path.Combine(workingDir, FolderNames.BinarySoundsFolder);
         var worldInstanceFolder = Path.Combine(workingDir, FolderNames.GetWorldInstanceFolder(racVersion));
         var levelId = GetLevelId();
+        var bResult = false;
 
         // decompress and unpack level wad
         UpdateImportProgressBar(ImportStage.Unpacking_Level_WAD);
@@ -1126,8 +1127,12 @@ public class LevelImporterWindow : EditorWindow
 
         // unpack sky
         UpdateImportProgressBar(ImportStage.Unpacking_Sky);
-        var bResult = WrenchHelper.ExportSky(Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile), Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyFolder), racVersion);
-        if (!CheckResult(bResult, $"Failed to unpack sky.")) return false;
+        var skyBinFile = Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile);
+        if (File.Exists(skyBinFile))
+        {
+            bResult = WrenchHelper.ExportSky(Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile), Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyFolder), racVersion);
+            if (!CheckResult(bResult, $"Failed to unpack sky.")) return false;
+        }
 
         // unpack gameplay
         UpdateImportProgressBar(ImportStage.Unpacking_Gameplay);

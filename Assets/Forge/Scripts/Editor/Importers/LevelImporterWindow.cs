@@ -743,8 +743,8 @@ public class LevelImporterWindow : EditorWindow
                 if (ImportSourceIsDL()) PackerHelper.ExtractTransitionBackground(GetSelectedIsoPath(), destLoadingScreenPath, GetLevelId(), ImportSourceRacVersion());
                 ExtractWadFromISO(GetSelectedIsoPath(), GetLevelId(), destMapWadFile);
                 File.Copy(wadPath, destMapWadFile, true);
-                if (File.Exists(worldWadPath)) File.Copy(worldWadPath, Path.Combine(destMapFolder, $"level{GetLevelId()}.2.wad"), true);
-                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(destMapFolder, "sound.bnk"), true);
+                if (File.Exists(worldWadPath)) File.Copy(worldWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), $"level{GetLevelId()}.2.wad"), true);
+                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), "sound.bnk"), true);
             }
 
             // unpack level wad
@@ -907,8 +907,8 @@ public class LevelImporterWindow : EditorWindow
                 chunkId = 0;
                 ExtractWadFromISO(GetSelectedIsoPath(), GetLevelId(), destMapWadFile);
                 File.Copy(wadPath, destMapWadFile, true);
-                if (File.Exists(worldWadPath)) File.Copy(worldWadPath, Path.Combine(destMapFolder, $"level{GetLevelId()}.2.wad"), true);
-                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(destMapFolder, "sound.bnk"), true);
+                if (File.Exists(worldWadPath)) File.Copy(worldWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), $"level{GetLevelId()}.2.wad"), true);
+                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), "sound.bnk"), true);
             }
 
             // unpack level wad

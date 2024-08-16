@@ -2041,6 +2041,7 @@ public class LevelImporterWindow : EditorWindow
             var cameraGo = new GameObject(idx.ToString());
             cameraGo.transform.SetParent(cameraRootGo.transform, false);
             var camera = cameraGo.AddComponent<RatchetCamera>();
+            camera.RCVersion = ImportSourceRacVersion();
 
             // read camera
             using (var fs = File.OpenRead(cameraFilePath))
@@ -2080,6 +2081,7 @@ public class LevelImporterWindow : EditorWindow
             var ambientSoundGo = new GameObject(idx.ToString());
             ambientSoundGo.transform.SetParent(ambientSoundRootGo.transform, false);
             var ambientSound = ambientSoundGo.AddComponent<AmbientSound>();
+            ambientSound.RCVersion = ImportSourceRacVersion();
 
             // read camera
             using (var fs = File.OpenRead(soundFilePath))
@@ -2526,8 +2528,9 @@ public class LevelImporterWindow : EditorWindow
                     {
                         using (var reader = new BinaryReader(fs))
                         {
-                            reader.BaseStream.Position = 0x28;
-                            var isCircular = reader.ReadSingle() >= 1.99;
+                            reader.BaseStream.Position = 0x20;
+                            var sqrMag = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).sqrMagnitude;
+                            var isCircular = sqrMag >= 1.0001f;
                             cuboid.CuboidType = isCircular ? CuboidMaskType.HillCircle : CuboidMaskType.HillSquare;
                         }
                     }

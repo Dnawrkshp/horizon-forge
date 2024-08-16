@@ -61,6 +61,9 @@ public class Cuboid : RenderSelectionBase
     private GameObject assetInstance;
 
     public Renderer[] GetRenderers() => assetInstance?.GetComponentsInChildren<Renderer>();
+    public bool IsPlayerSpawn => CuboidType.HasFlag(CuboidMaskType.Player) || CuboidType.HasFlag(CuboidMaskType.BlueFlagSpawn)
+        || CuboidType.HasFlag(CuboidMaskType.RedFlagSpawn) || CuboidType.HasFlag(CuboidMaskType.GreenFlagSpawn)
+        || CuboidType.HasFlag(CuboidMaskType.OrangeFlagSpawn);
 
     private void Start()
     {
@@ -213,14 +216,15 @@ public class Cuboid : RenderSelectionBase
         worldMatrix.GetReflectionMatrix(out var pos, out var rot, out var scale, out var reflection);
 
         this.transform.position = pos;
-        this.transform.rotation = rot * Quaternion.Euler(0, 90f, 0);
+        this.transform.rotation = rot;
         this.transform.localScale = scale;
     }
 
     public void Write(BinaryWriter writer)
     {
-        var trs = this.transform.localToWorldMatrix.SwizzleXZY();
-        var inverse = this.transform.worldToLocalMatrix.SwizzleXZY();
+        var worldMatrix = Matrix4x4.TRS(this.transform.position, this.transform.rotation, this.transform.localScale);
+        var trs = worldMatrix.SwizzleXZY();
+        var inverse = worldMatrix.inverse.SwizzleXZY();
         var offset = writer.BaseStream.Position;
 
         for (int i = 0; i < 16; ++i)
@@ -228,7 +232,7 @@ public class Cuboid : RenderSelectionBase
         for (int i = 0; i < 12; ++i)
             writer.Write(inverse[i]);
 
-        var iEuler = -MathHelper.WrapEuler(this.transform.rotation * Quaternion.Euler(0, -90f, 0).eulerAngles).SwizzleXZY();
+        var iEuler = -MathHelper.WrapEuler((this.transform.rotation * Quaternion.Euler(0, -90, 0)).eulerAngles).SwizzleXZY();
         writer.Write(iEuler.x * Mathf.Deg2Rad);
         writer.Write(iEuler.y * Mathf.Deg2Rad);
         writer.Write(iEuler.z * Mathf.Deg2Rad);

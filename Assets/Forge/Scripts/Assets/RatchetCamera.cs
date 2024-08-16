@@ -11,6 +11,7 @@ public class RatchetCamera : RenderSelectionBase
 {
     const int CAMERA_VERSION = 0;
 
+    [ReadOnly] public int RCVersion = 0;
     public int CameraType = 0;
 
     [SerializeField, HideInInspector] private int _version = 0;

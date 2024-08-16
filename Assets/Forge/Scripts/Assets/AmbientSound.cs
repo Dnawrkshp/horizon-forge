@@ -11,6 +11,7 @@ public class AmbientSound : RenderSelectionBase
 {
     const int AMBIENT_SOUND_VERSION = 0;
 
+    [ReadOnly] public int RCVersion = 0;
     public int AmbientSoundType = 0;
     public float Unknown_0C = 0;
 
@@ -161,7 +162,7 @@ public class AmbientSound : RenderSelectionBase
         worldMatrix.GetReflectionMatrix(out var pos, out var rot, out var scale, out var reflection);
 
         this.transform.position = pos;
-        this.transform.rotation = rot * Quaternion.Euler(0, 90f, 0);
+        this.transform.rotation = rot;
         this.transform.localScale = scale;
     }
 
@@ -172,15 +173,16 @@ public class AmbientSound : RenderSelectionBase
         writer.Write(0);
         writer.Write(Unknown_0C);
 
-        var trs = this.transform.localToWorldMatrix.SwizzleXZY();
-        var inverse = this.transform.worldToLocalMatrix.SwizzleXZY();
+        var worldMatrix = Matrix4x4.TRS(this.transform.position, this.transform.rotation, this.transform.localScale);
+        var trs = worldMatrix.SwizzleXZY();
+        var inverse = worldMatrix.inverse.SwizzleXZY();
 
         for (int i = 0; i < 16; ++i)
             writer.Write(trs[i]);
         for (int i = 0; i < 12; ++i)
             writer.Write(inverse[i]);
 
-        var iEuler = -MathHelper.WrapEuler(this.transform.rotation * Quaternion.Euler(0, -90f, 0).eulerAngles).SwizzleXZY();
+        var iEuler = -MathHelper.WrapEuler((this.transform.rotation * Quaternion.Euler(0, -90f, 0)).eulerAngles).SwizzleXZY();
         writer.Write(iEuler.x * Mathf.Deg2Rad);
         writer.Write(iEuler.y * Mathf.Deg2Rad);
         writer.Write(iEuler.z * Mathf.Deg2Rad);

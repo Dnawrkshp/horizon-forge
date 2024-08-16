@@ -247,6 +247,8 @@ public static class ForgeBuilder
                     RebuildMobyInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     RebuildCuboids(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     RebuildSplines(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildCameras(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildAmbientSounds(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     RebuildAreas(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     RebuildCode(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     RebuildWorldLighting(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
@@ -1564,7 +1566,7 @@ public static class ForgeBuilder
         // build list of splines in scene
         var splines = mapConfig.GetSplines();
 
-        // clear cuboids instance dir
+        // clear splines instance dir
         if (Directory.Exists(splinesFolder)) Directory.Delete(splinesFolder, true);
         Directory.CreateDirectory(splinesFolder);
 
@@ -1583,6 +1585,82 @@ public static class ForgeBuilder
                     spline.Write(writer);
                 }
             }
+
+            ++i;
+        }
+    }
+
+    public static void RebuildCameras(RebuildContext ctx, string resourcesFolder, string binFolder)
+    {
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        var camerasFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayCameraFolder);
+
+        // build list of cameras in scene
+        var cameras = mapConfig.GetCameras(ctx.RacVersion);
+
+        // clear cameras instance dir
+        if (Directory.Exists(camerasFolder)) Directory.Delete(camerasFolder, true);
+        Directory.CreateDirectory(camerasFolder);
+
+        // build cameras
+        int i = 0;
+        foreach (var camera in cameras)
+        {
+            var cameraDir = Path.Combine(camerasFolder, $"{i:D4}");
+            if (RebuildLevelProgress(ctx, $"Rebuilding Cameras ({i + 1}/{cameras.Length})", (float)i / cameras.Length))
+                return;
+
+            // create camera .bin
+            Directory.CreateDirectory(cameraDir);
+            using (var fs = File.Create(Path.Combine(cameraDir, "camera.bin")))
+            {
+                using (var writer = new BinaryWriter(fs))
+                {
+                    camera.Write(writer);
+                }
+            }
+
+            // write pvars
+            if (camera.PVars != null && camera.PVars.Length > 0)
+                File.WriteAllBytes(Path.Combine(cameraDir, "pvar.bin"), camera.PVars);
+
+            ++i;
+        }
+    }
+
+    public static void RebuildAmbientSounds(RebuildContext ctx, string resourcesFolder, string binFolder)
+    {
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        var ambientSoundsFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayAmbientSoundFolder);
+
+        // build list of cameras in scene
+        var ambientSounds = mapConfig.GetAmbientSounds(ctx.RacVersion);
+
+        // clear cameras instance dir
+        if (Directory.Exists(ambientSoundsFolder)) Directory.Delete(ambientSoundsFolder, true);
+        Directory.CreateDirectory(ambientSoundsFolder);
+
+        // build cameras
+        int i = 0;
+        foreach (var ambientSound in ambientSounds)
+        {
+            var ambientSoundDir = Path.Combine(ambientSoundsFolder, $"{i:D4}");
+            if (RebuildLevelProgress(ctx, $"Rebuilding Ambient Sounds ({i + 1}/{ambientSounds.Length})", (float)i / ambientSounds.Length))
+                return;
+
+            // create sound .bin
+            Directory.CreateDirectory(ambientSoundDir);
+            using (var fs = File.Create(Path.Combine(ambientSoundDir, "sound.bin")))
+            {
+                using (var writer = new BinaryWriter(fs))
+                {
+                    ambientSound.Write(writer);
+                }
+            }
+
+            // write pvars
+            if (ambientSound.PVars != null && ambientSound.PVars.Length > 0)
+                File.WriteAllBytes(Path.Combine(ambientSoundDir, "pvar.bin"), ambientSound.PVars);
 
             ++i;
         }

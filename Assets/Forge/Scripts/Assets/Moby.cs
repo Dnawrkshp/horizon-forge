@@ -534,7 +534,7 @@ public class Moby : RenderSelectionBase, IAsset
                         var mobyIdx = BitConverter.ToInt32(PVars, def.Offset);
                         if (mobyIdx >= 0)
                         {
-                            var mobyRef = mapConfig.GetMobyAtIndex(mobyIdx);
+                            var mobyRef = mapConfig.GetMobyAtIndex(this.RCVersion, mobyIdx);
                             if (mobyRef)
                             {
                                 PVarMobyRefs[refIdx] = mobyRef;
@@ -564,7 +564,7 @@ public class Moby : RenderSelectionBase, IAsset
                             var mobyIdx = BitConverter.ToInt32(PVars, def.Offset + (i * 4));
                             if (mobyIdx >= 0)
                             {
-                                var mobyRef = mapConfig.GetMobyAtIndex(mobyIdx);
+                                var mobyRef = mapConfig.GetMobyAtIndex(this.RCVersion, mobyIdx);
                                 if (mobyRef)
                                 {
                                     PVarMobyRefs[refIdx] = mobyRef;

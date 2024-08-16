@@ -98,7 +98,7 @@ public class BuildWindow : EditorWindow
 
         //toggleRebuildCode = toggleRebuildCode ?? new Toggle("Code") { value = true };
         toggleRebuildCollision = toggleRebuildCollision ?? new Toggle("Collision") { value = true };
-        toggleRebuildCuboidsSplinesAreas = toggleRebuildCuboidsSplinesAreas ?? new Toggle("Cuboids/Splines/Areas") { value = true };
+        toggleRebuildCuboidsSplinesAreas = toggleRebuildCuboidsSplinesAreas ?? new Toggle("Cuboids/Splines/Areas/Cameras/Ambient Sounds") { value = true };
         toggleRebuildDZO = toggleRebuildDZO ?? new Toggle("DZO") { value = true };
         toggleRebuildMobys = toggleRebuildMobys ?? new Toggle("Mobys") { value = true };
         toggleRebuildShrubs = toggleRebuildShrubs ?? new Toggle("Shrubs") { value = true };
@@ -239,6 +239,8 @@ public class BuildWindow : EditorWindow
                     if (toggleRebuildMobys.value) ForgeBuilder.RebuildMobyInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     if (toggleRebuildCuboidsSplinesAreas.value) ForgeBuilder.RebuildCuboids(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     if (toggleRebuildCuboidsSplinesAreas.value) ForgeBuilder.RebuildSplines(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    if (toggleRebuildCuboidsSplinesAreas.value) ForgeBuilder.RebuildCameras(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    if (toggleRebuildCuboidsSplinesAreas.value) ForgeBuilder.RebuildAmbientSounds(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     if (toggleRebuildCuboidsSplinesAreas.value) ForgeBuilder.RebuildAreas(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
                     if (toggleRebuildLighting.value) ForgeBuilder.RebuildWorldLighting(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
 

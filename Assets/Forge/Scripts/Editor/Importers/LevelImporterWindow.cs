@@ -66,7 +66,7 @@ public class LevelImporterWindow : EditorWindow
     static readonly List<string> GCMaps = Enum.GetNames(typeof(GCMapIds)).ToList();
     static readonly List<string> AssetLimitedImportOptions = new List<string>() { "Skip", "Replace" };
     static readonly List<string> AssetImportOptions = new List<string>() { "Skip", "Add" };
-    static readonly List<string> AssetMobyImportOptions = new List<string>() { "Skip", "Add" };
+    static readonly List<string> AssetMobyImportOptions = new List<string>() { "Skip", "Add", "Replace" };
 
     public static bool IsImporting { get; private set; }
 
@@ -301,7 +301,24 @@ public class LevelImporterWindow : EditorWindow
         root.BuildPadding();
 
         // create base level select dropdown
-        if (!importIntoExistingMap)
+        if (importIntoExistingMap)
+        {
+            root.BuildRow("Level", (container) =>
+            {
+                var levels = GetSelectedImportSourceLevelNames();
+
+                // validate importLevelId
+                if (importLevelIdx < 0 || importLevelIdx >= levels.Count)
+                    importLevelIdx = 0;
+
+                var dropdown = new DropdownField();
+                dropdown.choices = levels;
+                dropdown.index = importLevelIdx;
+                dropdown.RegisterValueChangedCallback((e) => importLevelIdx = levels.IndexOf(e.newValue));
+                container.Add(dropdown);
+            });
+        }
+        else
         {
             root.BuildRow("Base Level", (container) =>
             {
@@ -879,8 +896,8 @@ public class LevelImporterWindow : EditorWindow
 
         // base map isn't set when importing into current map
         // force it to the map's base map
-        if (ImportSourceIsWad())
-            importLevelIdx = DLMaps.IndexOf(mapConfig.DLBaseMap.ToString());
+        //if (ImportSourceIsWad())
+        //    importLevelIdx = DLMaps.IndexOf(mapConfig.DLBaseMap.ToString());
 
         // cannot import mobys from games without a basemap
         if (ImportSourceIsDL() && !mapConfig.HasDeadlockedBaseMap())
@@ -946,7 +963,7 @@ public class LevelImporterWindow : EditorWindow
             if (importTies > 0) ImportTieInstances(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importShrubs > 0) ImportShrubs(tempMapBinFolder, destMapFolder, assetImports, rootGo);
             if (importShrubs > 0) ImportShrubInstances(tempMapBinFolder, destMapFolder, postActions, rootGo);
-            if (importMobys > 0) ImportMobys(tempMapBinFolder, destMapFolder, true, assetImports, rootGo);
+            if (importMobys > 0) ImportMobys(tempMapBinFolder, destMapFolder, importMobys == 2, assetImports, rootGo);
             if (importMobys > 0) ImportMobyInstances(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1) ImportCuboids(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1) ImportSplines(tempMapBinFolder, destMapFolder, postActions, rootGo);

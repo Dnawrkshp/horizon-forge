@@ -58,6 +58,7 @@ public class BuildWindow : EditorWindow
     EnumFlagsField flagsGames;
 
     Toggle togglePatch;
+    Toggle toggleCopy;
     Button buildButton;
 
     [MenuItem("Forge/Builder/Open Build Window")]
@@ -145,6 +146,9 @@ public class BuildWindow : EditorWindow
         togglePatch = togglePatch ?? new Toggle("Patch ISO(s)") { value = true };
         root.Add(togglePatch);
 
+        toggleCopy = toggleCopy ?? new Toggle("Copy to Build Folder(s)") { value = true };
+        root.Add(toggleCopy);
+
         buildButton = new Button(OnBuild);
         buildButton.text = "Build";
         root.Add(buildButton);
@@ -154,7 +158,7 @@ public class BuildWindow : EditorWindow
     {
         if (await RebuildLevel(EditorSceneManager.GetActiveScene(), (ForgeBuildTargets)flagsGames.value))
         {
-            ForgeBuilder.CopyToBuildFolders(EditorSceneManager.GetActiveScene());
+            if (toggleCopy.value) ForgeBuilder.CopyToBuildFolders(EditorSceneManager.GetActiveScene());
         }
     }
 

@@ -1841,7 +1841,7 @@ public class LevelImporterWindow : EditorWindow
             var mobyClassStr = folderNameParts[1];
             var mobyOClass = int.Parse(mobyClassStr);
             var mobyClass = $"{mobyOClass}";
-            var overlay = pvarOverlays?.FirstOrDefault(x => x.RCVersion == racVersion && x.OClass == mobyOClass);
+            var overlay = pvarOverlays?.FirstOrDefault(x => x.RCVersion == racVersion && x.MobyOClass == mobyOClass);
             var gameObjectName = overlay?.Name ?? mobyClass;
 
             if (ImportSourceIsDL()) ImportDLMobyInstance(mobyDir, mobyRootGo, gameObjectName, postActions);

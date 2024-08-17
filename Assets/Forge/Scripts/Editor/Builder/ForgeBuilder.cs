@@ -337,7 +337,7 @@ public static class ForgeBuilder
         // copy files
         if (File.Exists(wadPath)) File.Copy(wadPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.wad"), true);
         if (!string.IsNullOrEmpty(worldPath) && File.Exists(worldPath)) File.Copy(worldPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.world"), true);
-        if (File.Exists(soundPath)) File.Copy(soundPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}.sound"), true);
+        if (File.Exists(soundPath)) File.Copy(soundPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.sound"), true);
 
         // build version file
         using (var fs = File.Create(Path.Combine(buildPath, $"{mapConfig.MapFilename}.version")))

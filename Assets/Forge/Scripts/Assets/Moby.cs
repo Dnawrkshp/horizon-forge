@@ -109,6 +109,10 @@ public class Moby : RenderSelectionBase, IAsset, IPVarObject
 
     private void OnDrawGizmosSelected()
     {
+        // only render gizmos if gameobject is in actual selection
+        if (Selection.gameObjects == null) return;
+        if (!Selection.gameObjects.Contains(this.gameObject)) return;
+
         DrawMobyRefs(new HashSet<Moby>());
 
         if (PVarCuboidRefs != null)

@@ -240,6 +240,10 @@ public class RatchetCamera : RenderSelectionBase, IPVarObject
             Debug.Log($"Camera upgraded to v{_version}");
             UnityHelper.MarkActiveSceneDirty();
         }
+        else if (_version > CAMERA_VERSION)
+        {
+            _version = CAMERA_VERSION;
+        }
     }
 
     private void RunMigration(int version)

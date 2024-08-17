@@ -261,6 +261,10 @@ public class AmbientSound : RenderSelectionBase, IPVarObject
             Debug.Log($"Ambient sound upgraded to v{_version}");
             UnityHelper.MarkActiveSceneDirty();
         }
+        else if (_version > AMBIENT_SOUND_VERSION)
+        {
+            _version = AMBIENT_SOUND_VERSION;
+        }
     }
 
     private void RunMigration(int version)

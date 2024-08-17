@@ -319,6 +319,10 @@ public class Cuboid : RenderSelectionBase
             Debug.Log($"Cuboid upgraded to v{_version}");
             UnityHelper.MarkActiveSceneDirty();
         }
+        else if (_version > CUBOID_VERSION)
+        {
+            _version = CUBOID_VERSION;
+        }
     }
 
     private void RunMigration(int version)

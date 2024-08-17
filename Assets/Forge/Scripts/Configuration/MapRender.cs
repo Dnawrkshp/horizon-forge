@@ -203,6 +203,10 @@ public class MapRender : MonoBehaviour
             Debug.Log($"Map Render upgraded to v{_version}");
             UnityHelper.MarkActiveSceneDirty();
         }
+        else if (_version > MAP_RENDER_VERSION)
+        {
+            _version = MAP_RENDER_VERSION;
+        }
     }
 
     private void RunMigration(int version)

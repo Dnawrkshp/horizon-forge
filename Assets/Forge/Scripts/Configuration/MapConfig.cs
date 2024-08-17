@@ -341,6 +341,10 @@ public class MapConfig : MonoBehaviour
             Debug.Log($"Map Config upgraded to v{_version}");
             UnityHelper.MarkActiveSceneDirty();
         }
+        else if (_version > MAP_CONFIG_VERSION)
+        {
+            _version = MAP_CONFIG_VERSION;
+        }
     }
 
     private void RunMigration(int version)

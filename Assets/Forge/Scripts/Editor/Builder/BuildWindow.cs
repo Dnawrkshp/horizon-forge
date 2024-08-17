@@ -60,6 +60,7 @@ public class BuildWindow : EditorWindow
     Toggle togglePatch;
     Toggle toggleCopy;
     Button buildButton;
+    Button patchButton;
 
     [MenuItem("Forge/Builder/Open Build Window")]
     public static void CreateNewWindow()
@@ -90,6 +91,8 @@ public class BuildWindow : EditorWindow
 
         root.BuildPadding();
         CreateGUI_Build(root);
+
+        ValidateControls();
     }
 
     void CreateGUI_Rebuild(VisualElement root)
@@ -140,7 +143,8 @@ public class BuildWindow : EditorWindow
 
     void CreateGUI_Build(VisualElement root)
     {
-        flagsGames = new EnumFlagsField("Game(s)", ForgeBuildTargets.DL_NTSC | ForgeBuildTargets.UYA_NTSC | ForgeBuildTargets.RAC3_PAL);
+        flagsGames = flagsGames ?? new EnumFlagsField("Game(s)", ForgeBuildTargets.DL_NTSC | ForgeBuildTargets.UYA_NTSC | ForgeBuildTargets.RAC3_PAL);
+        flagsGames.RegisterValueChangedCallback((_) => ValidateControls());
         root.Add(flagsGames);
 
         togglePatch = togglePatch ?? new Toggle("Patch ISO(s)") { value = true };
@@ -149,9 +153,28 @@ public class BuildWindow : EditorWindow
         toggleCopy = toggleCopy ?? new Toggle("Copy to Build Folder(s)") { value = true };
         root.Add(toggleCopy);
 
+        VisualElement buttonContainer = new VisualElement();
+        buttonContainer.style.flexDirection = FlexDirection.Row;
+        buttonContainer.style.flexGrow = 1;
+        root.Add(buttonContainer);
+
         buildButton = new Button(OnBuild);
         buildButton.text = "Build";
-        root.Add(buildButton);
+        buildButton.style.flexGrow = 1;
+        buildButton.style.maxHeight = 30;
+        buttonContainer.Add(buildButton);
+
+        patchButton = new Button(OnPatch);
+        patchButton.text = "Repatch";
+        patchButton.style.flexGrow = 1;
+        patchButton.style.maxHeight = 30;
+        buttonContainer.Add(patchButton);
+    }
+
+    void ValidateControls()
+    {
+        var games = (ForgeBuildTargets)flagsGames.value;
+        patchButton.SetEnabled(games != 0 && (games == ForgeBuildTargets.DL_NTSC || (games.HasFlag(ForgeBuildTargets.UYA_NTSC) ^ games.HasFlag(ForgeBuildTargets.RAC3_PAL))));
     }
 
     async void OnBuild()
@@ -159,6 +182,31 @@ public class BuildWindow : EditorWindow
         if (await RebuildLevel(EditorSceneManager.GetActiveScene(), (ForgeBuildTargets)flagsGames.value))
         {
             if (toggleCopy.value) ForgeBuilder.CopyToBuildFolders(EditorSceneManager.GetActiveScene());
+        }
+    }
+
+    void OnPatch()
+    {
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        if (!mapConfig)
+        {
+            EditorUtility.DisplayDialog("Cannot patch", $"Scene does not have a map config", "Ok");
+            return;
+        }
+
+        var scene = EditorSceneManager.GetActiveScene();
+        foreach (ForgeBuildTargets buildTarget in Enum.GetValues(typeof(ForgeBuildTargets)))
+        {
+            if (flagsGames.value.HasFlag(buildTarget))
+            {
+                var racVersion = BuildTargetRacVersions[buildTarget];
+                var region = BuildTargetGameRegions[buildTarget];
+
+                if (racVersion == RCVER.DL && !mapConfig.HasDeadlockedBaseMap()) continue;
+                if (racVersion == RCVER.UYA && !mapConfig.HasUYABaseMap()) continue;
+
+                PatchLevel(scene, racVersion, region);
+            }
         }
     }
 

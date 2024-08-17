@@ -7,7 +7,7 @@ using UnityEditor;
 using UnityEngine;
 
 [ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
-public class Moby : RenderSelectionBase, IAsset
+public class Moby : RenderSelectionBase, IAsset, IPVarObject
 {
     private static readonly Color mobyLinkColor = new Color(1, 0.75f, 0.75f);
     private static readonly Color cuboidLinkColor = new Color(0.5f, 0.25f, 1f);
@@ -65,6 +65,19 @@ public class Moby : RenderSelectionBase, IAsset
     [HideInInspector] public Moby[] PVarMobyRefs;
     [HideInInspector] public Spline[] PVarSplineRefs;
     [HideInInspector] public Area[] PVarAreaRefs;
+
+    public int GetRCVersion() => RCVersion;
+    public byte[] GetPVarData() => PVars;
+    public Cuboid[] GetPVarCuboidRefs() => PVarCuboidRefs;
+    public Moby[] GetPVarMobyRefs() => PVarMobyRefs;
+    public Spline[] GetPVarSplineRefs() => PVarSplineRefs;
+    public Area[] GetPVarAreaRefs() => PVarAreaRefs;
+    public PvarOverlay GetPVarOverlay() => PvarOverlay.GetPvarOverlay(this.RCVersion, mobyClass: OClass);
+    public void SetPVarData(byte[] pvarData) => PVars = pvarData;
+    public void SetPVarCuboidRefs(Cuboid[] cuboidRefs) => PVarCuboidRefs = cuboidRefs;
+    public void SetPVarMobyRefs(Moby[] mobyRefs) => PVarMobyRefs = mobyRefs;
+    public void SetPVarSplineRefs(Spline[] splineRefs) => PVarSplineRefs = splineRefs;
+    public void SetPVarAreaRefs(Area[] areaRefs) => PVarAreaRefs = areaRefs;
 
     public GameObject GameObject => this ? this.gameObject : null;
     public bool IsHidden => renderHandle?.IsHidden ?? false;
@@ -137,7 +150,7 @@ public class Moby : RenderSelectionBase, IAsset
         if (PVars != null)
         {
             var mapConfig = FindObjectOfType<MapConfig>();
-            var pvarOverlay = PvarOverlay.GetPvarOverlay(this.OClass, this.RCVersion);
+            var pvarOverlay = PvarOverlay.GetPvarOverlay(this.RCVersion, mobyClass: this.OClass);
             if (pvarOverlay != null)
             {
                 var mobys = mapConfig.GetMobys(this.RCVersion);
@@ -408,173 +421,13 @@ public class Moby : RenderSelectionBase, IAsset
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
 
-        var pvarOverlay = PvarOverlay.GetPvarOverlay(OClass, RCVersion);
+        var pvarOverlay = PvarOverlay.GetPvarOverlay(RCVersion, mobyClass: this.OClass);
         if (pvarOverlay != null && pvarOverlay.Overlay.Any())
         {
-            try
-            {
-                if (useDefault)
-                {
-                    this.name = pvarOverlay.Name;
-                    this.PVars = new byte[pvarOverlay.Length];
-                    Array.Copy(pvarOverlay.DefaultBytes, 0, this.PVars, 0, Math.Min(this.PVars.Length, pvarOverlay.DefaultBytes.Length));
-                }
+            if (useDefault && !string.IsNullOrEmpty(pvarOverlay.Name))
+                this.name = pvarOverlay.Name;
 
-                foreach (var def in pvarOverlay.Overlay)
-                {
-                    InitializeOverlayField(mapConfig, def);
-                }
-            }
-            catch (Exception ex) { Debug.LogError(ex); }
-        }
-    }
-
-    private void InitializeOverlayField(MapConfig mapConfig, PvarOverlayDef def)
-    {
-        switch (def.DataType?.ToLower())
-        {
-            case "cuboidref":
-                {
-                    // initialize first value if array doesn't fit
-                    // this should only occur on newly imported mobys
-                    var refIdx = def.Offset / 4;
-                    if (PVarCuboidRefs == null || refIdx >= PVarCuboidRefs.Length)
-                    {
-                        // increase array size
-                        if (PVarCuboidRefs == null)
-                            PVarCuboidRefs = new Cuboid[refIdx + 1];
-                        else
-                            Array.Resize(ref PVarCuboidRefs, refIdx + 1);
-
-                        PVarCuboidRefs[refIdx] = null;
-
-                        // find init value
-                        var cuboidIdx = BitConverter.ToInt32(PVars, def.Offset);
-                        if (cuboidIdx >= 0)
-                        {
-                            var cuboid = mapConfig.GetCuboidAtIndex(cuboidIdx);
-                            if (cuboid)
-                            {
-                                PVarCuboidRefs[refIdx] = cuboid;
-                            }
-                        }
-                    }
-                    break;
-                }
-            case "splineref":
-                {
-                    // initialize first value if array doesn't fit
-                    // this should only occur on newly imported mobys
-                    var refIdx = def.Offset / 4;
-                    if (PVarSplineRefs == null || refIdx >= PVarSplineRefs.Length)
-                    {
-                        // increase array size
-                        if (PVarSplineRefs == null)
-                            PVarSplineRefs = new Spline[refIdx + 1];
-                        else
-                            Array.Resize(ref PVarSplineRefs, refIdx + 1);
-
-                        PVarSplineRefs[refIdx] = null;
-
-                        // find init value
-                        var splineIdx = BitConverter.ToInt32(PVars, def.Offset);
-                        if (splineIdx >= 0)
-                        {
-                            var spline = mapConfig.GetSplineAtIndex(splineIdx);
-                            if (spline)
-                            {
-                                PVarSplineRefs[refIdx] = spline;
-                            }
-                        }
-                    }
-                    break;
-                }
-            case "arearef":
-                {
-                    // initialize first value if array doesn't fit
-                    // this should only occur on newly imported mobys
-                    var refIdx = def.Offset / 4;
-                    if (PVarAreaRefs == null || refIdx >= PVarAreaRefs.Length)
-                    {
-                        // increase array size
-                        if (PVarAreaRefs == null)
-                            PVarAreaRefs = new Area[refIdx + 1];
-                        else
-                            Array.Resize(ref PVarAreaRefs, refIdx + 1);
-
-                        PVarAreaRefs[refIdx] = null;
-
-                        // find init value
-                        var areaIdx = BitConverter.ToInt32(PVars, def.Offset);
-                        if (areaIdx >= 0)
-                        {
-                            var area = mapConfig.GetAreaAtIndex(areaIdx);
-                            if (area)
-                            {
-                                PVarAreaRefs[refIdx] = area;
-                            }
-                        }
-                    }
-                    break;
-                }
-            case "mobyref":
-                {
-                    var refIdx = def.Offset / 4;
-                    if (PVarMobyRefs == null || refIdx >= PVarMobyRefs.Length)
-                    {
-                        // increase array size
-                        if (PVarMobyRefs == null)
-                            PVarMobyRefs = new Moby[refIdx + 1];
-                        else
-                            Array.Resize(ref PVarMobyRefs, refIdx + 1);
-
-                        PVarMobyRefs[refIdx] = null;
-
-                        // find init value
-                        var mobyIdx = BitConverter.ToInt32(PVars, def.Offset);
-                        if (mobyIdx >= 0)
-                        {
-                            var mobyRef = mapConfig.GetMobyAtIndex(this.RCVersion, mobyIdx);
-                            if (mobyRef)
-                            {
-                                PVarMobyRefs[refIdx] = mobyRef;
-                            }
-                        }
-                    }
-                    break;
-                }
-            case "mobyrefarray":
-                {
-                    // initialize first value if array doesn't fit
-                    // this should only occur on newly imported mobys
-                    for (int i = 0; i < def.Count; ++i)
-                    {
-                        var refIdx = (def.Offset / 4) + i;
-                        if (PVarMobyRefs == null || refIdx >= PVarMobyRefs.Length)
-                        {
-                            // increase array size
-                            if (PVarMobyRefs == null)
-                                PVarMobyRefs = new Moby[refIdx + 1];
-                            else
-                                Array.Resize(ref PVarMobyRefs, refIdx + 1);
-
-                            PVarMobyRefs[refIdx] = null;
-
-                            // find init value
-                            var mobyIdx = BitConverter.ToInt32(PVars, def.Offset + (i * 4));
-                            if (mobyIdx >= 0)
-                            {
-                                var mobyRef = mapConfig.GetMobyAtIndex(this.RCVersion, mobyIdx);
-                                if (mobyRef)
-                                {
-                                    PVarMobyRefs[refIdx] = mobyRef;
-                                }
-                            }
-                        }
-                    }
-
-                    break;
-                }
+            UnityHelper.InitializePVars(mapConfig, this, useDefault: useDefault);
         }
     }
 
@@ -584,9 +437,6 @@ public class Moby : RenderSelectionBase, IAsset
         if (!mapConfig) return;
 
         var cuboids = mapConfig.GetCuboids();
-        var splines = mapConfig.GetSplines();
-        var mobys = mapConfig.GetMobys(RCVersion);
-        var areas = mapConfig.GetAreas();
 
         // handle special moby class pvars
         switch ((RCVersion, OClass))
@@ -599,80 +449,7 @@ public class Moby : RenderSelectionBase, IAsset
                 break;
         }
 
-        // update reference types to index
-        var pvarOverlay = PvarOverlay.GetPvarOverlay(OClass, RCVersion);
-        if (pvarOverlay != null && pvarOverlay.Overlay.Any())
-        {
-            try
-            {
-                foreach (var def in pvarOverlay.Overlay)
-                {
-                    switch (def.DataType?.ToLower())
-                    {
-                        case "cuboidref":
-                            {
-                                var refIdx = def.Offset / 4;
-                                var refObj = PVarCuboidRefs?.ElementAtOrDefault(refIdx);
-                                var value = -1;
-                                if (refObj)
-                                    value = Array.IndexOf(cuboids, refObj);
-
-                                Array.Copy(BitConverter.GetBytes(value), 0, PVars, def.Offset, 4);
-                                break;
-                            }
-                        case "splineref":
-                            {
-                                var refIdx = def.Offset / 4;
-                                var refObj = PVarSplineRefs?.ElementAtOrDefault(refIdx);
-                                var value = -1;
-                                if (refObj)
-                                    value = Array.IndexOf(splines, refObj);
-
-                                Array.Copy(BitConverter.GetBytes(value), 0, PVars, def.Offset, 4);
-                                break;
-                            }
-                        case "arearef":
-                            {
-                                var refIdx = def.Offset / 4;
-                                var refObj = PVarAreaRefs?.ElementAtOrDefault(refIdx);
-                                var value = -1;
-                                if (refObj)
-                                    value = Array.IndexOf(areas, refObj);
-
-                                Array.Copy(BitConverter.GetBytes(value), 0, PVars, def.Offset, 4);
-                                break;
-                            }
-                        case "mobyref":
-                            {
-                                var refIdx = def.Offset / 4;
-                                var refObj = PVarMobyRefs?.ElementAtOrDefault(refIdx);
-                                var value = -1;
-                                if (refObj)
-                                    value = Array.IndexOf(mobys, refObj);
-
-                                Array.Copy(BitConverter.GetBytes(value), 0, PVars, def.Offset, 4);
-                                break;
-                            }
-                        case "mobyrefarray":
-                            {
-                                for (int i = 0; i < def.Count; ++i)
-                                {
-                                    var refIdx = (def.Offset / 4) + i;
-                                    var refObj = PVarMobyRefs?.ElementAtOrDefault(refIdx);
-                                    var value = -1;
-                                    if (refObj)
-                                        value = Array.IndexOf(mobys, refObj);
-
-                                    Array.Copy(BitConverter.GetBytes(value), 0, PVars, def.Offset + (i*4), 4);
-                                }
-
-                                break;
-                            }
-                    }
-                }
-            }
-            catch (Exception ex) { Debug.LogError(ex); }
-        }
+        UnityHelper.UpdatePVars(mapConfig, this, this.RCVersion);
     }
 
     private void UpdateMPConfigPVars_DL(Cuboid[] cuboids)
@@ -862,5 +639,4 @@ public class Moby : RenderSelectionBase, IAsset
 
         return null;
     }
-
 }

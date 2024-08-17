@@ -3108,5 +3108,20 @@
     "Default": "",
     "Pointers": "",
     "Overlay": []
+  },
+  {
+    "_": "Ambient Sound",
+    "RCVersion": -1,
+    "AmbientSoundType": 1,
+    "ShowRawEditor": true,
+    "Length": 32,
+    "Default": "",
+    "Overlay": [
+      {
+        "Name": "Sound Id",
+        "DataType": "Integer",
+        "Offset": 0
+      }
+    ]
   }
 ]

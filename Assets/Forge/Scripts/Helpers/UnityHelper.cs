@@ -56,6 +56,774 @@ public static class UnityHelper
         }
     }
 
+    #region Byte Array Property Field
+
+    enum BYTEARRAY_PROPERTYFIELD_FORMAT
+    {
+        HEX,
+        DEC,
+        FLOAT
+    }
+
+    const int BYTEARRAY_PROPERTYFIELD_ROW_BYTE_COUNT = 0x10;
+    static int ByteArrayPropertyField_GroupSizeSelected = 0;
+    static int ByteArrayPropertyField_GroupSize = 1;
+    static int ByteArrayPropertyField_FieldWidth = 30;
+    static BYTEARRAY_PROPERTYFIELD_FORMAT ByteArrayPropertyField_Format = BYTEARRAY_PROPERTYFIELD_FORMAT.HEX;
+    static byte[] ByteArrayPropertyField_Buffer = new byte[BYTEARRAY_PROPERTYFIELD_ROW_BYTE_COUNT];
+
+    public static void ByteArrayPropertyField(SerializedProperty property, bool alwaysExpanded = false)
+    {
+        EditorGUI.BeginDisabledGroup(!property.editable);
+        if (!alwaysExpanded) property.isExpanded = alwaysExpanded || EditorGUILayout.BeginFoldoutHeaderGroup(property.isExpanded, property.displayName);
+        if (alwaysExpanded || property.isExpanded)
+        {
+            GUILayout.BeginVertical();
+
+            // draw grouping / format options
+            GUILayout.BeginHorizontal();
+            ByteArrayPropertyField_GroupSizeSelected = GUILayout.SelectionGrid(ByteArrayPropertyField_GroupSizeSelected, new string[] { "1", "2", "4", "8" }, 4, GUILayout.Width(100));
+            GUILayout.Space(20);
+            ByteArrayPropertyField_Format = (BYTEARRAY_PROPERTYFIELD_FORMAT)GUILayout.SelectionGrid((int)ByteArrayPropertyField_Format, new string[] { "H", "D", "F" }, 3, GUILayout.Width(100));
+            GUILayout.EndHorizontal();
+
+            // validate groupings
+            ByteArrayPropertyField_GroupSize = (int)Mathf.Pow(2, ByteArrayPropertyField_GroupSizeSelected);
+            if (ByteArrayPropertyField_Format == BYTEARRAY_PROPERTYFIELD_FORMAT.FLOAT)
+                ByteArrayPropertyField_GroupSize = 4;
+
+            // draw data fields
+            var byteCount = property.arraySize;
+            var rowHeaderDigitCount = (int)Mathf.Log(byteCount, 16) + 1;
+            var rows = Mathf.CeilToInt(byteCount / (float)BYTEARRAY_PROPERTYFIELD_ROW_BYTE_COUNT);
+            for (int y = -1; y < rows; ++y)
+            {
+                GUILayout.BeginHorizontal();
+
+                if (y < 0)
+                {
+                    // column header
+                    GUILayout.Label("  ", GUILayout.Width(ByteArrayPropertyField_FieldWidth));
+                    for (int x = 0; x < BYTEARRAY_PROPERTYFIELD_ROW_BYTE_COUNT; x += ByteArrayPropertyField_GroupSize)
+                    {
+                        GUILayout.Label($"{x:X2}", GUILayout.MinWidth(ByteArrayPropertyField_FieldWidth));
+                    }
+                }
+                else
+                {
+                    var idx = (y * BYTEARRAY_PROPERTYFIELD_ROW_BYTE_COUNT);
+
+                    // row header
+                    GUILayout.Label(idx.ToString($"X{rowHeaderDigitCount}"), GUILayout.Width(ByteArrayPropertyField_FieldWidth));
+                    for (int x = 0; x < BYTEARRAY_PROPERTYFIELD_ROW_BYTE_COUNT && (idx + x) < byteCount; x += ByteArrayPropertyField_GroupSize)
+                    {
+                        ByteArrayPropertyField_DrawValue(property, idx + x);
+                    }
+                }
+
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.EndVertical();
+        }
+        EditorGUILayout.EndFoldoutHeaderGroup();
+        EditorGUI.EndDisabledGroup();
+    }
+
+    private static void ByteArrayPropertyField_DrawValue(SerializedProperty property, int offset)
+    {
+        // read bytes
+        for (int i = 0; i < ByteArrayPropertyField_GroupSize; ++i)
+            ByteArrayPropertyField_Buffer[i] = (byte)property.GetArrayElementAtIndex(offset + i).intValue;
+
+        // parse format
+        string value = null;
+        switch (ByteArrayPropertyField_Format)
+        {
+            case BYTEARRAY_PROPERTYFIELD_FORMAT.HEX:
+                {
+                    value = BitConverter.ToInt64(ByteArrayPropertyField_Buffer, 0).ToString($"X{ByteArrayPropertyField_GroupSize * 2}");
+                    break;
+                }
+            case BYTEARRAY_PROPERTYFIELD_FORMAT.DEC:
+                {
+                    value = BitConverter.ToInt64(ByteArrayPropertyField_Buffer, 0).ToString();
+                    break;
+                }
+            case BYTEARRAY_PROPERTYFIELD_FORMAT.FLOAT:
+                {
+                    value = BitConverter.ToSingle(ByteArrayPropertyField_Buffer, 0).ToString("0.#######");
+                    break;
+                }
+        }
+
+        // render
+        var newValue = EditorGUILayout.TextField(value, GUILayout.MinWidth(ByteArrayPropertyField_FieldWidth));
+        if (newValue == value)
+            return;
+
+        // convert value back to byte
+        try
+        {
+            switch (ByteArrayPropertyField_Format)
+            {
+                case BYTEARRAY_PROPERTYFIELD_FORMAT.HEX:
+                    {
+                        var bytes = BitConverter.GetBytes(long.Parse(newValue, System.Globalization.NumberStyles.HexNumber));
+                        Array.Copy(bytes, 0, ByteArrayPropertyField_Buffer, 0, bytes.Length);
+                        break;
+                    }
+                case BYTEARRAY_PROPERTYFIELD_FORMAT.DEC:
+                    {
+                        var bytes = BitConverter.GetBytes(long.Parse(newValue));
+                        Array.Copy(bytes, 0, ByteArrayPropertyField_Buffer, 0, bytes.Length);
+                        break;
+                    }
+                case BYTEARRAY_PROPERTYFIELD_FORMAT.FLOAT:
+                    {
+                        var bytes = BitConverter.GetBytes(float.Parse(newValue));
+                        Array.Copy(bytes, 0, ByteArrayPropertyField_Buffer, 0, bytes.Length);
+                        break;
+                    }
+            }
+        }
+        catch
+        {
+            // failed to parse
+            // stop
+            return;
+        }
+
+        // write bytes
+        for (int i = 0; i < ByteArrayPropertyField_GroupSize; ++i)
+            property.GetArrayElementAtIndex(offset + i).intValue = ByteArrayPropertyField_Buffer[i];
+    }
+
+    #endregion
+
+    #region PVars Property Field
+
+    private static byte[] PVarsPropertyField_Buffer = new byte[0x100];
+
+    public class PVarsPropertiesContainer
+    {
+        public SerializedProperty PVars { get; set; }
+        public SerializedProperty CuboidRefs { get; set; }
+        public SerializedProperty MobyRefs { get; set; }
+        public SerializedProperty SplineRefs { get; set; }
+        public SerializedProperty AreaRefs { get; set; }
+    }
+
+    public static void PVarsPropertyField(PVarsPropertiesContainer properties, int racVersion, int? mobyClass = null, int? ambientSoundType = null, int? cameraType = null, bool alwaysExpanded = false, bool showRawEditorIfNoOverlay = true)
+    {
+        // pvar overlay
+        var pvarOverlay = PvarOverlay.GetPvarOverlay(racVersion, mobyClass: mobyClass, ambientSoundType: ambientSoundType, cameraType: cameraType);
+        if (pvarOverlay != null && pvarOverlay.Overlay.Any())
+        {
+            EditorGUI.BeginDisabledGroup(!properties.PVars.editable);
+            if (!alwaysExpanded) properties.PVars.isExpanded = EditorGUILayout.BeginFoldoutHeaderGroup(properties.PVars.isExpanded, properties.PVars.displayName);
+            if (alwaysExpanded || properties.PVars.isExpanded)
+            {
+                GUILayout.BeginVertical();
+
+                try
+                {
+                    foreach (var def in pvarOverlay.Overlay)
+                    {
+                        PVarsPropertyField_OverlayField(properties, def);
+                    }
+                }
+                catch (Exception ex) { Debug.LogError(ex); }
+
+                GUILayout.EndVertical();
+
+                // show byte editor
+                if (pvarOverlay.ShowRawEditor)
+                    ByteArrayPropertyField(properties.PVars, alwaysExpanded: true);
+            }
+            EditorGUILayout.EndFoldoutHeaderGroup();
+            EditorGUI.EndDisabledGroup();
+        }
+        else if (showRawEditorIfNoOverlay)
+        {
+            ByteArrayPropertyField(properties.PVars, alwaysExpanded: alwaysExpanded);
+        }
+    }
+
+    public static void InitializePVars(MapConfig mapConfig, IPVarObject pvarObject, bool useDefault = false)
+    {
+        if (!mapConfig) return;
+
+        var pvarOverlay = pvarObject.GetPVarOverlay();
+        if (pvarOverlay != null && pvarOverlay.Overlay.Any())
+        {
+            try
+            {
+                if (useDefault)
+                {
+                    var pvars = new byte[pvarOverlay.Length];
+                    Array.Copy(pvarOverlay.DefaultBytes, 0, pvars, 0, Math.Min(pvars.Length, pvarOverlay.DefaultBytes.Length));
+                    pvarObject.SetPVarData(pvars);
+                }
+
+                foreach (var def in pvarOverlay.Overlay)
+                {
+                    InitializePVarField(mapConfig, pvarObject, def);
+                }
+            }
+            catch (Exception ex) { Debug.LogError(ex); }
+        }
+    }
+
+    public static void UpdatePVars(MapConfig mapConfig, IPVarObject pvarObject, int racVersion)
+    {
+        if (!mapConfig) return;
+
+        var cuboids = mapConfig.GetCuboids();
+        var splines = mapConfig.GetSplines();
+        var mobys = mapConfig.GetMobys(racVersion);
+        var areas = mapConfig.GetAreas();
+        var pvars = pvarObject.GetPVarData();
+
+        // update reference types to index
+        var pvarOverlay = pvarObject.GetPVarOverlay();
+        if (pvarOverlay != null && pvarOverlay.Overlay.Any())
+        {
+            try
+            {
+                foreach (var def in pvarOverlay.Overlay)
+                {
+                    switch (def.DataType?.ToLower())
+                    {
+                        case "cuboidref":
+                            {
+                                var refIdx = def.Offset / 4;
+                                var refObj = pvarObject.GetPVarCuboidRefs()?.ElementAtOrDefault(refIdx);
+                                var value = -1;
+                                if (refObj)
+                                    value = Array.IndexOf(cuboids, refObj);
+
+                                Array.Copy(BitConverter.GetBytes(value), 0, pvars, def.Offset, 4);
+                                break;
+                            }
+                        case "splineref":
+                            {
+                                var refIdx = def.Offset / 4;
+                                var refObj = pvarObject.GetPVarSplineRefs()?.ElementAtOrDefault(refIdx);
+                                var value = -1;
+                                if (refObj)
+                                    value = Array.IndexOf(splines, refObj);
+
+                                Array.Copy(BitConverter.GetBytes(value), 0, pvars, def.Offset, 4);
+                                break;
+                            }
+                        case "arearef":
+                            {
+                                var refIdx = def.Offset / 4;
+                                var refObj = pvarObject.GetPVarAreaRefs()?.ElementAtOrDefault(refIdx);
+                                var value = -1;
+                                if (refObj)
+                                    value = Array.IndexOf(areas, refObj);
+
+                                Array.Copy(BitConverter.GetBytes(value), 0, pvars, def.Offset, 4);
+                                break;
+                            }
+                        case "mobyref":
+                            {
+                                var refIdx = def.Offset / 4;
+                                var refObj = pvarObject.GetPVarMobyRefs()?.ElementAtOrDefault(refIdx);
+                                var value = -1;
+                                if (refObj)
+                                    value = Array.IndexOf(mobys, refObj);
+
+                                Array.Copy(BitConverter.GetBytes(value), 0, pvars, def.Offset, 4);
+                                break;
+                            }
+                        case "mobyrefarray":
+                            {
+                                for (int i = 0; i < def.Count; ++i)
+                                {
+                                    var refIdx = (def.Offset / 4) + i;
+                                    var refObj = pvarObject.GetPVarMobyRefs()?.ElementAtOrDefault(refIdx);
+                                    var value = -1;
+                                    if (refObj)
+                                        value = Array.IndexOf(mobys, refObj);
+
+                                    Array.Copy(BitConverter.GetBytes(value), 0, pvars, def.Offset + (i * 4), 4);
+                                }
+
+                                break;
+                            }
+                    }
+                }
+            }
+            catch (Exception ex) { Debug.LogError(ex); }
+        }
+    }
+
+    private static void InitializePVarField(MapConfig mapConfig, IPVarObject pvarObject, PvarOverlayDef def)
+    {
+        var pvars = pvarObject.GetPVarData();
+        var mobyRefs = pvarObject.GetPVarMobyRefs();
+        var cuboidRefs = pvarObject.GetPVarCuboidRefs();
+        var areaRefs = pvarObject.GetPVarAreaRefs();
+        var splineRefs = pvarObject.GetPVarSplineRefs();
+
+        switch (def.DataType?.ToLower())
+        {
+            case "cuboidref":
+                {
+                    // initialize first value if array doesn't fit
+                    // this should only occur on newly imported mobys
+                    var refIdx = def.Offset / 4;
+                    if (cuboidRefs == null || refIdx >= cuboidRefs.Length)
+                    {
+                        // increase array size
+                        if (cuboidRefs == null)
+                            cuboidRefs = new Cuboid[refIdx + 1];
+                        else
+                            Array.Resize(ref cuboidRefs, refIdx + 1);
+
+                        cuboidRefs[refIdx] = null;
+
+                        // find init value
+                        var cuboidIdx = BitConverter.ToInt32(pvars, def.Offset);
+                        if (cuboidIdx >= 0)
+                        {
+                            var cuboid = mapConfig.GetCuboidAtIndex(cuboidIdx);
+                            if (cuboid)
+                            {
+                                cuboidRefs[refIdx] = cuboid;
+                            }
+                        }
+                    }
+
+                    pvarObject.SetPVarCuboidRefs(cuboidRefs);
+                    break;
+                }
+            case "splineref":
+                {
+                    // initialize first value if array doesn't fit
+                    // this should only occur on newly imported mobys
+                    var refIdx = def.Offset / 4;
+                    if (splineRefs == null || refIdx >= splineRefs.Length)
+                    {
+                        // increase array size
+                        if (splineRefs == null)
+                            splineRefs = new Spline[refIdx + 1];
+                        else
+                            Array.Resize(ref splineRefs, refIdx + 1);
+
+                        splineRefs[refIdx] = null;
+
+                        // find init value
+                        var splineIdx = BitConverter.ToInt32(pvars, def.Offset);
+                        if (splineIdx >= 0)
+                        {
+                            var spline = mapConfig.GetSplineAtIndex(splineIdx);
+                            if (spline)
+                            {
+                                splineRefs[refIdx] = spline;
+                            }
+                        }
+                    }
+
+                    pvarObject.SetPVarSplineRefs(splineRefs);
+                    break;
+                }
+            case "arearef":
+                {
+                    // initialize first value if array doesn't fit
+                    // this should only occur on newly imported mobys
+                    var refIdx = def.Offset / 4;
+                    if (areaRefs == null || refIdx >= areaRefs.Length)
+                    {
+                        // increase array size
+                        if (areaRefs == null)
+                            areaRefs = new Area[refIdx + 1];
+                        else
+                            Array.Resize(ref areaRefs, refIdx + 1);
+
+                        areaRefs[refIdx] = null;
+
+                        // find init value
+                        var areaIdx = BitConverter.ToInt32(pvars, def.Offset);
+                        if (areaIdx >= 0)
+                        {
+                            var area = mapConfig.GetAreaAtIndex(areaIdx);
+                            if (area)
+                            {
+                                areaRefs[refIdx] = area;
+                            }
+                        }
+                    }
+
+                    pvarObject.SetPVarAreaRefs(areaRefs);
+                    break;
+                }
+            case "mobyref":
+                {
+                    var refIdx = def.Offset / 4;
+                    if (mobyRefs == null || refIdx >= mobyRefs.Length)
+                    {
+                        // increase array size
+                        if (mobyRefs == null)
+                            mobyRefs = new Moby[refIdx + 1];
+                        else
+                            Array.Resize(ref mobyRefs, refIdx + 1);
+
+                        mobyRefs[refIdx] = null;
+
+                        // find init value
+                        var mobyIdx = BitConverter.ToInt32(pvars, def.Offset);
+                        if (mobyIdx >= 0)
+                        {
+                            var mobyRef = mapConfig.GetMobyAtIndex(pvarObject.GetRCVersion(), mobyIdx);
+                            if (mobyRef)
+                            {
+                                mobyRefs[refIdx] = mobyRef;
+                            }
+                        }
+                    }
+
+                    pvarObject.SetPVarMobyRefs(mobyRefs);
+                    break;
+                }
+            case "mobyrefarray":
+                {
+                    // initialize first value if array doesn't fit
+                    // this should only occur on newly imported mobys
+                    for (int i = 0; i < def.Count; ++i)
+                    {
+                        var refIdx = (def.Offset / 4) + i;
+                        if (mobyRefs == null || refIdx >= mobyRefs.Length)
+                        {
+                            // increase array size
+                            if (mobyRefs == null)
+                                mobyRefs = new Moby[refIdx + 1];
+                            else
+                                Array.Resize(ref mobyRefs, refIdx + 1);
+
+                            mobyRefs[refIdx] = null;
+
+                            // find init value
+                            var mobyIdx = BitConverter.ToInt32(pvars, def.Offset + (i * 4));
+                            if (mobyIdx >= 0)
+                            {
+                                var mobyRef = mapConfig.GetMobyAtIndex(pvarObject.GetRCVersion(), mobyIdx);
+                                if (mobyRef)
+                                {
+                                    mobyRefs[refIdx] = mobyRef;
+                                }
+                            }
+                        }
+                    }
+
+                    pvarObject.SetPVarMobyRefs(mobyRefs);
+                    break;
+                }
+        }
+    }
+
+    private static void PVarsPropertyField_OverlayField(PVarsPropertiesContainer properties, PvarOverlayDef def)
+    {
+        switch (def.DataType?.ToLower())
+        {
+            case "bool":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 1);
+                    var value = PVarsPropertyField_Buffer[0] != 0;
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.Toggle(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        PVarsPropertyField_Buffer[0] = (byte)(value ? 1 : 0);
+                        PVarsPropertyField_WritePVarData(properties, PVarsPropertyField_Buffer, def.Offset, 1);
+                    }
+                    break;
+                }
+            case "byte":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 1);
+                    var value = (int)PVarsPropertyField_Buffer[0];
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (value < def.Min) value = (int)def.Min;
+                        if (value > def.Max) value = (int)def.Max;
+                        if (value > byte.MaxValue) value = byte.MaxValue;
+                        if (value < byte.MinValue) value = byte.MinValue;
+                        PVarsPropertyField_Buffer[0] = (byte)value;
+                        PVarsPropertyField_WritePVarData(properties, PVarsPropertyField_Buffer, def.Offset, 1);
+                    }
+                    break;
+                }
+            case "sbyte":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 1);
+                    var value = (int)(sbyte)PVarsPropertyField_Buffer[0];
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (value < def.Min) value = (int)def.Min;
+                        if (value > def.Max) value = (int)def.Max;
+                        if (value > sbyte.MaxValue) value = sbyte.MaxValue;
+                        if (value < sbyte.MinValue) value = sbyte.MinValue;
+                        PVarsPropertyField_Buffer[0] = (byte)(sbyte)value;
+                        PVarsPropertyField_WritePVarData(properties, PVarsPropertyField_Buffer, def.Offset, 1);
+                    }
+                    break;
+                }
+            case "integer":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    var value = BitConverter.ToInt32(PVarsPropertyField_Buffer, 0);
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (value < def.Min) value = (int)def.Min;
+                        if (value > def.Max) value = (int)def.Max;
+                        var b = BitConverter.GetBytes(value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, 4);
+                    }
+                    break;
+                }
+            case "float":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    var value = BitConverter.ToSingle(PVarsPropertyField_Buffer, 0);
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.FloatField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (value < def.Min) value = (float)def.Min;
+                        if (value > def.Max) value = (float)def.Max;
+                        var b = BitConverter.GetBytes(value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, 4);
+                    }
+                    break;
+                }
+            case "vector2":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 8);
+                    var value = new Vector2(BitConverter.ToSingle(PVarsPropertyField_Buffer, 0), BitConverter.ToSingle(PVarsPropertyField_Buffer, 4));
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.Vector2Field(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        //if (value < def.Min) value = (float)def.Min;
+                        //if (value > def.Max) value = (float)def.Max;
+                        PVarsPropertyField_WritePVarData(properties, BitConverter.GetBytes(value.x), def.Offset, 4);
+                        PVarsPropertyField_WritePVarData(properties, BitConverter.GetBytes(value.y), def.Offset + 4, 4);
+                    }
+                    break;
+                }
+            case "colorrgb":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 3);
+                    var value = new Color32(PVarsPropertyField_Buffer[0], PVarsPropertyField_Buffer[1], PVarsPropertyField_Buffer[2], 255);
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.ColorField(new GUIContent(def.Name, def.Tooltip), value, showEyedropper: true, showAlpha: false, hdr: false);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        PVarsPropertyField_Buffer[0] = value.r;
+                        PVarsPropertyField_Buffer[1] = value.g;
+                        PVarsPropertyField_Buffer[2] = value.b;
+                        PVarsPropertyField_WritePVarData(properties, PVarsPropertyField_Buffer, def.Offset, 3);
+                    }
+                    break;
+                }
+            case "colorrgba":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    var value = new Color32(PVarsPropertyField_Buffer[0], PVarsPropertyField_Buffer[1], PVarsPropertyField_Buffer[2], PVarsPropertyField_Buffer[3]);
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.ColorField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        PVarsPropertyField_Buffer[0] = value.r;
+                        PVarsPropertyField_Buffer[1] = value.g;
+                        PVarsPropertyField_Buffer[2] = value.b;
+                        PVarsPropertyField_Buffer[3] = value.a;
+                        PVarsPropertyField_WritePVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    }
+                    break;
+                }
+            case "team":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, def.DataSize ?? 1);
+                    var value = (DLTeamIds)PVarsPropertyField_Buffer[0];
+                    EditorGUI.BeginChangeCheck();
+                    value = PVarsPropertyField_EnumPopup(new GUIContent(def.Name, def.Tooltip), value, def.Min, def.Max);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        var b = BitConverter.GetBytes((int)value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, def.DataSize ?? 1);
+                    }
+                    break;
+                }
+            case "fxtex":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    var value = (DLFXTextureIds)BitConverter.ToInt32(PVarsPropertyField_Buffer, 0);
+                    EditorGUI.BeginChangeCheck();
+                    value = PVarsPropertyField_EnumPopup(new GUIContent(def.Name, def.Tooltip), value, def.Min, def.Max);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        var b = BitConverter.GetBytes((int)value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, 4);
+                    }
+                    break;
+                }
+            case "levelfxtex":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    var value = (DLLevelFXTextureIds)BitConverter.ToInt32(PVarsPropertyField_Buffer, 0);
+                    EditorGUI.BeginChangeCheck();
+                    value = PVarsPropertyField_EnumPopup(new GUIContent(def.Name, def.Tooltip), value, def.Min, def.Max);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        var b = BitConverter.GetBytes((int)value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, 4);
+                    }
+                    break;
+                }
+            case "enum":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, def.DataSize ?? 4);
+                    var value = (int)(BitConverter.ToInt64(PVarsPropertyField_Buffer, 0) & (long)(Math.Pow(2, (def.DataSize ?? 4) * 8) - 1));
+                    EditorGUI.BeginChangeCheck();
+                    value = PVarsPropertyField_EnumPopup(new GUIContent(def.Name, def.Tooltip), value, def.Options);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        var b = BitConverter.GetBytes(value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, def.DataSize ?? 4);
+                    }
+                    break;
+                }
+            case "mobygroupid":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    var value = BitConverter.ToInt32(PVarsPropertyField_Buffer, 0);
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (value < def.Min) value = (int)def.Min;
+                        if (value > def.Max) value = (int)def.Max;
+                        var b = BitConverter.GetBytes(value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, 4);
+                    }
+                    break;
+                }
+            case "tiegroupid":
+                {
+                    // read value
+                    PVarsPropertyField_ReadPVarData(properties, PVarsPropertyField_Buffer, def.Offset, 4);
+                    var value = BitConverter.ToInt32( PVarsPropertyField_Buffer, 0);
+                    EditorGUI.BeginChangeCheck();
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (value < def.Min) value = (int)def.Min;
+                        if (value > def.Max) value = (int)def.Max;
+                        var b = BitConverter.GetBytes(value);
+                        PVarsPropertyField_WritePVarData(properties, b, def.Offset, 4);
+                    }
+                    break;
+                }
+            case "cuboidref":
+                {
+                    var refIdx = def.Offset / 4;
+                    var refObj = properties.CuboidRefs.GetArrayElementAtIndex(refIdx);
+                    EditorGUILayout.ObjectField(refObj, typeof(Cuboid), new GUIContent(def.Name, def.Tooltip));
+                    break;
+                }
+            case "splineref":
+                {
+                    var refIdx = def.Offset / 4;
+                    var refObj = properties.SplineRefs.GetArrayElementAtIndex(refIdx);
+                    EditorGUILayout.ObjectField(refObj, typeof(Spline), new GUIContent(def.Name, def.Tooltip));
+                    break;
+                }
+            case "arearef":
+                {
+                    var refIdx = def.Offset / 4;
+                    var refObj = properties.AreaRefs.GetArrayElementAtIndex(refIdx);
+                    EditorGUILayout.ObjectField(refObj, typeof(Area), new GUIContent(def.Name, def.Tooltip));
+                    break;
+                }
+            case "mobyref":
+                {
+                    var refIdx = def.Offset / 4;
+                    var refObj = properties.MobyRefs.GetArrayElementAtIndex(refIdx);
+                    EditorGUILayout.ObjectField(refObj, typeof(Moby), new GUIContent(def.Name, def.Tooltip));
+                    break;
+                }
+            case "mobyrefarray":
+                {
+                    for (int i = 0; i < def.Count; ++i)
+                    {
+                        var refIdx = (def.Offset / 4) + i;
+                        var refObj = properties.MobyRefs.GetArrayElementAtIndex(refIdx);
+                        EditorGUILayout.ObjectField(refObj, typeof(Moby), new GUIContent(def.Name + $" #{i + 1}", def.Tooltip));
+                    }
+                    break;
+                }
+        }
+    }
+
+    private static T PVarsPropertyField_EnumPopup<T>(GUIContent label, T value, float? min, float? max) where T : struct, IConvertible
+    {
+        var options = ((T[])Enum.GetValues(typeof(T))).Where(x => !((int)(object)x < min) && !((int)(object)x > max)).ToArray();
+        var names = options.Select(x => Enum.GetName(typeof(T), x)).ToArray();
+
+        return options.ElementAtOrDefault(EditorGUILayout.Popup(label, Array.IndexOf(options, value), names));
+    }
+
+    private static int PVarsPropertyField_EnumPopup(GUIContent label, int value, Dictionary<string, int> options)
+    {
+        var names = options.Select(x => x.Key).ToArray();
+        var selectedKey = options.FirstOrDefault(x => x.Value == value).Key;
+        var idx = Array.IndexOf(names, selectedKey);
+
+        idx = EditorGUILayout.Popup(label, idx, names);
+
+        selectedKey = names.ElementAtOrDefault(idx);
+        if (selectedKey == null) return value;
+        return options.GetValueOrDefault(selectedKey);
+    }
+
+    private static void PVarsPropertyField_ReadPVarData(PVarsPropertiesContainer properties, byte[] dst, int srcOffset, int length)
+    {
+        for (int i = 0; i < length; ++i)
+            dst[i] = (byte)properties.PVars.GetArrayElementAtIndex(i + srcOffset).intValue;
+    }
+
+    private static void PVarsPropertyField_WritePVarData(PVarsPropertiesContainer properties, byte[] src, int dstOffset, int length)
+    {
+        for (int i = 0; i < length; ++i)
+            properties.PVars.GetArrayElementAtIndex(i + dstOffset).intValue = src[i];
+    }
+
+    #endregion
+
     public static void MarkActiveSceneDirty()
     {
         Dispatcher.RunOnMainThread(() =>

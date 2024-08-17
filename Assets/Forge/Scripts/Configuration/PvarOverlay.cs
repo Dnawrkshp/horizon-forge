@@ -14,7 +14,10 @@ public class PvarOverlay
 
     public string Name { get; set; }
     public int RCVersion { get; set; }
-    public int OClass { get; set; }
+    public int? OClass { get; set; }
+    public int? AmbientSoundType { get; set; }
+    public int? CameraType { get; set; }
+    public bool ShowRawEditor { get; set; }
     public int Length { get; set; }
     public string Default { get; set; }
     public string Pointers { get; set; }
@@ -73,11 +76,18 @@ public class PvarOverlay
         return s_PvarOverlays;
     }
 
-    public static PvarOverlay GetPvarOverlay(int oclass, int racVersion)
+    public static PvarOverlay GetPvarOverlay(int racVersion, int? mobyClass = null, int? ambientSoundType = null, int? cameraType = null)
     {
         var pvarOverlays = GetPvarOverlays();
 
-        return pvarOverlays?.FirstOrDefault(x => x.RCVersion == racVersion && x.OClass == oclass);
+        if (mobyClass.HasValue)
+            return pvarOverlays?.FirstOrDefault(x => (x.RCVersion == racVersion || x.RCVersion < 0) && x.OClass == mobyClass);
+        if (ambientSoundType.HasValue)
+            return pvarOverlays?.FirstOrDefault(x => (x.RCVersion == racVersion || x.RCVersion < 0) && x.AmbientSoundType == ambientSoundType);
+        if (cameraType.HasValue)
+            return pvarOverlays?.FirstOrDefault(x => (x.RCVersion == racVersion || x.RCVersion < 0) && x.CameraType == cameraType);
+
+        return null;
     }
 }
 

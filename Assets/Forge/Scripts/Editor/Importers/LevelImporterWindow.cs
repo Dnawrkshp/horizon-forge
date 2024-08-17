@@ -2056,6 +2056,7 @@ public class LevelImporterWindow : EditorWindow
             if (File.Exists(cameraPVarFilePath))
                 camera.PVars = File.ReadAllBytes(cameraPVarFilePath);
 
+            postActions.Add(() => camera.InitializePVarReferences());
             ++idx;
         }
     }
@@ -2096,6 +2097,7 @@ public class LevelImporterWindow : EditorWindow
             if (File.Exists(soundPVarFilePath))
                 ambientSound.PVars = File.ReadAllBytes(soundPVarFilePath);
 
+            postActions.Add(() => ambientSound.InitializePVarReferences());
             ++idx;
         }
     }

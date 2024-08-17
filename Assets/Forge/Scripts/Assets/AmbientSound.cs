@@ -7,7 +7,7 @@ using UnityEditor;
 using UnityEngine;
 
 [ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
-public class AmbientSound : RenderSelectionBase
+public class AmbientSound : RenderSelectionBase, IPVarObject
 {
     const int AMBIENT_SOUND_VERSION = 0;
 
@@ -17,6 +17,24 @@ public class AmbientSound : RenderSelectionBase
 
     [SerializeField, HideInInspector] private int _version = 0;
     [SerializeField, HideInInspector] public byte[] PVars;
+    [HideInInspector] public Cuboid[] PVarCuboidRefs;
+    [HideInInspector] public Moby[] PVarMobyRefs;
+    [HideInInspector] public Spline[] PVarSplineRefs;
+    [HideInInspector] public Area[] PVarAreaRefs;
+
+    public int GetRCVersion() => RCVersion;
+    public byte[] GetPVarData() => PVars;
+    public Cuboid[] GetPVarCuboidRefs() => PVarCuboidRefs;
+    public Moby[] GetPVarMobyRefs() => PVarMobyRefs;
+    public Spline[] GetPVarSplineRefs() => PVarSplineRefs;
+    public Area[] GetPVarAreaRefs() => PVarAreaRefs;
+    public PvarOverlay GetPVarOverlay() => PvarOverlay.GetPvarOverlay(this.RCVersion, ambientSoundType: AmbientSoundType);
+    public void SetPVarData(byte[] pvarData) => PVars = pvarData;
+    public void SetPVarCuboidRefs(Cuboid[] cuboidRefs) => PVarCuboidRefs = cuboidRefs;
+    public void SetPVarMobyRefs(Moby[] mobyRefs) => PVarMobyRefs = mobyRefs;
+    public void SetPVarSplineRefs(Spline[] splineRefs) => PVarSplineRefs = splineRefs;
+    public void SetPVarAreaRefs(Area[] areaRefs) => PVarAreaRefs = areaRefs;
+
 
     private bool changed = true;
     private bool lastHidden = false;
@@ -76,6 +94,7 @@ public class AmbientSound : RenderSelectionBase
         Upgrade();
         UpdateTransform();
         UpdateMaterials();
+        InitializePVarReferences();
     }
 
     private void UpdateTransform()
@@ -141,6 +160,33 @@ public class AmbientSound : RenderSelectionBase
             }
         }
     }
+
+    #region PVars
+
+    public void InitializePVarReferences(bool useDefault = false)
+    {
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        if (!mapConfig) return;
+
+        var pvarOverlay = PvarOverlay.GetPvarOverlay(RCVersion, ambientSoundType: this.AmbientSoundType);
+        if (pvarOverlay != null && pvarOverlay.Overlay.Any())
+        {
+            if (useDefault && !string.IsNullOrEmpty(pvarOverlay.Name))
+                this.name = pvarOverlay.Name;
+
+            UnityHelper.InitializePVars(mapConfig, this, useDefault: useDefault);
+        }
+    }
+
+    public void UpdatePVars()
+    {
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        if (!mapConfig) return;
+
+        UnityHelper.UpdatePVars(mapConfig, this, this.RCVersion);
+    }
+
+    #endregion
 
     #region Binary
 

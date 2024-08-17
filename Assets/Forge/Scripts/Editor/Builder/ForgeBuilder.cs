@@ -1622,7 +1622,10 @@ public static class ForgeBuilder
 
             // write pvars
             if (camera.PVars != null && camera.PVars.Length > 0)
+            {
+                camera.UpdatePVars();
                 File.WriteAllBytes(Path.Combine(cameraDir, "pvar.bin"), camera.PVars);
+            }
 
             ++i;
         }
@@ -1660,7 +1663,10 @@ public static class ForgeBuilder
 
             // write pvars
             if (ambientSound.PVars != null && ambientSound.PVars.Length > 0)
+            {
+                ambientSound.UpdatePVars();
                 File.WriteAllBytes(Path.Combine(ambientSoundDir, "pvar.bin"), ambientSound.PVars);
+            }
 
             ++i;
         }

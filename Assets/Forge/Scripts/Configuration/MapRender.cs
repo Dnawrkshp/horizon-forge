@@ -11,7 +11,7 @@ public class MapRender : MonoBehaviour
 
     public int RenderScale = 512;
     public Color BackgroundColor = new Color32(0x66, 0x66, 0x66, 0);
-    public Color Tint = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+    [ColorUsage(showAlpha: false)] public Color Tint = new Color(0.5f, 0.5f, 0.5f, 1);
     [SerializeField, HideInInspector] public string SavePath = null;
     [SerializeField, HideInInspector] private int _version = 0;
 

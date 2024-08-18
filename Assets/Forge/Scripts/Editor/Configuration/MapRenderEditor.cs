@@ -110,7 +110,7 @@ public class MapRenderEditor : Editor
             camera.Render();
 
 
-            SaveTexture(rt, outPath, mapRender.Tint);
+            SaveTexture(rt, outPath, new Color(mapRender.Tint.r, mapRender.Tint.g, mapRender.Tint.b, 1));
         }
         finally
         {

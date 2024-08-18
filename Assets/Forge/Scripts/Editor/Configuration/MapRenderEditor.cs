@@ -31,12 +31,14 @@ public class MapRenderEditor : Editor
 
     SerializedProperty m_RenderScale;
     SerializedProperty m_BackgroundColor;
+    SerializedProperty m_Tint;
 
 
     private void OnEnable()
     {
         m_RenderScale = serializedObject.FindProperty("RenderScale");
         m_BackgroundColor = serializedObject.FindProperty("BackgroundColor");
+        m_Tint = serializedObject.FindProperty("Tint");
     }
 
     public override void OnInspectorGUI()
@@ -48,6 +50,7 @@ public class MapRenderEditor : Editor
 
         m_RenderScale.intValue = EditorGUILayout.IntPopup("Render Size", m_RenderScale.intValue, RENDER_SCALE_OPTIONS_LABELS, RENDER_SCALE_OPTIONS_VALUES);
         EditorGUILayout.PropertyField(m_BackgroundColor);
+        EditorGUILayout.PropertyField(m_Tint);
 
         serializedObject.ApplyModifiedProperties();
 
@@ -107,8 +110,7 @@ public class MapRenderEditor : Editor
             camera.Render();
 
 
-            SaveTexture(rt, outPath);
-
+            SaveTexture(rt, outPath, mapRender.Tint);
         }
         finally
         {
@@ -125,15 +127,13 @@ public class MapRenderEditor : Editor
         }
     }
 
-    private void SaveTexture(RenderTexture rt, string path)
+    private void SaveTexture(RenderTexture rt, string path, Color tint)
     {
         Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
         RenderTexture.active = rt;
         tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
         tex.Apply();
 
-        byte[] bytes = tex.EncodeToPNG();
-        System.IO.File.WriteAllBytes(path, bytes);
-        AssetDatabase.ImportAsset(path);
+        UnityHelper.SaveTexture(tex, path, tint: tint, hasAlpha: true);
     }
 }

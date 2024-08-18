@@ -400,7 +400,7 @@ public static class ForgeBuilder
                 if (ctx.RacVersion == RCVER.DL)
                 {
                     UnityHelper.SaveTexture(UnityHelper.ResizeTexture(minimap, 512, 512), tempPngPath, Color.white, hasAlpha: true);
-                    var result = PackerHelper.ConvertPngToPif4bpp(tempPngPath, buildPath, half_alpha: false, outSwizzle: true);
+                    var result = PackerHelper.ConvertPngToPif4bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: true);
                     if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
                     {
                         Debug.LogError($"Failed to pack minimap. {result}");
@@ -410,7 +410,7 @@ public static class ForgeBuilder
                 else
                 {
                     UnityHelper.SaveTexture(UnityHelper.ResizeTexture(minimap, 256, 256), tempPngPath, Color.white, hasAlpha: true);
-                    var result = PackerHelper.ConvertPngToPif8bpp(tempPngPath, buildPath, half_alpha: false, outSwizzle: false);
+                    var result = PackerHelper.ConvertPngToPif8bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: false);
                     if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
                     {
                         Debug.LogError($"Failed to pack minimap. {result}");

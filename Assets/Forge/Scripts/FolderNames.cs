@@ -116,7 +116,7 @@ public static class FolderNames
     public static string GetWorldInstanceFolder(int racVersion)
     {
         if (racVersion == RCVER.DL) return "world-instances";
-        if (racVersion == RCVER.UYA) return BinaryGameplayFolder;
+        if (racVersion == RCVER.UYA || racVersion == RCVER.GC) return BinaryGameplayFolder;
 
         throw new NotImplementedException();
     }

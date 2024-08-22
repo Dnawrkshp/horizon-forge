@@ -1,0 +1,7 @@
+.fill-space {
+	justify-content: space-between;
+}
+
+.fill-space > * {
+	flex-grow: 0;
+}

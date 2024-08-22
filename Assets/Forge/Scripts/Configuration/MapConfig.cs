@@ -10,6 +10,8 @@ using UnityEngine.SceneManagement;
 [ExecuteInEditMode, AddComponentMenu("")]
 public class MapConfig : MonoBehaviour
 {
+    public static bool HideFog = false;
+
     const int MAP_CONFIG_VERSION = 2;
 
     [Header("Map Build")]
@@ -93,8 +95,8 @@ public class MapConfig : MonoBehaviour
         Shader.SetGlobalColor("_FORGE_FOG_COLOR", FogColor);
         Shader.SetGlobalFloat("_FORGE_FOG_NEAR_DISTANCE", FogNearDistance);
         Shader.SetGlobalFloat("_FORGE_FOG_FAR_DISTANCE", FogFarDistance);
-        Shader.SetGlobalFloat("_FORGE_FOG_NEAR_INTENSITY", FogNearIntensity);
-        Shader.SetGlobalFloat("_FORGE_FOG_FAR_INTENSITY", FogFarIntensity);
+        Shader.SetGlobalFloat("_FORGE_FOG_NEAR_INTENSITY", HideFog ? 0 : FogNearIntensity);
+        Shader.SetGlobalFloat("_FORGE_FOG_FAR_INTENSITY", HideFog ? 0 : FogFarIntensity);
 
         // forge settings
         if (!forgeSettings) forgeSettings = ForgeSettings.Load();

@@ -12,7 +12,7 @@ public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
 {
     [HideInInspector] public int OClass;
     public Matrix4x4 Reflection = Matrix4x4.identity;
-    public int GroupId;
+    public int GroupId = -1;
     public float RenderDistance = 64;
     [ColorUsage(false)] public Color Tint = Color.white;
     public float DZOBrightness = 1f;

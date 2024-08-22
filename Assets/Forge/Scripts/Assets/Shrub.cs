@@ -78,7 +78,7 @@ public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
         }
         else
         {
-            collisionRenderHandle.Update(this.gameObject, null);
+            collisionRenderHandle.Update(this.gameObject, null, null);
         }
 
         UpdateMaterials();

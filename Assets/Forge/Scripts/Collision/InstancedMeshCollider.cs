@@ -74,7 +74,7 @@ public class InstancedMeshCollider : RenderSelectionBase, IAsset, IInstancedColl
         }
         else
         {
-            collisionRenderHandle.Update(this.gameObject, null);
+            collisionRenderHandle.Update(this.gameObject, null, null);
         }
     }
 

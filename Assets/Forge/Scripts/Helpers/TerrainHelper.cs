@@ -65,6 +65,7 @@ public static class TerrainHelper
         var vertices = new List<Vector3>();
         var triangles = new int[3 * 2 * facePerColumn * facePerRow];
         var normals = new Vector3[vertexPerRow * vertexPerColumn];
+        var submeshTriangles = new List<int>[terrainCollider.terrainData.terrainLayers.Length];
 
         // construct mesh
         for (int y = 0; y < vertexPerColumn; ++y)
@@ -90,6 +91,18 @@ public static class TerrainHelper
                     triangles[idx + 3] = rowE1 + 1;
                     triangles[idx + 4] = rowS1 + 1;
                     triangles[idx + 5] = rowS1 + 0;
+
+                    // get submesh
+                    int submeshIdx = GetDominateLayer(terrainCollider.terrainData, new Rect(tx, ty, 1f / facePerRow, 1f / facePerColumn), 0);
+
+                    // set submesh triangle
+                    if (submeshTriangles[submeshIdx] == null) submeshTriangles[submeshIdx] = new List<int>();
+                    submeshTriangles[submeshIdx].Add(rowE1 + 0);
+                    submeshTriangles[submeshIdx].Add(rowE1 + 1);
+                    submeshTriangles[submeshIdx].Add(rowS1 + 0);
+                    submeshTriangles[submeshIdx].Add(rowE1 + 1);
+                    submeshTriangles[submeshIdx].Add(rowS1 + 1);
+                    submeshTriangles[submeshIdx].Add(rowS1 + 0);
                 }
 
                 var vIdx = (y * vertexPerRow) + x;
@@ -101,6 +114,9 @@ public static class TerrainHelper
         mesh.SetVertices(vertices);
         mesh.SetNormals(normals);
         mesh.SetTriangles(triangles, 0);
+        mesh.subMeshCount = submeshTriangles.Length;
+        for (int i = 0; i < submeshTriangles.Length; i++)
+            mesh.SetTriangles(submeshTriangles[i], i);
 
         _terrainColliderMeshCache[hash] = mesh;
         return mesh;
@@ -350,6 +366,35 @@ public static class TerrainHelper
                 }
             }
         }
+    }
+
+    private static int GetDominateLayer(this TerrainData terrainData, Rect face, int splatmapIdx)
+    {
+        var alphamapRect = new RectInt((int)(face.x * terrainData.alphamapResolution), (int)(face.y * terrainData.alphamapResolution), (int)(face.width * terrainData.alphamapResolution), (int)(face.height * terrainData.alphamapResolution));
+        var alphamap = terrainData.GetAlphamapTexture(splatmapIdx);
+
+        var step = 1f / terrainData.alphamapResolution;
+        var aggregate = Vector4.zero;
+        for (float y = 0; y <= face.height; y += step)
+        {
+            for (float x = 0; x <= face.width; x += step)
+            {
+                aggregate += (Vector4)alphamap.GetPixelBilinear(face.x + x, face.y + y);
+            }
+        }
+
+        float max = 0;
+        int dominateLayerIdx = 0;
+        for (int i = 0; i < 4; ++i)
+        {
+            if (aggregate[i] > max)
+            {
+                max = aggregate[i];
+                dominateLayerIdx = i;
+            }
+        }
+
+        return dominateLayerIdx;
     }
 
     class TerrainTextureDatabase

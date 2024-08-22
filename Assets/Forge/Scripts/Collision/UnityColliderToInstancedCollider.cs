@@ -11,7 +11,7 @@ using UnityEngine;
 public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IInstancedCollider
 {
     public Collider m_Collider;
-    public string m_MaterialId = "2f";
+    [CollisionId] public string m_MaterialId = "2f";
     public CollisionRenderHandleNormalMode m_Normals;
     [Range(-2f, 2f)] public float m_RecalculateNormalsFactor = 1;
     [Range(0.1f, 4f), Delayed] public float m_Resolution = 1f;
@@ -252,5 +252,5 @@ public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IIn
 public struct TfragLayerToCollisionId
 {
     public TerrainLayer Layer;
-    public string CollisionId;
+    [CollisionId] public string CollisionId;
 }

@@ -29,7 +29,7 @@ public class CustomShrub : ScriptableObject
 
     [Header("Collider Information")]
     public bool generateColliders = false;
-    public string generateCollidersDefaultMaterialId = "2f";
+    [CollisionId] public string generateCollidersDefaultMaterialId = "2f";
 
     [Header("Instance Information")]
     public bool createInstanceAfterImport;

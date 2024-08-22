@@ -56,10 +56,9 @@ public class UnityColliderToInstancedColliderEditor : Editor
                         var collisionIdProperty = elem.FindPropertyRelative("CollisionId");
                         var layer = layerProperty.objectReferenceValue as TerrainLayer;
 
-                        EditorGUILayout.BeginHorizontal();
-                        GUILayout.Space(5);
+                        EditorGUI.indentLevel++;
                         EditorGUILayout.PropertyField(collisionIdProperty, new GUIContent(layer ? layer.name : "NONE"));
-                        EditorGUILayout.EndHorizontal();
+                        EditorGUI.indentLevel--;
                     }
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();

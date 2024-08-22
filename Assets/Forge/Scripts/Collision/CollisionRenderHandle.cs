@@ -274,14 +274,12 @@ public class CollisionRenderHandle
             {
                 foreach (var idOverride in _idOverrides)
                 {
-                    if (int.TryParse(idOverride.OverrideId, System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var colIdInt))
+                    var mat = materials.FirstOrDefault(x => x.name == idOverride.MaterialName && !materialsAffected.Contains(x));
+                    if (mat)
                     {
-                        var mat = materials.FirstOrDefault(x => x.name == idOverride.MaterialName && !materialsAffected.Contains(x));
-                        if (mat)
-                        {
-                            mat.SetInteger("_ColId", colIdInt);
-                            materialsAffected.Add(mat);
-                        }
+                        var colId = CollisionHelper.ParseId(idOverride.OverrideId, CollisionHelper.ParseId(mat.name));
+                        mat.SetInteger("_ColId", colId);
+                        materialsAffected.Add(mat);
                     }
                 }
             }
@@ -494,7 +492,7 @@ public interface IInstancedCollider
 public class ColliderIdOverride
 {
     public string MaterialName;
-    public string OverrideId;
+    [CollisionId] public string OverrideId;
 
     public ColliderIdOverride() { }
     public ColliderIdOverride(string materialName, string overrideId) { this.MaterialName = materialName; this.OverrideId = overrideId; }

@@ -13,6 +13,7 @@ public class ForgeSettingsEditor : Editor
     {
         var forgeSettings = target as ForgeSettings;
 
+        EditorGUI.BeginChangeCheck();
         GUILayout.Label("Clean ISO Paths");
         EditorGUI.BeginDisabledGroup(true);
         CreateBrowseFileGUI("Clean Deadlocked (NTSC) Iso", forgeSettings.PathToCleanDeadlockedIso);
@@ -98,6 +99,12 @@ public class ForgeSettingsEditor : Editor
             Array.Resize(ref forgeSettings.UYABuildFolders, forgeSettings.UYABuildFolders.Length + 1);
         }
         GUILayout.EndHorizontal();
+        
+        if (EditorGUI.EndChangeCheck())
+        {
+            EditorUtility.SetDirty(forgeSettings);
+            //AssetDatabase.SaveAssetIfDirty(forgeSettings);
+        }
 
         //base.OnInspectorGUI();
     }

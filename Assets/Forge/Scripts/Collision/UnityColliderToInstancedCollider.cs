@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -10,13 +11,14 @@ using UnityEngine;
 public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IInstancedCollider
 {
     public Collider m_Collider;
-    public string m_MaterialId = "2f";
+    [CollisionId] public string m_MaterialId = "2f";
     public CollisionRenderHandleNormalMode m_Normals;
     [Range(-2f, 2f)] public float m_RecalculateNormalsFactor = 1;
     [Range(0.1f, 4f), Delayed] public float m_Resolution = 1f;
     [Range(4f, 8f), Delayed] public float m_TfragSize = 4f;
     public bool m_Render = true;
 
+    [SerializeField, HideInInspector] public List<TfragLayerToCollisionId> m_TerrainLayerCollisionIds;
     [SerializeField, HideInInspector] private bool m_ForceRegenerateMesh = false;
 
     public GameObject GameObject => this ? this.gameObject : null;
@@ -72,17 +74,16 @@ public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IIn
         // configure collider
         if (HasInstancedCollider())
         {
-            int instancedColliderMaterialId = int.TryParse(m_MaterialId, System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var id) ? id : 0x2f;
             collisionRenderHandle.IsHidden = SceneVisibilityManager.instance.IsHidden(this.gameObject) || !m_Render;
             collisionRenderHandle.IsSelected = Selection.activeGameObject == this.gameObject || Selection.gameObjects.Contains(this.gameObject);
             collisionRenderHandle.IsPicking = !SceneVisibilityManager.instance.IsPickingDisabled(this.gameObject);
             collisionRenderHandle.Normals = m_Normals;
             collisionRenderHandle.RecalculateNormalsFactor = m_RecalculateNormalsFactor;
-            collisionRenderHandle.Update(this.gameObject, GetMesh(), instancedColliderMaterialId);
+            collisionRenderHandle.Update(this.gameObject, GetMesh(), GetMeshMaterials());
         }
         else
         {
-            collisionRenderHandle.Update(this.gameObject, null);
+            collisionRenderHandle.Update(this.gameObject, null, null);
         }
     }
 
@@ -93,12 +94,50 @@ public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IIn
 
         if (!m_Collider) return null;
         if (m_Collider is MeshCollider meshCollider) return meshCollider.sharedMesh;
-        if (m_Collider is TerrainCollider terrainCollider) return TerrainHelper.GetCollider(terrainCollider, faceSize: m_TfragSize, force: force);
+        if (m_Collider is TerrainCollider terrainCollider) return GenerateFromTerrainCollider(terrainCollider, force);
         if (m_Collider is BoxCollider boxCollider) return GenerateFromBoxCollider(boxCollider);
         if (m_Collider is SphereCollider sphereCollider) return GenerateFromSphereCollider(sphereCollider);
 
         return null;
     }
+
+    private int[] GetMeshMaterials()
+    {
+        if (m_Collider is TerrainCollider terrainCollider) return GetLayerCollisionIds(terrainCollider.terrainData);
+
+        return new int[] { CollisionHelper.ParseId(m_MaterialId) };
+    }
+
+    #region Terrain
+
+    private Mesh GenerateFromTerrainCollider(TerrainCollider terrainCollider, bool force)
+    {
+        return TerrainHelper.GetCollider(terrainCollider, faceSize: m_TfragSize, force: force);
+    }
+
+    private int[] GetLayerCollisionIds(TerrainData terrainData)
+    {
+        var collisionIds = new int[terrainData.terrainLayers.Length];
+        var defaultColId = CollisionHelper.ParseId(m_MaterialId);
+        for (int i = 0; i < terrainData.terrainLayers.Length; ++i)
+        {
+            var layer = terrainData.terrainLayers[i];
+            var mapping = m_TerrainLayerCollisionIds.FirstOrDefault(x => x.Layer == layer);
+            if (mapping.Layer != layer)
+            {
+                m_TerrainLayerCollisionIds.Add(new TfragLayerToCollisionId() { Layer = layer });
+            }
+
+            if (!string.IsNullOrEmpty(mapping.CollisionId))
+                collisionIds[i] = CollisionHelper.ParseId(mapping.CollisionId, defaultColId);
+            else
+                collisionIds[i] = defaultColId;
+        }
+
+        return collisionIds;
+    }
+
+    #endregion
 
     #region Mesh Generation
 
@@ -207,4 +246,11 @@ public class UnityColliderToInstancedCollider : RenderSelectionBase, IAsset, IIn
     }
 
     #endregion
+}
+
+[Serializable]
+public struct TfragLayerToCollisionId
+{
+    public TerrainLayer Layer;
+    [CollisionId] public string CollisionId;
 }

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[AddComponentMenu("")]
 public class SkyLayer : MonoBehaviour
 {
     public bool Bloom = false;

@@ -47,6 +47,8 @@ public class LevelImporterWindow : EditorWindow
         Importing_Mobys,
         Importing_Cuboids,
         Importing_Splines,
+        Importing_Cameras,
+        Importing_Ambient_Sounds,
         Importing_Areas,
         Importing_Tfrags,
         Importing_Occlusion,
@@ -59,11 +61,12 @@ public class LevelImporterWindow : EditorWindow
     static readonly List<string> ImportSources = new List<string>() { "DL ISO", "DL WAD", "UYA ISO",  "UYA WAD", "GC ISO" };
     static readonly List<string> DLBaseMaps = ((DLMapIds[])Enum.GetValues(typeof(DLMapIds))).Where(x => (int)x > 40).Select(x => Enum.GetName(typeof(DLMapIds), x)).ToList();
     static readonly List<string> DLMaps = ((DLMapIds[])Enum.GetValues(typeof(DLMapIds))).Select(x => Enum.GetName(typeof(DLMapIds), x)).ToList();
+    static readonly List<string> UYABaseMaps = ((UYAMapIds[])Enum.GetValues(typeof(UYAMapIds))).Where(x => (int)x >= 40).Select(x => Enum.GetName(typeof(UYAMapIds), x)).ToList();
     static readonly List<string> UYAMaps = Enum.GetNames(typeof(UYAMapIds)).ToList();
     static readonly List<string> GCMaps = Enum.GetNames(typeof(GCMapIds)).ToList();
     static readonly List<string> AssetLimitedImportOptions = new List<string>() { "Skip", "Replace" };
     static readonly List<string> AssetImportOptions = new List<string>() { "Skip", "Add" };
-    static readonly List<string> AssetMobyImportOptions = new List<string>() { "Skip", "Add" };
+    static readonly List<string> AssetMobyImportOptions = new List<string>() { "Skip", "Add", "Replace" };
 
     public static bool IsImporting { get; private set; }
 
@@ -82,7 +85,7 @@ public class LevelImporterWindow : EditorWindow
     string mapName = "New Map";
     string wadPath = "";
 
-    [MenuItem("Forge/Tools/Importers/Level Importer")]
+    [MenuItem("Forge/Tools/Importers/Open Level Importer")]
     public static void CreateNewWindow()
     {
         var wnd = GetWindow<LevelImporterWindow>();
@@ -113,7 +116,7 @@ public class LevelImporterWindow : EditorWindow
         switch (ImportSourceRacVersion())
         {
             case 4: return importIntoExistingMap ? DLMaps[importLevelIdx] : DLBaseMaps[importBaseLevelIdx];
-            case 3: return importIntoExistingMap ? UYAMaps[importLevelIdx] : throw new InvalidOperationException();
+            case 3: return importIntoExistingMap ? UYAMaps[importLevelIdx] : UYABaseMaps[importBaseLevelIdx];
             case 2: return importIntoExistingMap ? GCMaps[importLevelIdx] : throw new InvalidOperationException();
             default: throw new NotImplementedException();
         }
@@ -207,11 +210,11 @@ public class LevelImporterWindow : EditorWindow
             CreateImportIntoLevelAssetFilterGUI();
         }
 
-        if (!ImportSourceIsDL() && !importIntoExistingMap)
+        if (!ImportSourceIsDL() && !ImportSourceIsUYA() && !importIntoExistingMap)
         {
             // cannot import non-dl map as base map
             root.BuildPadding();
-            var errorMsg = new Label("To create a new map you must import a Deadlocked map first.");
+            var errorMsg = new Label("To create a new map you must import a Deadlocked or UYA multiplayer map first.");
             errorMsg.style.backgroundColor = Color.red * 0.5f;
             errorMsg.style.borderTopLeftRadius = errorMsg.style.borderBottomLeftRadius = errorMsg.style.borderBottomRightRadius = errorMsg.style.borderTopRightRadius = 5;
             errorMsg.style.borderBottomColor = errorMsg.style.borderLeftColor = errorMsg.style.borderRightColor = errorMsg.style.borderTopColor = Color.black;
@@ -261,7 +264,7 @@ public class LevelImporterWindow : EditorWindow
         {
             root.BuildRow("Base Level", (container) =>
             {
-                var levels = importSource == (int)ImportSource.DL_ISO ? DLBaseMaps : new List<string>();
+                var levels = (importSource == (int)ImportSource.DL_ISO) ? DLBaseMaps : (importSource == (int)ImportSource.UYA_ISO ? UYABaseMaps : new List<string>());
 
                 // validate importLevelId
                 if (importBaseLevelIdx < 0 || importBaseLevelIdx >= levels.Count)
@@ -298,11 +301,28 @@ public class LevelImporterWindow : EditorWindow
         root.BuildPadding();
 
         // create base level select dropdown
-        if (!importIntoExistingMap)
+        if (importIntoExistingMap)
+        {
+            root.BuildRow("Level", (container) =>
+            {
+                var levels = GetSelectedImportSourceLevelNames();
+
+                // validate importLevelId
+                if (importLevelIdx < 0 || importLevelIdx >= levels.Count)
+                    importLevelIdx = 0;
+
+                var dropdown = new DropdownField();
+                dropdown.choices = levels;
+                dropdown.index = importLevelIdx;
+                dropdown.RegisterValueChangedCallback((e) => importLevelIdx = levels.IndexOf(e.newValue));
+                container.Add(dropdown);
+            });
+        }
+        else
         {
             root.BuildRow("Base Level", (container) =>
             {
-                var levels = importSource == (int)ImportSource.DL_WAD ? DLBaseMaps : new List<string>();
+                var levels = (importSource == (int)ImportSource.DL_WAD) ? DLBaseMaps : (importSource == (int)ImportSource.UYA_ISO ? UYABaseMaps : new List<string>());
 
                 // validate importLevelId
                 if (importBaseLevelIdx < 0 || importBaseLevelIdx >= levels.Count)
@@ -384,7 +404,7 @@ public class LevelImporterWindow : EditorWindow
             var field = new DropdownField();
             field.choices = AssetMobyImportOptions;
             field.index = importMobys;
-            field.SetEnabled(ImportSourceIsDL());
+            field.SetEnabled(ImportSourceIsDL() || ImportSourceIsUYA());
             field.RegisterValueChangedCallback((e) => importMobys = AssetMobyImportOptions.IndexOf(e.newValue));
             container.Add(field);
         });
@@ -514,6 +534,162 @@ public class LevelImporterWindow : EditorWindow
 
     #endregion
 
+    public void ImportBaseMap(MapConfig mapConfig, int baseMapId, int racVersion)
+    {
+        var forgeSettings = ForgeSettings.Load();
+        if (!forgeSettings) return;
+
+        // configure
+        this.importBaseLevelIdx = racVersion == RCVER.DL ? DLBaseMaps.IndexOf(((DLMapIds)baseMapId).ToString()) : UYABaseMaps.IndexOf(((UYAMapIds)baseMapId).ToString());
+        this.importChunkId = 0;
+        this.importSource = racVersion == RCVER.DL ? (int)ImportSource.DL_ISO : (int)ImportSource.UYA_ISO;
+
+        // get dest paths
+        var scene = SceneManager.GetActiveScene();
+        var racVersionOther = racVersion == RCVER.DL ? RCVER.UYA : RCVER.DL;
+        var destMapName = scene.name;
+        var destMapFolder = FolderNames.GetMapFolder(destMapName);
+        var destMapBinFolder = FolderNames.GetMapBinFolder(destMapName, racVersion);
+        var tempPalBinFolder = Path.Combine(FolderNames.GetTempFolder(), "level-import-pal");
+        var destMapWadFile = Path.Combine(destMapBinFolder, $"{destMapName}.wad");
+        var assetImports = new List<PackerImporterWindow.PackerAssetImport>();
+        var postActions = new List<Action>();
+        var baseLevelName = baseMapId.ToString();
+        var destMapHUDFolder = Path.Combine(destMapFolder, FolderNames.HUDFolder);
+        var destMinimapPath = Path.Combine(destMapHUDFolder, $"minimap-rc{racVersion}.png");
+        var destLoadingScreenPath = Path.Combine(destMapHUDFolder, $"loadingscreen-rc{racVersion}.png");
+
+        // validate clean iso paths
+        switch (racVersion)
+        {
+            case RCVER.UYA:
+                {
+                    if (!File.Exists(forgeSettings.PathToCleanUyaNtscIso)) return;
+                    if (!File.Exists(forgeSettings.PathToCleanUyaPalIso)) return;
+
+                    baseLevelName = ((UYAMapIds)baseMapId).ToString();
+                    break;
+                }
+            case RCVER.DL:
+                {
+                    if (!File.Exists(forgeSettings.PathToCleanDeadlockedIso)) return;
+
+                    baseLevelName = ((DLMapIds)baseMapId).ToString();
+                    break;
+                }
+            default: return;
+        }
+
+        // setup root object
+        var rootGo = new GameObject(baseLevelName);
+        rootGo.transform.SetAsFirstSibling();
+
+        try
+        {
+            IsImporting = true;
+
+            // prepare
+            UpdateImportProgressBar(ImportStage.Preparing_Map_Files);
+            PrepareMapResourceFolder(destMapFolder, destMapBinFolder);
+
+            // extract and copy wad to map bin directory
+            UpdateImportProgressBar(ImportStage.Preparing_Level_WAD);
+            PackerHelper.ExtractMinimap(GetSelectedIsoPath(), destMinimapPath, baseMapId, racVersion);
+            if (ImportSourceIsDL()) PackerHelper.ExtractTransitionBackground(GetSelectedIsoPath(), destLoadingScreenPath, baseMapId, racVersion);
+            ExtractWadFromISO(GetSelectedIsoPath(), baseMapId, destMapWadFile);
+
+            // unpack level wad
+            if (!DecompressAndUnpackLevelWad(destMapWadFile, 0, racVersion)) return;
+
+            // if uya we also need the PAL version of the map
+            if (ImportSourceIsUYA())
+            {
+                var palWadFile = Path.Combine(tempPalBinFolder, "pal.wad");
+                ExtractWadFromISO(forgeSettings.PathToCleanUyaPalIso, GetLevelId(), palWadFile);
+                if (!DecompressAndUnpackLevelCodeFromWad(palWadFile)) return;
+
+                // import PAL code
+                ImportCode(tempPalBinFolder, destMapFolder, GameRegion.PAL, assetImports, rootGo);
+            }
+
+            // copy sky from first map
+            CopySky(FolderNames.GetMapBinFolder(destMapName, racVersionOther), destMapBinFolder, racVersionOther, racVersion);
+
+            // import assets
+            ImportCode(destMapBinFolder, destMapFolder, GameRegion.NTSC, assetImports, rootGo);
+            ImportMobys(destMapBinFolder, destMapFolder, true, assetImports, rootGo);
+            ImportMobyInstances(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportCuboids(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportSplines(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportCameras(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportAmbientSounds(destMapBinFolder, destMapFolder, postActions, rootGo);
+            if (ImportSourceIsDL()) ImportAreas(destMapBinFolder, destMapFolder, postActions, rootGo);
+
+            // postprocess hill moby cuboids
+            FindAndSetHillCuboidTypes(destMapBinFolder, destMapFolder, assetImports, rootGo);
+
+            // import final asset imports
+            PackerImporterWindow.Import(assetImports, true);
+
+            // set base map
+            if (ImportSourceIsDL())
+                mapConfig.DLBaseMap = (DLMapIds)baseMapId;
+            else if (ImportSourceIsUYA())
+                mapConfig.UYABaseMap = (UYAMapIds)baseMapId;
+
+            if (ImportSourceIsDL())
+            {
+                // set minimap/loadingscreen
+                mapConfig.DLMinimap = AssetDatabase.LoadAssetAtPath<Texture2D>(destMinimapPath);
+                mapConfig.DLLoadingScreen = AssetDatabase.LoadAssetAtPath<Texture2D>(destLoadingScreenPath);
+
+                // configure always export mobys to all imported mobys that don't have instances
+                // since the final exported moby assets will be all classes in this list + all classes from active moby instances
+                var mobyInstanceClasses = mapConfig.GetMobys(RCVER.DL).Select(x => x.OClass).ToArray();
+                mapConfig.DLMobysIncludedInExport = assetImports
+                    .Where(x => x.AssetType == FolderNames.MobyFolder)
+                    .Select(x => int.TryParse(x.Name, out var oclass) ? oclass : -1)
+                    .Where(x => x > 0)
+                    .Where(x => !mobyInstanceClasses.Contains(x))
+                    .OrderBy(x => x)
+                    .ToArray();
+            }
+            else if (ImportSourceIsUYA())
+            {
+                // set minimap/loadingscreen
+                mapConfig.UYAMinimap = AssetDatabase.LoadAssetAtPath<Texture2D>(destMinimapPath);
+
+                // configure always export mobys to all imported mobys that don't have instances
+                // since the final exported moby assets will be all classes in this list + all classes from active moby instances
+                var mobyInstanceClasses = mapConfig.GetMobys(RCVER.UYA).Select(x => x.OClass).ToArray();
+                mapConfig.UYAMobysIncludedInExport = assetImports
+                    .Where(x => x.AssetType == FolderNames.MobyFolder)
+                    .Select(x => int.TryParse(x.Name, out var oclass) ? oclass : -1)
+                    .Where(x => x > 0)
+                    .Where(x => !mobyInstanceClasses.Contains(x))
+                    .OrderBy(x => x)
+                    .ToArray();
+            }
+
+            // refresh assets
+            var assets = GameObject.FindObjectsOfType<MonoBehaviour>().Where(x => x is IAsset).Select(x => x as IAsset);
+            foreach (var asset in assets)
+                asset.UpdateAsset();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
+        }
+        finally
+        {
+            IsImporting = false;
+            foreach (var postAction in postActions)
+                postAction?.Invoke();
+
+            if (rootGo) rootGo.transform.SetAsLastSibling();
+            FinalizeImport();
+        }
+    }
 
     void OnImport()
     {
@@ -523,19 +699,23 @@ public class LevelImporterWindow : EditorWindow
         if (!ValidateISO()) return;
         if (!ValidateWAD()) return;
         if (!ValidateImportDestination()) return;
-        if (!ImportSourceIsDL()) return;
+        if (!ImportSourceIsDL() && !ImportSourceIsUYA()) return;
+
+        var forgeSettings = ForgeSettings.Load();
 
         // get dest paths
         var destSceneFile = FolderNames.GetScenePath(mapName);
         var destMapFolder = FolderNames.GetMapFolder(mapName);
         var destMapHUDFolder = Path.Combine(destMapFolder, FolderNames.HUDFolder);
-        var destMapBinFolder = FolderNames.GetMapBinFolder(mapName, Constants.GameVersion);
+        var destMapBinFolder = FolderNames.GetMapBinFolder(mapName, ImportSourceRacVersion());
+        var tempPalBinFolder = Path.Combine(FolderNames.GetTempFolder(), "level-import-pal");
         var destMapWadFile = Path.Combine(destMapBinFolder, $"{mapName}.wad");
         var chunkId = importChunkId;
         var assetImports = new List<PackerImporterWindow.PackerAssetImport>();
         var postActions = new List<Action>();
-        var destMinimapPath = Path.Combine(destMapHUDFolder, "minimap.png");
-        var destLoadingScreenPath = Path.Combine(destMapHUDFolder, "loadingscreen.png");
+        var racVersion = ImportSourceRacVersion();
+        var destMinimapPath = Path.Combine(destMapHUDFolder, $"minimap-rc{racVersion}.png");
+        var destLoadingScreenPath = Path.Combine(destMapHUDFolder, $"loadingscreen-rc{racVersion}.png");
 
         try
         {
@@ -551,6 +731,8 @@ public class LevelImporterWindow : EditorWindow
 
             // clear map assets folder on fresh import
             if (Directory.Exists(destMapFolder)) Directory.Delete(destMapFolder, true);
+            if (Directory.Exists(tempPalBinFolder)) Directory.Delete(tempPalBinFolder, true);
+            Directory.CreateDirectory(tempPalBinFolder);
 
             // prepare
             UpdateImportProgressBar(ImportStage.Preparing_Map_Files);
@@ -568,27 +750,40 @@ public class LevelImporterWindow : EditorWindow
             if (ImportSourceIsIso())
             {
                 PackerHelper.ExtractMinimap(GetSelectedIsoPath(), destMinimapPath, GetLevelId(), ImportSourceRacVersion());
-                PackerHelper.ExtractTransitionBackground(GetSelectedIsoPath(), destLoadingScreenPath, GetLevelId(), ImportSourceRacVersion());
+                if (ImportSourceIsDL()) PackerHelper.ExtractTransitionBackground(GetSelectedIsoPath(), destLoadingScreenPath, GetLevelId(), ImportSourceRacVersion());
                 ExtractWadFromISO(GetSelectedIsoPath(), GetLevelId(), destMapWadFile);
             }
             else if (ImportSourceIsWad())
             {
                 // include matching .sound file (sound.bnk)
+                var worldWadPath = Path.Combine(Path.GetDirectoryName(wadPath), Path.GetFileNameWithoutExtension(wadPath) + ".world");
                 var soundWadPath = Path.Combine(Path.GetDirectoryName(wadPath), Path.GetFileNameWithoutExtension(wadPath) + ".sound");
 
                 chunkId = 0;
                 PackerHelper.ExtractMinimap(GetSelectedIsoPath(), destMinimapPath, GetLevelId(), ImportSourceRacVersion());
-                PackerHelper.ExtractTransitionBackground(GetSelectedIsoPath(), destLoadingScreenPath, GetLevelId(), ImportSourceRacVersion());
+                if (ImportSourceIsDL()) PackerHelper.ExtractTransitionBackground(GetSelectedIsoPath(), destLoadingScreenPath, GetLevelId(), ImportSourceRacVersion());
                 ExtractWadFromISO(GetSelectedIsoPath(), GetLevelId(), destMapWadFile);
                 File.Copy(wadPath, destMapWadFile, true);
-                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(destMapFolder, "sound.bnk"), true);
+                if (File.Exists(worldWadPath)) File.Copy(worldWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), $"level{GetLevelId()}.2.wad"), true);
+                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), "sound.bnk"), true);
             }
 
             // unpack level wad
-            if (!DecompressAndUnpackLevelWad(destMapWadFile, chunkId)) return;
+            if (!DecompressAndUnpackLevelWad(destMapWadFile, chunkId, ImportSourceRacVersion())) return;
+
+            // if uya we also need the PAL version of the map
+            if (ImportSourceIsUYA())
+            {
+                var palWadFile = Path.Combine(tempPalBinFolder, "pal.wad");
+                ExtractWadFromISO(forgeSettings.PathToCleanUyaPalIso, GetLevelId(), palWadFile);
+                if (!DecompressAndUnpackLevelCodeFromWad(palWadFile)) return;
+                
+                // import PAL code
+                ImportCode(tempPalBinFolder, destMapFolder, GameRegion.PAL, assetImports, rootGo);
+            }
 
             // import assets
-            ImportCode(destMapBinFolder, destMapFolder, assetImports, rootGo);
+            ImportCode(destMapBinFolder, destMapFolder, GameRegion.NTSC, assetImports, rootGo);
             ImportSky(destMapBinFolder, destMapFolder, assetImports, rootGo);
             ImportCollision(destMapBinFolder, destMapFolder, assetImports, rootGo);
             ImportTies(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -599,6 +794,8 @@ public class LevelImporterWindow : EditorWindow
             ImportMobyInstances(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportCuboids(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportSplines(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportCameras(destMapBinFolder, destMapFolder, postActions, rootGo);
+            ImportAmbientSounds(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportAreas(destMapBinFolder, destMapFolder, postActions, rootGo);
             ImportTfrags(destMapBinFolder, destMapFolder, assetImports, rootGo);
             ImportOcclusion(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -616,20 +813,39 @@ public class LevelImporterWindow : EditorWindow
             // import final asset imports
             PackerImporterWindow.Import(assetImports, true);
 
-            // set minimap/loadingscreen
-            mapConfig.DLMinimap = AssetDatabase.LoadAssetAtPath<Texture2D>(destMinimapPath);
-            mapConfig.DLLoadingScreen = AssetDatabase.LoadAssetAtPath<Texture2D>(destLoadingScreenPath);
+            if (ImportSourceIsDL())
+            {
+                // set minimap/loadingscreen
+                mapConfig.DLMinimap = AssetDatabase.LoadAssetAtPath<Texture2D>(destMinimapPath);
+                mapConfig.DLLoadingScreen = AssetDatabase.LoadAssetAtPath<Texture2D>(destLoadingScreenPath);
 
-            // configure always export mobys to all imported mobys that don't have instances
-            // since the final exported moby assets will be all classes in this list + all classes from active moby instances
-            var mobyInstanceClasses = mapConfig.GetMobys().Select(x => x.OClass).ToArray();
-            mapConfig.DLMobysIncludedInExport = assetImports
-                .Where(x => x.AssetType == FolderNames.MobyFolder)
-                .Select(x => int.TryParse(x.Name, out var oclass) ? oclass : -1)
-                .Where(x => x > 0)
-                .Where(x => !mobyInstanceClasses.Contains(x))
-                .OrderBy(x => x)
-                .ToArray();
+                // configure always export mobys to all imported mobys that don't have instances
+                // since the final exported moby assets will be all classes in this list + all classes from active moby instances
+                var mobyInstanceClasses = mapConfig.GetMobys(RCVER.DL).Select(x => x.OClass).ToArray();
+                mapConfig.DLMobysIncludedInExport = assetImports
+                    .Where(x => x.AssetType == FolderNames.MobyFolder)
+                    .Select(x => int.TryParse(x.Name, out var oclass) ? oclass : -1)
+                    .Where(x => x > 0)
+                    .Where(x => !mobyInstanceClasses.Contains(x))
+                    .OrderBy(x => x)
+                    .ToArray();
+            }
+            else if (ImportSourceIsUYA())
+            {
+                // set minimap/loadingscreen
+                mapConfig.UYAMinimap = AssetDatabase.LoadAssetAtPath<Texture2D>(destMinimapPath);
+
+                // configure always export mobys to all imported mobys that don't have instances
+                // since the final exported moby assets will be all classes in this list + all classes from active moby instances
+                var mobyInstanceClasses = mapConfig.GetMobys(RCVER.UYA).Select(x => x.OClass).ToArray();
+                mapConfig.UYAMobysIncludedInExport = assetImports
+                    .Where(x => x.AssetType == FolderNames.MobyFolder)
+                    .Select(x => int.TryParse(x.Name, out var oclass) ? oclass : -1)
+                    .Where(x => x > 0)
+                    .Where(x => !mobyInstanceClasses.Contains(x))
+                    .OrderBy(x => x)
+                    .ToArray();
+            }
 
             // move map to top of hierarchy
             mapConfig.transform.SetAsFirstSibling();
@@ -664,26 +880,31 @@ public class LevelImporterWindow : EditorWindow
 
         // get dest paths
         var scene = SceneManager.GetActiveScene();
+        var mapConfig = FindObjectOfType<MapConfig>();
         var destMapName = scene.name;
         var destMapFolder = FolderNames.GetMapFolder(destMapName);
         var tempMapBinFolder = Path.Combine(FolderNames.GetTempFolder(), "import-level-merge");
-        var destMapBinFolder = FolderNames.GetMapBinFolder(destMapName, Constants.GameVersion);
+        var destMapBinFolder = FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion);
         var destMapWadFile = Path.Combine(tempMapBinFolder, $"{destMapName}.wad");
         var chunkId = importChunkId;
         var assetImports = new List<PackerImporterWindow.PackerAssetImport>();
         var reimportOcclusion = (importTfrags == 1) || (importTies > 0) || (importMobys > 0);
         var postActions = new List<Action>();
-        var mapConfig = FindObjectOfType<MapConfig>();
+
         var rootGo = new GameObject(GetInputLevelName());
         rootGo.transform.SetAsFirstSibling();
 
         // base map isn't set when importing into current map
         // force it to the map's base map
-        if (ImportSourceIsWad())
-            importLevelIdx = DLMaps.IndexOf(mapConfig.DLBaseMap.ToString());
+        //if (ImportSourceIsWad())
+        //    importLevelIdx = DLMaps.IndexOf(mapConfig.DLBaseMap.ToString());
 
-        // cannot import mobys from other games
-        if (ImportSourceRacVersion() != Constants.GameVersion)
+        // cannot import mobys from games without a basemap
+        if (ImportSourceIsDL() && !mapConfig.HasDeadlockedBaseMap())
+            importMobys = 0;
+        if (ImportSourceIsUYA() && !mapConfig.HasUYABaseMap())
+            importMobys = 0;
+        if (ImportSourceIsGC())
             importMobys = 0;
 
         try
@@ -703,21 +924,37 @@ public class LevelImporterWindow : EditorWindow
             else if (ImportSourceIsWad())
             {
                 // include matching .sound file (sound.bnk)
+                var worldWadPath = Path.Combine(Path.GetDirectoryName(wadPath), Path.GetFileNameWithoutExtension(wadPath) + ".world");
                 var soundWadPath = Path.Combine(Path.GetDirectoryName(wadPath), Path.GetFileNameWithoutExtension(wadPath) + ".sound");
 
                 chunkId = 0;
                 ExtractWadFromISO(GetSelectedIsoPath(), GetLevelId(), destMapWadFile);
                 File.Copy(wadPath, destMapWadFile, true);
-                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(destMapFolder, "sound.bnk"), true);
+                if (File.Exists(worldWadPath)) File.Copy(worldWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), $"level{GetLevelId()}.2.wad"), true);
+                if (File.Exists(soundWadPath)) File.Copy(soundWadPath, Path.Combine(Path.GetDirectoryName(destMapWadFile), "sound.bnk"), true);
             }
 
             // unpack level wad
-            if (!DecompressAndUnpackLevelWad(destMapWadFile, chunkId)) return;
+            if (!DecompressAndUnpackLevelWad(destMapWadFile, chunkId, ImportSourceRacVersion())) return;
 
             // move assets over
-            if (importSky == 1) CopySky(tempMapBinFolder, destMapBinFolder);
-            if (importCollision == 1) CopyCollision(tempMapBinFolder, destMapBinFolder);
-            if (importTfrags == 1) CopyTfrags(tempMapBinFolder, destMapBinFolder);
+            if (importSky == 1)
+            {
+                // since the sky isn't rebuilt from the Maps/ folder assets
+                // we need to manually copy (and convert) the sky to the DL and UYA level folders
+                CopySky(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion), ImportSourceRacVersion(), mapConfig.FirstRacVersion);
+                CopySky(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.SecondRacVersion), ImportSourceRacVersion(), mapConfig.SecondRacVersion);
+            }
+            if (importCollision == 1)
+            {
+                CopyCollision(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion), mapConfig.FirstRacVersion);
+                CopyCollision(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.SecondRacVersion), mapConfig.SecondRacVersion);
+            }
+            if (importTfrags == 1)
+            {
+                CopyTfrags(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.FirstRacVersion), mapConfig.FirstRacVersion);
+                CopyTfrags(tempMapBinFolder, FolderNames.GetMapBinFolder(destMapName, mapConfig.SecondRacVersion), mapConfig.SecondRacVersion);
+            }
 
             // import assets
             if (importSky == 1) ImportSky(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -726,10 +963,12 @@ public class LevelImporterWindow : EditorWindow
             if (importTies > 0) ImportTieInstances(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importShrubs > 0) ImportShrubs(tempMapBinFolder, destMapFolder, assetImports, rootGo);
             if (importShrubs > 0) ImportShrubInstances(tempMapBinFolder, destMapFolder, postActions, rootGo);
-            if (importMobys > 0) ImportMobys(tempMapBinFolder, destMapFolder, true, assetImports, rootGo);
+            if (importMobys > 0) ImportMobys(tempMapBinFolder, destMapFolder, importMobys == 2, assetImports, rootGo);
             if (importMobys > 0) ImportMobyInstances(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1) ImportCuboids(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1) ImportSplines(tempMapBinFolder, destMapFolder, postActions, rootGo);
+            if (importMisc == 1) ImportCameras(destMapBinFolder, destMapFolder, postActions, rootGo);
+            if (importMisc == 1) ImportAmbientSounds(destMapBinFolder, destMapFolder, postActions, rootGo);
             if (importMisc == 1 && ImportSourceIsDL()) ImportAreas(tempMapBinFolder, destMapFolder, postActions, rootGo);
             if (importTfrags == 1) ImportTfrags(destMapBinFolder, destMapFolder, assetImports, rootGo);
             if (reimportOcclusion) ImportOcclusion(destMapBinFolder, destMapFolder, assetImports, rootGo);
@@ -787,9 +1026,13 @@ public class LevelImporterWindow : EditorWindow
         var mapGameObject = new GameObject("Map");
         var map = mapGameObject.AddComponent<MapConfig>();
         map.InitializeVersion();
-        map.DLBaseMap = Enum.Parse<DLMapIds>(DLBaseMaps[importBaseLevelIdx]);
         map.MapVersion = 0;
         map.MapName = map.MapFilename = mapName;
+
+        if (ImportSourceIsDL())
+            map.DLBaseMap = Enum.Parse<DLMapIds>(DLBaseMaps[importBaseLevelIdx]);
+        else if (ImportSourceIsUYA())
+            map.UYABaseMap = Enum.Parse<UYAMapIds>(UYABaseMaps[importBaseLevelIdx]);
 
         var occBakeSettings = mapGameObject.AddComponent<OcclusionBakeSettings>();
 
@@ -817,7 +1060,7 @@ public class LevelImporterWindow : EditorWindow
         var result = PackerHelper.ExtractLevelWads(isoPath, outDir, levelId, racVersion);
         var dstDir = Path.GetDirectoryName(outWadFilePath);
 
-        if (racVersion == 4)
+        if (racVersion == RCVER.DL)
         {
             var addFilesToCopy = new[]
             {
@@ -866,23 +1109,22 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    bool DecompressAndUnpackLevelWad(string wadPath, int chunkId)
+    bool DecompressAndUnpackLevelWad(string wadPath, int chunkId, int racVersion)
     {
-        var racVersion = ImportSourceRacVersion();
         var workingDir = Path.GetDirectoryName(wadPath);
         var assetsFolder = Path.Combine(workingDir, FolderNames.BinaryAssetsFolder);
         var soundsFolder = Path.Combine(workingDir, FolderNames.BinarySoundsFolder);
-        var skybinFile = Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile);
-        var worldInstanceFolder = racVersion == 4 ? Path.Combine(workingDir, FolderNames.BinaryWorldInstancesFolder) : Path.Combine(workingDir, FolderNames.BinaryGameplayFolder);
+        var worldInstanceFolder = Path.Combine(workingDir, FolderNames.GetWorldInstanceFolder(racVersion));
         var levelId = GetLevelId();
+        var bResult = false;
 
         // decompress and unpack level wad
         UpdateImportProgressBar(ImportStage.Unpacking_Level_WAD);
         var scResult = PackerHelper.DecompressAndUnpackLevelWad(wadPath, workingDir);
         if (!CheckResult(scResult, $"Failed to unpack level wad: {scResult}.")) return false;
 
-        // unpack sounds -- DL only supported atm
-        if (racVersion == 4)
+        // unpack sounds
+        if (racVersion == RCVER.DL || racVersion == RCVER.UYA)
         {
             UpdateImportProgressBar(ImportStage.Unpacking_Sounds);
             scResult = PackerHelper.UnpackSounds(Path.Combine(workingDir, "sound.bnk"), soundsFolder, racVersion);
@@ -910,10 +1152,12 @@ public class LevelImporterWindow : EditorWindow
 
         // unpack sky
         UpdateImportProgressBar(ImportStage.Unpacking_Sky);
-        var bResult = WrenchHelper.ExportSky(Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile), Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyFolder), racVersion);
-        if (!CheckResult(bResult, $"Failed to unpack sky.")) return false;
-        scResult = PackerHelper.ConvertSky(skybinFile, skybinFile, racVersion, Constants.GameVersion);
-        if (!CheckResult(scResult, $"Failed to convert skybox: {scResult}.")) return false;
+        var skyBinFile = Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile);
+        if (File.Exists(skyBinFile))
+        {
+            bResult = WrenchHelper.ExportSky(Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyBinFile), Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinarySkyFolder), racVersion);
+            if (!CheckResult(bResult, $"Failed to unpack sky.")) return false;
+        }
 
         // unpack gameplay
         UpdateImportProgressBar(ImportStage.Unpacking_Gameplay);
@@ -921,7 +1165,7 @@ public class LevelImporterWindow : EditorWindow
         if (!CheckResult(scResult, $"Failed to unpack gameplay: {scResult}.")) return false;
 
         // unpack world instances
-        if (racVersion == 4)
+        if (racVersion == RCVER.DL)
         {
             UpdateImportProgressBar(ImportStage.Unpacking_World_Instances);
             scResult = PackerHelper.UnpackWorldInstances(workingDir, worldInstanceFolder, racVersion);
@@ -929,24 +1173,24 @@ public class LevelImporterWindow : EditorWindow
 
             // unpack world instances ties
             UpdateImportProgressBar(ImportStage.Unpacking_World_Instance_Ties);
-            scResult = PackerHelper.UnpackWorldInstanceTies(worldInstanceFolder, Path.Combine(workingDir, FolderNames.BinaryWorldInstanceTieFolder), racVersion);
+            scResult = PackerHelper.UnpackWorldInstanceTies(worldInstanceFolder, Path.Combine(workingDir, FolderNames.GetWorldInstanceTiesFolder(racVersion)), racVersion);
             if (!CheckResult(scResult, $"Failed to unpack world instance ties: {scResult}.")) return false;
 
             // unpack world instances shrubs
             UpdateImportProgressBar(ImportStage.Unpacking_World_Instance_Shrubs);
-            scResult = PackerHelper.UnpackWorldInstanceShrubs(worldInstanceFolder, Path.Combine(workingDir, FolderNames.BinaryWorldInstanceShrubFolder), racVersion);
+            scResult = PackerHelper.UnpackWorldInstanceShrubs(worldInstanceFolder, Path.Combine(workingDir, FolderNames.GetWorldInstanceShrubsFolder(racVersion)), racVersion);
             if (!CheckResult(scResult, $"Failed to unpack world instance shrubs: {scResult}.")) return false;
         }
         else
         {
             // unpack world instances ties
             UpdateImportProgressBar(ImportStage.Unpacking_World_Instance_Ties);
-            scResult = PackerHelper.UnpackWorldInstanceTies(worldInstanceFolder, Path.Combine(workingDir, FolderNames.BinaryWorldInstanceTieFolder), racVersion);
+            scResult = PackerHelper.UnpackWorldInstanceTies(worldInstanceFolder, Path.Combine(workingDir, FolderNames.GetWorldInstanceTiesFolder(racVersion)), racVersion);
             if (!CheckResult(scResult, $"Failed to unpack world instance ties: {scResult}.")) return false;
 
             // unpack world instances shrubs
             UpdateImportProgressBar(ImportStage.Unpacking_World_Instance_Shrubs);
-            scResult = PackerHelper.UnpackWorldInstanceShrubs(worldInstanceFolder, Path.Combine(workingDir, FolderNames.BinaryWorldInstanceShrubFolder), racVersion);
+            scResult = PackerHelper.UnpackWorldInstanceShrubs(worldInstanceFolder, Path.Combine(workingDir, FolderNames.GetWorldInstanceShrubsFolder(racVersion)), racVersion);
             if (!CheckResult(scResult, $"Failed to unpack world instance shrubs: {scResult}.")) return false;
         }
 
@@ -957,16 +1201,34 @@ public class LevelImporterWindow : EditorWindow
 
         // unpack occlusion
         UpdateImportProgressBar(ImportStage.Unpacking_Occlusion);
-        scResult = PackerHelper.UnpackOcclusion(Path.Combine(workingDir, FolderNames.BinaryOcclusionFile), worldInstanceFolder, Path.Combine(workingDir, FolderNames.BinaryWorldInstanceOcclusionFolder), racVersion);
+        scResult = PackerHelper.UnpackOcclusion(Path.Combine(workingDir, FolderNames.BinaryOcclusionFile), worldInstanceFolder, Path.Combine(workingDir, FolderNames.GetWorldInstanceOcclusionFolder(racVersion)), racVersion);
         if (!CheckResult(scResult, $"Failed to unpack occlusion: {scResult}.")) return false;
 
         // unpack collision
         UpdateImportProgressBar(ImportStage.Unpacking_Collision);
         var collisionBinFile = Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinaryCollisionBinFile);
-        scResult = PackerHelper.ConvertCollision(collisionBinFile, collisionBinFile, racVersion, Constants.GameVersion);
+        scResult = PackerHelper.ConvertCollision(collisionBinFile, collisionBinFile, racVersion, 4);
         if (!CheckResult(scResult, $"Failed to convert collision: {scResult}.")) return false;
         bResult = WrenchHelper.ExportCollision(collisionBinFile, Path.Combine(Environment.CurrentDirectory, workingDir, FolderNames.BinaryAssetsFolder));
         if (!CheckResult(bResult, $"Failed to unpack collision.")) return false;
+
+        return true;
+    }
+
+    bool DecompressAndUnpackLevelCodeFromWad(string wadPath)
+    {
+        var racVersion = ImportSourceRacVersion();
+        var workingDir = Path.GetDirectoryName(wadPath);
+
+        // decompress and unpack level wad
+        UpdateImportProgressBar(ImportStage.Unpacking_Level_WAD);
+        var scResult = PackerHelper.DecompressAndUnpackLevelWad(wadPath, workingDir);
+        if (!CheckResult(scResult, $"Failed to unpack level wad: {scResult}.")) return false;
+
+        // unpack code
+        UpdateImportProgressBar(ImportStage.Unpacking_Code);
+        scResult = PackerHelper.UnpackCode(workingDir, Path.Combine(workingDir, FolderNames.BinaryCodeFolder), racVersion);
+        if (!CheckResult(scResult, $"Failed to unpack code: {scResult}.")) return false;
 
         return true;
     }
@@ -975,10 +1237,9 @@ public class LevelImporterWindow : EditorWindow
 
     #region Import Code
 
-    void ImportCode(string mapBinFolder, string mapResourcesFolder, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
+    void ImportCode(string mapBinFolder, string mapResourcesFolder, GameRegion racRegion, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
     {
         var racVersion = ImportSourceRacVersion();
-        var racRegion = GameRegion.NTSC;
         var binCodeFolder = Path.Combine(mapBinFolder, FolderNames.CodeFolder);
         var resourcesCodeFolder = Path.Combine(mapResourcesFolder, FolderNames.GetMapCodeFolder(racVersion, racRegion));
         if (Directory.Exists(resourcesCodeFolder)) Directory.Delete(resourcesCodeFolder, true);
@@ -1120,15 +1381,24 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void CopySky(string srcMapBinFolder, string destMapBinFolder)
+    void CopySky(string srcMapBinFolder, string destMapBinFolder, int srcRacVersion, int destRacVersion)
     {
+        if (destRacVersion <= 0) return;
+
         var srcSkyBinFile = Path.Combine(srcMapBinFolder, FolderNames.BinarySkyBinFile);
         var srcSkyFolder = Path.Combine(srcMapBinFolder, FolderNames.BinarySkyFolder);
         var destSkyFolder = Path.Combine(destMapBinFolder, FolderNames.BinarySkyFolder);
+        var destSkyBinFile = Path.Combine(destMapBinFolder, FolderNames.BinarySkyBinFile);
 
         // copy sky bin
         if (File.Exists(srcSkyBinFile))
-            File.Copy(srcSkyBinFile, Path.Combine(destMapBinFolder, FolderNames.BinarySkyBinFile), true);
+        {
+            File.Copy(srcSkyBinFile, destSkyBinFile, true);
+
+            // convert
+            var scResult = PackerHelper.ConvertSky(destSkyBinFile, destSkyBinFile, srcRacVersion, destRacVersion);
+            CheckResult(scResult, $"Failed to convert skybox: {scResult}.");
+        }
 
         // move sky folder
         if (Directory.Exists(srcSkyFolder))
@@ -1166,8 +1436,10 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void CopyCollision(string srcMapBinFolder, string destMapBinFolder)
+    void CopyCollision(string srcMapBinFolder, string destMapBinFolder, int destRacVersion)
     {
+        if (destRacVersion <= 0) return;
+
         var srcCollisionBinFile = Path.Combine(srcMapBinFolder, FolderNames.BinaryCollisionBinFile);
         var srcCollisionColladaFile = Path.Combine(srcMapBinFolder, FolderNames.BinaryCollisionColladaFile);
 
@@ -1185,8 +1457,9 @@ public class LevelImporterWindow : EditorWindow
 
     void ImportOcclusion(string mapBinFolder, string mapResourcesFolder, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
     {
+        var racVersion = ImportSourceRacVersion();
         var occlusionFiles = new[] { "tfrag.bin", "tie.bin", "moby.bin" };
-        var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
+        var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion));
         if (!Directory.Exists(worldInstanceOcclusionFolder)) return;
 
         var occlusionRootGo = new GameObject("Occlusion Octants");
@@ -1270,8 +1543,8 @@ public class LevelImporterWindow : EditorWindow
     void ImportTieInstances(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
     {
         var racVersion = ImportSourceRacVersion();
-        var worldInstanceTiesFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceTieFolder);
-        var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
+        var worldInstanceTiesFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceTiesFolder(racVersion));
+        var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion));
         var tieWorldInstanceDirs = Directory.EnumerateDirectories(worldInstanceTiesFolder).OrderBy(x => int.Parse(Path.GetFileName(x).Split('_')[0])).ToList();
         var tieOcclusionFile = Path.Combine(worldInstanceOcclusionFolder, "tie.bin");
 
@@ -1418,7 +1691,7 @@ public class LevelImporterWindow : EditorWindow
     void ImportShrubInstances(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
     {
         var racVersion = ImportSourceRacVersion();
-        var worldInstanceShrubsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceShrubFolder);
+        var worldInstanceShrubsFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceShrubsFolder(racVersion));
         var shrubWorldInstanceDirs = Directory.EnumerateDirectories(worldInstanceShrubsFolder).OrderBy(x => int.Parse(Path.GetFileName(x).Split('_')[0])).ToList();
 
         var shrubRootGo = new GameObject("Shrubs");
@@ -1568,7 +1841,7 @@ public class LevelImporterWindow : EditorWindow
             var mobyClassStr = folderNameParts[1];
             var mobyOClass = int.Parse(mobyClassStr);
             var mobyClass = $"{mobyOClass}";
-            var overlay = pvarOverlays?.FirstOrDefault(x => x.RCVersion == racVersion && x.OClass == mobyOClass);
+            var overlay = pvarOverlays?.FirstOrDefault(x => x.RCVersion == racVersion && x.MobyOClass == mobyOClass);
             var gameObjectName = overlay?.Name ?? mobyClass;
 
             if (ImportSourceIsDL()) ImportDLMobyInstance(mobyDir, mobyRootGo, gameObjectName, postActions);
@@ -1581,7 +1854,7 @@ public class LevelImporterWindow : EditorWindow
         // read
         var pvarsFile = Path.Combine(mobyDir, "pvar.bin");
         var pvarPtrFile = Path.Combine(mobyDir, "pvar_ptr.bin");
-        var shrub = File.ReadAllBytes(Path.Combine(mobyDir, "moby.bin"));
+        var moby = File.ReadAllBytes(Path.Combine(mobyDir, "moby.bin"));
 
         // create instance
         var mobyGo = new GameObject(name);
@@ -1589,7 +1862,7 @@ public class LevelImporterWindow : EditorWindow
         mobyGo.transform.SetParent(mobyRootGo.transform, true);
 
         // parse data
-        using (var ms = new MemoryStream(shrub))
+        using (var ms = new MemoryStream(moby))
         {
             using (var reader = new BinaryReader(ms))
             {
@@ -1613,7 +1886,37 @@ public class LevelImporterWindow : EditorWindow
 
     void ImportUYAMobyInstance(string mobyDir, GameObject mobyRootGo, string name, List<Action> postActions)
     {
-        throw new NotImplementedException();
+        // read
+        var pvarsFile = Path.Combine(mobyDir, "pvar.bin");
+        var pvarPtrFile = Path.Combine(mobyDir, "pvar_ptr.bin");
+        var moby = File.ReadAllBytes(Path.Combine(mobyDir, "moby.bin"));
+
+        // create instance
+        var mobyGo = new GameObject(name);
+        var mobyComponent = mobyGo.AddComponent<Moby>();
+        mobyGo.transform.SetParent(mobyRootGo.transform, true);
+
+        // parse data
+        using (var ms = new MemoryStream(moby))
+        {
+            using (var reader = new BinaryReader(ms))
+            {
+                mobyComponent.RCVersion = 3;
+                mobyComponent.Read(reader);
+                if (File.Exists(pvarsFile)) mobyComponent.PVars = File.ReadAllBytes(pvarsFile);
+                if (File.Exists(pvarPtrFile))
+                {
+                    var pvarPtrBytes = File.ReadAllBytes(pvarPtrFile);
+                    var pvarPtrs = new List<int>();
+                    while (pvarPtrs.Count < (pvarPtrBytes.Length / 4))
+                        pvarPtrs.Add(BitConverter.ToInt32(pvarPtrBytes, 4 * pvarPtrs.Count));
+
+                    mobyComponent.PVarPointers = pvarPtrs.ToArray();
+                }
+            }
+        }
+
+        postActions.Add(() => mobyComponent.InitializePVarReferences());
     }
 
     #endregion
@@ -1667,6 +1970,9 @@ public class LevelImporterWindow : EditorWindow
 
     void ImportAreas(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
     {
+        // only DL uses areas
+        if (!ImportSourceIsDL()) return;
+
         var gameplayAreaFile = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayAreaFile);
         var areasRootGo = new GameObject("Areas");
         var mapConfig = FindObjectOfType<MapConfig>();
@@ -1728,6 +2034,88 @@ public class LevelImporterWindow : EditorWindow
                     }
                 }
             }
+        }
+    }
+
+    #endregion
+
+    #region Import Cameras
+
+    void ImportCameras(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
+    {
+        var gameplayCamerasFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCameraFolder);
+        var idx = 0;
+        var cameraRootGo = new GameObject("Cameras");
+        cameraRootGo.transform.SetParent(rootGo.transform, true);
+
+        UpdateImportProgressBar(ImportStage.Importing_Cameras);
+        while (true)
+        {
+            var cameraFilePath = Path.Combine(gameplayCamerasFolder, $"{idx:D4}", "camera.bin");
+            var cameraPVarFilePath = Path.Combine(gameplayCamerasFolder, $"{idx:D4}", "pvar.bin");
+            if (!File.Exists(cameraFilePath)) break;
+
+            var cameraGo = new GameObject(idx.ToString());
+            cameraGo.transform.SetParent(cameraRootGo.transform, false);
+            var camera = cameraGo.AddComponent<RatchetCamera>();
+            camera.RCVersion = ImportSourceRacVersion();
+
+            // read camera
+            using (var fs = File.OpenRead(cameraFilePath))
+            {
+                using (var reader = new BinaryReader(fs))
+                {
+                    camera.Read(reader);
+                }
+            }
+
+            // read pvars
+            if (File.Exists(cameraPVarFilePath))
+                camera.PVars = File.ReadAllBytes(cameraPVarFilePath);
+
+            postActions.Add(() => camera.InitializePVarReferences());
+            ++idx;
+        }
+    }
+
+    #endregion
+
+    #region Import Ambient Sounds
+
+    void ImportAmbientSounds(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
+    {
+        var gameplayAmbientSoundsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayAmbientSoundFolder);
+        var idx = 0;
+        var ambientSoundRootGo = new GameObject("Ambient Sounds");
+        ambientSoundRootGo.transform.SetParent(rootGo.transform, true);
+
+        UpdateImportProgressBar(ImportStage.Importing_Ambient_Sounds);
+        while (true)
+        {
+            var soundFilePath = Path.Combine(gameplayAmbientSoundsFolder, $"{idx:D4}", "sound.bin");
+            var soundPVarFilePath = Path.Combine(gameplayAmbientSoundsFolder, $"{idx:D4}", "pvar.bin");
+            if (!File.Exists(soundFilePath)) break;
+
+            var ambientSoundGo = new GameObject(idx.ToString());
+            ambientSoundGo.transform.SetParent(ambientSoundRootGo.transform, false);
+            var ambientSound = ambientSoundGo.AddComponent<AmbientSound>();
+            ambientSound.RCVersion = ImportSourceRacVersion();
+
+            // read camera
+            using (var fs = File.OpenRead(soundFilePath))
+            {
+                using (var reader = new BinaryReader(fs))
+                {
+                    ambientSound.Read(reader);
+                }
+            }
+
+            // read pvars
+            if (File.Exists(soundPVarFilePath))
+                ambientSound.PVars = File.ReadAllBytes(soundPVarFilePath);
+
+            postActions.Add(() => ambientSound.InitializePVarReferences());
+            ++idx;
         }
     }
 
@@ -1828,8 +2216,9 @@ public class LevelImporterWindow : EditorWindow
 
     void ReadTfragChunks(string mapBinFolder, Tfrag tfrag)
     {
+        var racVersion = ImportSourceRacVersion();
         var terrainBinFile = Path.Combine(Environment.CurrentDirectory, mapBinFolder, FolderNames.BinaryTerrainBinFile);
-        var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
+        var worldInstanceOcclusionFolder = Path.Combine(mapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion));
         var tfragOcclusionFile = Path.Combine(worldInstanceOcclusionFolder, "tfrag.bin");
 
         if (!File.Exists(terrainBinFile))
@@ -1908,12 +2297,15 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void CopyTfrags(string srcMapBinFolder, string destMapBinFolder)
+    void CopyTfrags(string srcMapBinFolder, string destMapBinFolder, int destRacVersion)
     {
+        if (destRacVersion <= 0) return;
+
+        var racVersion = ImportSourceRacVersion();
         var srcFolder = Path.Combine(srcMapBinFolder, FolderNames.BinaryTerrainFolder);
         var destFolder = Path.Combine(destMapBinFolder, FolderNames.BinaryTerrainFolder);
-        var srcTfragOcclusionFile = Path.Combine(srcMapBinFolder, FolderNames.BinaryWorldInstanceOcclusionFolder, "tfrag.bin");
-        var destTfragOcclusionFile = Path.Combine(destMapBinFolder, FolderNames.BinaryWorldInstanceOcclusionFolder, "tfrag.bin");
+        var srcTfragOcclusionFile = Path.Combine(srcMapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(racVersion), "tfrag.bin");
+        var destTfragOcclusionFile = Path.Combine(destMapBinFolder, FolderNames.GetWorldInstanceOcclusionFolder(destRacVersion), "tfrag.bin");
 
         // copy folder
         if (Directory.Exists(srcFolder))
@@ -1933,10 +2325,7 @@ public class LevelImporterWindow : EditorWindow
 
     void ImportCuboids(string mapBinFolder, string mapResourcesFolder, List<Action> postActions, GameObject rootGo)
     {
-        var gameplayMobysFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayMobyFolder);
         var gameplayCuboidsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCuboidFolder);
-        var mobyDirs = Directory.EnumerateDirectories(gameplayMobysFolder).ToList();
-        var mpInitMobyDir = mobyDirs.FirstOrDefault(x => x.EndsWith("_106A"));
         var cuboids = new List<Cuboid>();
 
         UpdateImportProgressBar(ImportStage.Importing_Cuboids);
@@ -1956,6 +2345,7 @@ public class LevelImporterWindow : EditorWindow
                 {
                     var cuboidGo = new GameObject(i.ToString());
                     var cuboid = cuboidGo.AddComponent<Cuboid>();
+                    cuboid.InitializeVersion();
                     cuboid.Read(reader);
 
                     reader.BaseStream.Position = 0x28;
@@ -1968,6 +2358,18 @@ public class LevelImporterWindow : EditorWindow
 
             ++i;
         }
+
+        if (ImportSourceIsDL()) ImportCuboidTypes_DL(mapBinFolder, cuboids);
+        else if (ImportSourceIsUYA()) ImportCuboidTypes_UYA(mapBinFolder, cuboids);
+    }
+
+    void ImportCuboidTypes_DL(string mapBinFolder, List<Cuboid> cuboids)
+    {
+        var i = 0;
+        var gameplayMobysFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayMobyFolder);
+        var gameplayCuboidsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCuboidFolder);
+        var mobyDirs = Directory.EnumerateDirectories(gameplayMobysFolder).ToList();
+        var mpInitMobyDir = mobyDirs.FirstOrDefault(x => x.EndsWith("_106A"));
 
         // read multiplayer init moby pvars
         // contains cuboid assignments (player, hill, ctf spawn)
@@ -2005,12 +2407,13 @@ public class LevelImporterWindow : EditorWindow
                                                 creader.BaseStream.Position = 0x78;
                                                 var yaw = creader.ReadSingle();
                                                 cuboid.transform.rotation = Quaternion.Euler(0, -(yaw * Mathf.Rad2Deg) + 90, 0);
+                                                cuboid.transform.localScale = Vector3.one;
                                             }
                                         }
                                     }
                                 }
 
-                                SetCuboidType(cuboids, idx, CuboidType.Player);
+                                AddCuboidType(cuboids, idx, CuboidMaskType.Player);
                                 idx = reader.ReadInt32();
 
                                 ++i;
@@ -2018,19 +2421,19 @@ public class LevelImporterWindow : EditorWindow
 
                             // read flag spawns
                             reader.BaseStream.Position = 0;
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.BlueFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.BlueFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.BlueFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.RedFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.RedFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.RedFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
                             reader.BaseStream.Position = 0x168;
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.GreenFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.GreenFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.GreenFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.OrangeFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.OrangeFlagSpawn);
-                            SetCuboidSubType(cuboids, reader.ReadInt32(), CuboidSubType.OrangeFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.GreenFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.GreenFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.GreenFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.OrangeFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.OrangeFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.OrangeFlagSpawn);
                         }
                         catch { }
                     }
@@ -2039,20 +2442,84 @@ public class LevelImporterWindow : EditorWindow
         }
     }
 
-    void SetCuboidType(List<Cuboid> cuboids, int idx, CuboidType type)
+    void ImportCuboidTypes_UYA(string mapBinFolder, List<Cuboid> cuboids)
     {
-        if (idx < 0 || idx >= cuboids.Count) return;
-        cuboids[idx].Type = type;
+        var i = 0;
+        var gameplayMobysFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayMobyFolder);
+        var gameplayCuboidsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCuboidFolder);
+        var mobyDirs = Directory.EnumerateDirectories(gameplayMobysFolder).ToList();
+        var mpInitMobyDir = mobyDirs.FirstOrDefault(x => x.EndsWith("_106A"));
+
+        // read multiplayer init moby pvars
+        // contains cuboid assignments (player, hill, ctf spawn)
+        if (mpInitMobyDir != null && Directory.Exists(mpInitMobyDir))
+        {
+            var mpInitPvarsFilePath = Path.Combine(mpInitMobyDir, "pvar.bin");
+            if (File.Exists(mpInitPvarsFilePath))
+            {
+                using (var fs = File.OpenRead(mpInitPvarsFilePath))
+                {
+                    using (var reader = new BinaryReader(fs))
+                    {
+                        try
+                        {
+                            // read deathmatch spawns
+                            reader.BaseStream.Position = 0x200;
+                            var idx = reader.ReadInt32();
+                            i = 0;
+                            while (idx >= 0 && i < 64)
+                            {
+                                // recompute rotation based off euler rotation
+                                // we don't need this for vanilla maps because the euler is always the inverse of the rotation matrix
+                                // but for custom maps we historically haven't recomputed the rotation matrix for player spawns
+                                // so to be compatible with importing old custom maps we need to recompute it here
+                                var cuboidFile = Path.Combine(gameplayCuboidsFolder, $"{idx:0000}.bin");
+                                if (File.Exists(cuboidFile))
+                                {
+                                    using (var cfs = File.OpenRead(cuboidFile))
+                                    {
+                                        using (var creader = new BinaryReader(cfs))
+                                        {
+                                            var cuboid = cuboids?.ElementAtOrDefault(idx);
+                                            if (cuboid)
+                                            {
+                                                creader.BaseStream.Position = 0x78;
+                                                var yaw = creader.ReadSingle();
+                                                cuboid.transform.rotation = Quaternion.Euler(0, -(yaw * Mathf.Rad2Deg) + 90, 0);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                AddCuboidType(cuboids, idx, CuboidMaskType.Player);
+                                idx = reader.ReadInt32();
+
+                                ++i;
+                            }
+
+                            // read flag spawns
+                            reader.BaseStream.Position = 0;
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.BlueFlagSpawn);
+                            AddCuboidType(cuboids, reader.ReadInt32(), CuboidMaskType.RedFlagSpawn);
+                        }
+                        catch { }
+                    }
+                }
+            }
+        }
     }
 
-    void SetCuboidSubType(List<Cuboid> cuboids, int idx, CuboidSubType subtype)
+    void AddCuboidType(List<Cuboid> cuboids, int idx, CuboidMaskType type)
     {
         if (idx < 0 || idx >= cuboids.Count) return;
-        cuboids[idx].Subtype = subtype;
+        cuboids[idx].CuboidType |= type;
     }
 
     void FindAndSetHillCuboidTypes(string mapBinFolder, string mapResourcesFolder, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
     {
+        // only DL has King of the Hill
+        if (!ImportSourceIsDL()) return;
+
         var gameplayCuboidsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCuboidFolder);
         var mapConfig = FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
@@ -2069,7 +2536,7 @@ public class LevelImporterWindow : EditorWindow
             {
                 foreach (var cuboid in area.Cuboids)
                 {
-                    cuboid.Type = CuboidType.HillSquare;
+                    cuboid.CuboidType = CuboidMaskType.HillSquare;
                     var cuboidIdx = mapConfig.GetIndexOfCuboid(cuboid);
                     if (cuboidIdx < 0) continue;
 
@@ -2080,9 +2547,10 @@ public class LevelImporterWindow : EditorWindow
                     {
                         using (var reader = new BinaryReader(fs))
                         {
-                            reader.BaseStream.Position = 0x28;
-                            var isCircular = reader.ReadSingle() >= 1.99;
-                            cuboid.Type = isCircular ? CuboidType.HillCircle : CuboidType.HillSquare;
+                            reader.BaseStream.Position = 0x20;
+                            var sqrMag = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()).sqrMagnitude;
+                            var isCircular = sqrMag >= 1.0001f;
+                            cuboid.CuboidType = isCircular ? CuboidMaskType.HillCircle : CuboidMaskType.HillSquare;
                         }
                     }
                 }
@@ -2096,8 +2564,10 @@ public class LevelImporterWindow : EditorWindow
 
     void ImportWorldConfig(string mapBinFolder, string mapResourcesFolder, List<PackerImporterWindow.PackerAssetImport> assetImports, GameObject rootGo)
     {
+        var racVersion = ImportSourceRacVersion();
         var worldConfigBinFile = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayFolder, "0.bin");
-        var worldLightingBinFile = Path.Combine(mapBinFolder, FolderNames.BinaryWorldInstancesFolder, "0.bin");
+        var worldInstanceFolder = FolderNames.GetWorldInstanceFolder(racVersion);
+        var worldLightingBinFile = ImportSourceIsDL() ? Path.Combine(mapBinFolder, worldInstanceFolder, "0.bin") : Path.Combine(mapBinFolder, worldInstanceFolder, "4.bin");
         var mapConfig = FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
 
@@ -2190,15 +2660,15 @@ public class LevelImporterWindow : EditorWindow
         var prefab = UnityHelper.GetMiscPrefab("Map Render");
         if (!prefab) return;
 
-        var mapRender = Instantiate(prefab);
-        if (!mapRender) return;
+        var mapRenderGo = Instantiate(prefab);
+        if (!mapRenderGo) return;
 
-        mapRender.name = "Map Render";
-        mapRender.transform.SetSiblingIndex(2);
+        mapRenderGo.name = "Map Render";
+        mapRenderGo.transform.SetSiblingIndex(2);
+        var mapRender = mapRenderGo.GetComponent<MapRender>();
         var mapConfig = FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
 
-        // read pos/scale from map
         var codeSegBinFile = Path.Combine(mapBinFolder, FolderNames.BinaryCodeFolder, "code.0002.bin");
         if (File.Exists(codeSegBinFile))
         {
@@ -2206,21 +2676,7 @@ public class LevelImporterWindow : EditorWindow
             {
                 using (var reader = new BinaryReader(fs))
                 {
-                    var cuboids = mapConfig.GetCuboids();
-                    var mapIdx = (int)mapConfig.DLBaseMap - 41;
-                    var yMin = cuboids.Min(x => x.transform.position.y);
-                    var yMax = cuboids.Max(x => x.transform.position.y);
-
-                    fs.Position = 0x175C8 + (0x10 * mapIdx);
-                    mapRender.transform.position = new Vector3(reader.ReadSingle(), yMax + 50, reader.ReadSingle());
-                    mapRender.transform.localScale = new Vector3(reader.ReadSingle(), (yMax - yMin) + 100, reader.ReadSingle());
-
-                    var mapRenderComponent = mapRender.GetComponent<MapRender>();
-                    if (mapRenderComponent)
-                    {
-                        mapRenderComponent.InitializeVersion();
-                        mapRenderComponent.UpdateCamera();
-                    }
+                    mapRender.Read(reader, ImportSourceIsDL() ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap, ImportSourceRacVersion(), GameRegion.NTSC);
                 }
             }
         }
@@ -2246,7 +2702,7 @@ public class LevelImporterWindow : EditorWindow
         var cuboids = mapConfig.GetCuboids();
         var center = Vector3.zero;
         var count = 0;
-        foreach (var cuboid in cuboids.Where(x => x.Type == CuboidType.Player))
+        foreach (var cuboid in cuboids.Where(x => x.CuboidType.HasFlag(CuboidMaskType.Player)))
         {
             center += cuboid.transform.position;
             count++;

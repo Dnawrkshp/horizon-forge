@@ -10,12 +10,14 @@ public class MobyEditor : Editor
 {
     private byte[] _buffer = new byte[256];
     private List<(MaterialEditor matEditor, bool canEdit)> _materialEditors = new List<(MaterialEditor, bool)>();
+    private HashSet<Material> _materialsWithEditors = new HashSet<Material>();
     private SerializedProperty _rcVersionProperty;
     private SerializedProperty _pvarData;
     private SerializedProperty _pvarCuboidRefs;
     private SerializedProperty _pvarMobyRefs;
     private SerializedProperty _pvarSplineRefs;
     private SerializedProperty _pvarAreaRefs;
+    private UnityHelper.PVarsPropertiesContainer _pvarPropertiesContainer;
     private static Moby _clipboardMoby = null;
 
     private bool HasOneTarget => targets == null || targets.Length == 1;
@@ -32,6 +34,15 @@ public class MobyEditor : Editor
         _pvarSplineRefs = serializedObject.FindProperty("PVarSplineRefs");
         _pvarAreaRefs = serializedObject.FindProperty("PVarAreaRefs");
 
+        _pvarPropertiesContainer = new UnityHelper.PVarsPropertiesContainer()
+        {
+            PVars = _pvarData,
+            CuboidRefs = _pvarCuboidRefs,
+            AreaRefs = _pvarAreaRefs,
+            MobyRefs = _pvarMobyRefs,
+            SplineRefs = _pvarSplineRefs
+        };
+
         _materialEditors.Clear();
         var materials = moby.GetComponentsInChildren<MeshRenderer>()?.SelectMany(x => x.sharedMaterials)?.ToArray();
         if (materials != null)
@@ -41,10 +52,12 @@ public class MobyEditor : Editor
             {
                 var mat = materials[i];
                 if (!mat || mat.shader.name == "Horizon Forge/Collider") continue;
+                if (_materialsWithEditors.Contains(mat)) continue;
 
                 var matEditor = (MaterialEditor)CreateEditor(mat);
                 var canEdit = AssetDatabase.GetAssetPath(mat).StartsWith("Assets");
                 _materialEditors.Add((matEditor, canEdit));
+                _materialsWithEditors.Add(mat);
             }
         }
     }
@@ -81,41 +94,30 @@ public class MobyEditor : Editor
             if (mapConfig)
             {
                 GUILayout.Space(20);
-                EditorGUILayout.LabelField("PVars");
+                UnityHelper.PVarsPropertyField(_pvarPropertiesContainer, moby.RCVersion, mobyClass: moby.OClass);
 
-                // pvar overlay
-                var pvarOverlay = PvarOverlay.GetPvarOverlay(moby.OClass, moby.RCVersion);
-                if (pvarOverlay != null && pvarOverlay.Overlay.Any())
+                if (_pvarData.isExpanded)
                 {
-                    try
+                    // copy/paste
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button("Copy PVars"))
                     {
-                        foreach (var def in pvarOverlay.Overlay)
-                        {
-                            OverlayField(mapConfig, moby, def);
-                        }
+                        _clipboardMoby = moby;
                     }
-                    catch (Exception ex) { Debug.LogError(ex); }
+                    EditorGUI.BeginDisabledGroup(!_clipboardMoby || _clipboardMoby.OClass != moby.OClass);
+                    if (GUILayout.Button($"Paste PVars{(_clipboardMoby ? $" ({_clipboardMoby.name})" : "")}"))
+                    {
+                        // copy refs
+                        Undo.RecordObject(moby, "Paste PVars");
+                        moby.PVarAreaRefs = _clipboardMoby.PVarAreaRefs.ToArray();
+                        moby.PVarCuboidRefs = _clipboardMoby.PVarCuboidRefs.ToArray();
+                        moby.PVarMobyRefs = _clipboardMoby.PVarMobyRefs.ToArray();
+                        moby.PVarSplineRefs = _clipboardMoby.PVarSplineRefs.ToArray();
+                        moby.PVars = _clipboardMoby.PVars.ToArray();
+                    }
+                    EditorGUI.EndDisabledGroup();
+                    GUILayout.EndHorizontal();
                 }
-
-                // copy/paste
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Copy PVars"))
-                {
-                    _clipboardMoby = moby;
-                }
-                EditorGUI.BeginDisabledGroup(!_clipboardMoby || _clipboardMoby.OClass != moby.OClass);
-                if (GUILayout.Button($"Paste PVars{(_clipboardMoby ? $" ({_clipboardMoby.name})" : "")}"))
-                {
-                    // copy refs
-                    Undo.RecordObject(moby, "Paste PVars");
-                    moby.PVarAreaRefs = _clipboardMoby.PVarAreaRefs.ToArray();
-                    moby.PVarCuboidRefs = _clipboardMoby.PVarCuboidRefs.ToArray();
-                    moby.PVarMobyRefs = _clipboardMoby.PVarMobyRefs.ToArray();
-                    moby.PVarSplineRefs = _clipboardMoby.PVarSplineRefs.ToArray();
-                    moby.PVars = _clipboardMoby.PVars.ToArray();
-                }
-                EditorGUI.EndDisabledGroup();
-                GUILayout.EndHorizontal();
             }
         }
 
@@ -329,6 +331,30 @@ public class MobyEditor : Editor
                     WritePVarData(b, def.Offset, def.DataSize ?? 4);
                     break;
                 }
+            case "mobygroupid":
+                {
+                    // read value
+                    ReadPVarData(_buffer, def.Offset, 4);
+                    var value = BitConverter.ToInt32(_buffer, 0);
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (value < def.Min) value = (int)def.Min;
+                    if (value > def.Max) value = (int)def.Max;
+                    var b = BitConverter.GetBytes(value);
+                    WritePVarData(b, def.Offset, 4);
+                    break;
+                }
+            case "tiegroupid":
+                {
+                    // read value
+                    ReadPVarData(_buffer, def.Offset, 4);
+                    var value = BitConverter.ToInt32(_buffer, 0);
+                    value = EditorGUILayout.IntField(new GUIContent(def.Name, def.Tooltip), value);
+                    if (value < def.Min) value = (int)def.Min;
+                    if (value > def.Max) value = (int)def.Max;
+                    var b = BitConverter.GetBytes(value);
+                    WritePVarData(b, def.Offset, 4);
+                    break;
+                }
             case "cuboidref":
                 {
                     var refIdx = def.Offset / 4;
@@ -395,23 +421,10 @@ public class MobyEditor : Editor
     {
         for (int i = 0; i < length; ++i)
             dst[i] = (byte)_pvarData.GetArrayElementAtIndex(i + srcOffset).intValue;
-
-        //for (int i = 0; i < length; ++i)
-        //    dst[i] = (target as Moby).PVars[srcOffset + i];
     }
 
     private void WritePVarData(byte[] src, int dstOffset, int length)
     {
-        //var change = false;
-        //for (int i = 0; i < length; ++i)
-        //    change |= src[i] != (target as Moby).PVars[i + dstOffset];
-
-        //if (change)
-        //{
-        //    Undo.RecordObject(target, "WritePVarData");
-        //    Array.Copy(src, 0, (target as Moby).PVars, dstOffset, length);
-        //}
-
         for (int i = 0; i < length; ++i)
             _pvarData.GetArrayElementAtIndex(i + dstOffset).intValue = src[i];
     }

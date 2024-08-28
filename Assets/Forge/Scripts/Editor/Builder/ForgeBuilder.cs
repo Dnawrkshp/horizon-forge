@@ -15,6 +15,13 @@ using UnityEngine.UI;
 
 public static class ForgeBuilder
 {
+    static readonly (int RacVersion, GameRegion Region)[] BUILD_VERSIONS = new (int RacVersion, GameRegion Region)[]
+    {
+        (RCVER.DL, GameRegion.NTSC),
+        (RCVER.UYA, GameRegion.NTSC),
+        //(RCVER.UYA, GameRegion.PAL)
+    };
+
     [MenuItem("Forge/Builder/Rebuild")]
     public static async void Rebuild()
     {
@@ -44,24 +51,16 @@ public static class ForgeBuilder
         BuildDZOFiles(EditorSceneManager.GetActiveScene());
     }
 
-    static bool RebuildLevelProgress(ref bool cancel, string info, float progress)
+    static bool RebuildLevelProgress(RebuildContext ctx, string info, float progress)
     {
-        cancel |= EditorUtility.DisplayCancelableProgressBar($"Rebuilding Level", info, progress);
+        ctx.Cancel |= EditorUtility.DisplayCancelableProgressBar($"Rebuilding Level (rc{ctx.RacVersion} {ctx.Region})", info, progress);
         System.Threading.Thread.Sleep(1);
-        return cancel;
+        return ctx.Cancel;
     }
 
-    static void PatchLevel(UnityEngine.SceneManagement.Scene scene)
+    public static void PatchLevel(UnityEngine.SceneManagement.Scene scene)
     {
         if (scene == null) return;
-
-        // validate level folder
-        var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
-        if (!Directory.Exists(binFolder))
-        {
-            EditorUtility.DisplayDialog("Cannot patch", $"Scene does not have matching level folder \"{scene.name}\"", "Ok");
-            return;
-        }
 
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         if (!mapConfig)
@@ -77,159 +76,224 @@ public static class ForgeBuilder
             return;
         }
 
-        var isoPath = settings.PathToOutputDeadlockedIso;
-        var cleanIsoPath = settings.PathToCleanDeadlockedIso;
-
-        if (String.IsNullOrEmpty(isoPath))
+        foreach (var buildVersion in BUILD_VERSIONS)
         {
-            EditorUtility.DisplayDialog("Cannot patch", $"Missing ForgeSettings PathToModdedIso", "Ok");
-            return;
-        }
+            var racVersion = buildVersion.RacVersion;
+            var region = buildVersion.Region;
+            var baseMap = racVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
+            var isoPath = settings.PathToOutputDeadlockedIso;
+            var cleanIsoPath = settings.PathToCleanDeadlockedIso;
+            var regionExt = region == GameRegion.NTSC ? "" : ".pal";
 
-        if (String.IsNullOrEmpty(cleanIsoPath))
-        {
-            EditorUtility.DisplayDialog("Cannot patch", $"Missing ForgeSettings PathToCleanIso", "Ok");
-            return;
-        }
-
-        // ensure modded iso exists
-        if (!File.Exists(isoPath))
-        {
-            // clean iso also doesn't exist, exit
-            if (!File.Exists(cleanIsoPath))
+            if (racVersion == RCVER.UYA)
             {
-                EditorUtility.DisplayDialog("Cannot patch", $"Clean iso \"{cleanIsoPath}\" does not exist.", "Okay");
+                if (region == GameRegion.NTSC)
+                {
+                    isoPath = settings.PathToOutputUyaNtscIso;
+                    cleanIsoPath = settings.PathToCleanUyaNtscIso;
+                }
+                else if (region == GameRegion.PAL)
+                {
+                    isoPath = settings.PathToOutputUyaPalIso;
+                    cleanIsoPath = settings.PathToCleanUyaPalIso;
+                }
+            }
+
+            if (racVersion == RCVER.DL && !mapConfig.HasDeadlockedBaseMap())
+            {
+                continue; // skip
+            }
+
+            if (racVersion == RCVER.UYA && !mapConfig.HasUYABaseMap())
+            {
+                continue; // skip
+            }
+
+            // validate level folder
+            var binFolder = FolderNames.GetMapBinFolder(scene.name, racVersion);
+            if (!Directory.Exists(binFolder))
+            {
+                EditorUtility.DisplayDialog("Cannot patch", $"Scene does not have matching level folder \"{scene.name}\"", "Ok");
                 return;
             }
 
-            // clean iso exists, give option to create modded iso by copy
-            if (!EditorUtility.DisplayDialog("Cannot patch", $"Output iso \"{isoPath}\" does not exist.\n\nWould you like to create it?", "Create", "Cancel"))
+            if (String.IsNullOrEmpty(isoPath))
+            {
+                EditorUtility.DisplayDialog("Cannot patch", $"Missing ForgeSettings PathToOutputIso for rc{racVersion} {region}", "Ok");
                 return;
+            }
 
-            try
+            if (String.IsNullOrEmpty(cleanIsoPath))
             {
-                // copy
-                EditorUtility.DisplayProgressBar("Copying iso", $"{cleanIsoPath} => {isoPath}...\n\nThis may take awhile...", 0.5f);
-                File.Copy(cleanIsoPath, isoPath, true);
+                EditorUtility.DisplayDialog("Cannot patch", $"Missing ForgeSettings PathToCleanIso for rc{racVersion} {region}", "Ok");
+                return;
             }
-            finally
+
+            // ensure modded iso exists
+            if (!File.Exists(isoPath))
             {
-                EditorUtility.ClearProgressBar();
+                // clean iso also doesn't exist, exit
+                if (!File.Exists(cleanIsoPath))
+                {
+                    EditorUtility.DisplayDialog("Cannot patch", $"Clean iso \"{cleanIsoPath}\" does not exist.", "Okay");
+                    return;
+                }
+
+                // clean iso exists, give option to create modded iso by copy
+                if (!EditorUtility.DisplayDialog("Cannot patch", $"Output iso \"{isoPath}\" does not exist.\n\nWould you like to create it?", "Create", "Cancel"))
+                    return;
+
+                try
+                {
+                    // copy
+                    EditorUtility.DisplayProgressBar("Copying iso", $"{cleanIsoPath} => {isoPath}...\n\nThis may take awhile...", 0.5f);
+                    File.Copy(cleanIsoPath, isoPath, true);
+                }
+                finally
+                {
+                    EditorUtility.ClearProgressBar();
+                }
             }
+
+            if (PackerHelper.Patch(binFolder, isoPath, cleanIsoPath, baseMap, racVersion) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                Debug.LogError($"Unable to patch {isoPath}. Please make sure PCSX2 is paused/closed.");
+            else
+                Debug.Log($"{isoPath} patched!");
+
+            // patch minimap
+            var mapPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, racVersion), $"{mapConfig.MapFilename}{regionExt}.map");
+            if (File.Exists(mapPath))
+                PackerHelper.PatchMinimap(isoPath, cleanIsoPath, mapPath, baseMap, racVersion);
+
+            // patch transition
+            var bgPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, racVersion), $"{mapConfig.MapFilename}{regionExt}.bg");
+            if (File.Exists(bgPath))
+                PackerHelper.PatchTransitionBackground(isoPath, cleanIsoPath, bgPath, baseMap, racVersion);
         }
-
-        if (PackerHelper.Patch(binFolder, isoPath, cleanIsoPath, (int)mapConfig.DLBaseMap) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
-            Debug.LogError($"Unable to patch {isoPath}. Please make sure PCSX2 is paused/closed.");
-        else
-            Debug.Log($"{isoPath} patched!");
-
-        // patch minimap
-        var mapPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, Constants.GameVersion), $"{mapConfig.MapFilename}.map");
-        if (File.Exists(mapPath))
-            PackerHelper.PatchMinimap(isoPath, cleanIsoPath, mapPath, (int)mapConfig.DLBaseMap, Constants.GameVersion);
-
-        // patch transition
-        var bgPath = Path.Combine(FolderNames.GetMapBuildFolder(scene.name, Constants.GameVersion), $"{mapConfig.MapFilename}.bg");
-        if (File.Exists(bgPath))
-            PackerHelper.PatchTransitionBackground(isoPath, cleanIsoPath, bgPath, (int)mapConfig.DLBaseMap, Constants.GameVersion);
     }
 
-    static async Task<bool> RebuildLevel(UnityEngine.SceneManagement.Scene scene)
+    public static async Task<bool> RebuildLevel(UnityEngine.SceneManagement.Scene scene)
     {
         if (scene == null) return false;
 
-        var resourcesFolder = FolderNames.GetMapFolder(scene.name);
-        var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
-
-        // validate resources folder
-        if (!Directory.Exists(resourcesFolder))
+        if (!mapConfig)
         {
-            EditorUtility.DisplayDialog("Cannot build", $"Scene does not have matching resources folder \"{scene.name}\"", "Ok");
+            EditorUtility.DisplayDialog("Cannot build", $"Scene does not have a map config", "Ok");
             return false;
         }
 
-        // validate level folder
-        if (!Directory.Exists(binFolder))
+        foreach (var buildVersion in BUILD_VERSIONS)
         {
-            EditorUtility.DisplayDialog("Cannot build", $"Scene does not have matching level folder \"{scene.name}\"", "Ok");
-            return false;
-        }
+            var racVersion = buildVersion.RacVersion;
+            var region = buildVersion.Region;
+            var baseMap = racVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
 
-        if (!scene.isLoaded || !mapConfig)
-            return false;
+            var resourcesFolder = FolderNames.GetMapFolder(scene.name);
+            var binFolder = FolderNames.GetMapBinFolder(scene.name, racVersion);
 
-        try
-        {
-            var ctx = new RebuildContext()
+            // skip if not configured
+            if (racVersion == RCVER.DL && !mapConfig.HasDeadlockedBaseMap()) continue;
+            if (racVersion == RCVER.UYA && !mapConfig.HasUYABaseMap()) continue;
+
+            // validate resources folder
+            if (!Directory.Exists(resourcesFolder))
             {
-                MapSceneName = scene.name
-            };
-
-            // run generators
-            UnityHelper.RunGeneratorsPreBake(BakeType.BUILD);
-
-            //RebuildSky(ref ctx.Cancel, resourcesFolder, binFolder); if (cancel) return;
-            //await RebuildCollision(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            //return false;
-
-            await RebuildCollision(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildTfrags(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildTies(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildTieInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            await RebuildShrubs(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildShrubInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildMobys(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildMobyInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildCuboids(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildSplines(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildAreas(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildCode(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-            RebuildPostProcess(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
-
-            EditorUtility.ClearProgressBar();
-            EditorUtility.DisplayProgressBar($"Rebuilding Level", "Packing", 0);
-
-            var result = PackerHelper.Pack(binFolder, (int)mapConfig.DLBaseMap, Constants.GameVersion, PackerHelper.PACKER_PACK_OPS.PACK_WORLD_INSTANCES
-                                                                                    | PackerHelper.PACKER_PACK_OPS.PACK_OCCLUSION
-                                                                                    | PackerHelper.PACKER_PACK_OPS.PACK_GAMEPLAY
-                                                                                    | PackerHelper.PACKER_PACK_OPS.PACK_CODE
-                                                                                    | PackerHelper.PACKER_PACK_OPS.PACK_ASSETS
-                                                                                    | PackerHelper.PACKER_PACK_OPS.PACK_LEVEL_WAD
-                                                                                    | PackerHelper.PACKER_PACK_OPS.PACK_SOUND_WAD
-                                                                                    , (p) => EditorUtility.DisplayProgressBar("Rebuilding Level", "Packing", p));
-
-            if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
-            {
-                Debug.LogError($"Pack returned {result}");
+                EditorUtility.DisplayDialog($"Cannot build (rc{racVersion} {region})", $"Scene does not have matching resources folder \"{scene.name}\"", "Ok");
                 return false;
             }
 
-            RebuildMapFiles(ctx, resourcesFolder, binFolder);
-            Debug.Log("Rebuild complete");
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError(ex);
-            return false;
-        }
-        finally
-        {
-            // cleanup generators
-            UnityHelper.RunGeneratorsPostBake(BakeType.BUILD);
+            // validate level folder
+            if (!Directory.Exists(binFolder))
+            {
+                EditorUtility.DisplayDialog($"Cannot build (rc{racVersion} {region})", $"Scene does not have matching level folder \"{scene.name}\"", "Ok");
+                return false;
+            }
 
-            EditorUtility.ClearProgressBar();
+            if (!scene.isLoaded || !mapConfig)
+                return false;
+
+            try
+            {
+                var ctx = new RebuildContext()
+                {
+                    MapSceneName = scene.name,
+                    RacVersion = racVersion,
+                    Region = region
+                };
+
+                // run generators
+                UnityHelper.RunGeneratorsPreBake(BakeType.BUILD);
+
+                //RebuildSky(ctx, resourcesFolder, binFolder); if (cancel) return;
+                //await RebuildCollision(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                //return false;
+
+                // PAL is always built after NTSC
+                // PAL only needs to be rebuilt with new PAL code segment
+                if (region == GameRegion.PAL)
+                {
+                    RebuildCode(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                }
+                else
+                {
+                    await RebuildCollision(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildTfrags(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildTies(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildTieInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    await RebuildShrubs(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildShrubInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildMobys(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildMobyInstances(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildCuboids(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildSplines(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildCameras(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildAmbientSounds(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildAreas(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildCode(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                    RebuildWorldLighting(ctx, resourcesFolder, binFolder); if (ctx.Cancel) return false;
+                }
+
+                EditorUtility.ClearProgressBar();
+                EditorUtility.DisplayProgressBar($"Rebuilding Level (rc{racVersion} {region})", "Packing", 0);
+
+                var result = PackerHelper.Pack(binFolder, baseMap, racVersion, PackerHelper.PACKER_PACK_OPS.PACK_WORLD_INSTANCES
+                                                                                        | PackerHelper.PACKER_PACK_OPS.PACK_OCCLUSION
+                                                                                        | PackerHelper.PACKER_PACK_OPS.PACK_GAMEPLAY
+                                                                                        | PackerHelper.PACKER_PACK_OPS.PACK_CODE
+                                                                                        | PackerHelper.PACKER_PACK_OPS.PACK_ASSETS
+                                                                                        | PackerHelper.PACKER_PACK_OPS.PACK_LEVEL_WAD
+                                                                                        | PackerHelper.PACKER_PACK_OPS.PACK_SOUND_WAD
+                                                                                        , (p) => EditorUtility.DisplayProgressBar($"Rebuilding Level (rc{racVersion} {region})", "Packing", p));
+
+                if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                {
+                    Debug.LogError($"Pack returned {result}");
+                    return false;
+                }
+
+                RebuildMapFiles(ctx, resourcesFolder, binFolder);
+                Debug.Log($"Rebuild (rc{racVersion} {region}) complete");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError(ex);
+                return false;
+            }
+            finally
+            {
+                // cleanup generators
+                UnityHelper.RunGeneratorsPostBake(BakeType.BUILD);
+
+                EditorUtility.ClearProgressBar();
+            }
         }
 
         return true;
     }
 
-    static void CopyToBuildFolders(UnityEngine.SceneManagement.Scene scene)
+    public static void CopyToBuildFolders(UnityEngine.SceneManagement.Scene scene)
     {
-        var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
-        var mapBuildFolder = FolderNames.GetMapBuildFolder(scene.name, Constants.GameVersion);
-        if (!Directory.Exists(mapBuildFolder)) return;
-
         var settings = ForgeSettings.Load();
         if (settings == null)
         {
@@ -237,32 +301,43 @@ public static class ForgeBuilder
             return;
         }
 
-        if (settings.DLBuildFolders == null) return;
-
-        foreach (var buildFolder in settings.DLBuildFolders)
+        for (int racVersion = RCVER.UYA; racVersion <= RCVER.DL; ++racVersion)
         {
-            if (Directory.Exists(buildFolder))
+            var binFolder = FolderNames.GetMapBinFolder(scene.name, racVersion);
+            var mapBuildFolder = FolderNames.GetMapBuildFolder(scene.name, racVersion);
+            var buildFolders = racVersion == RCVER.DL ? settings.DLBuildFolders : settings.UYABuildFolders;
+            if (!Directory.Exists(mapBuildFolder)) continue;
+            if (buildFolders == null) continue;
+
+            foreach (var buildFolder in settings.DLBuildFolders)
             {
-                IOHelper.CopyDirectory(mapBuildFolder, buildFolder);
+                if (Directory.Exists(buildFolder))
+                {
+                    IOHelper.CopyDirectory(mapBuildFolder, buildFolder);
+                }
             }
         }
     }
 
-    static void RebuildMapFiles(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildMapFiles(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
+        var regionExt = ctx.Region == GameRegion.NTSC ? "" : ".pal";
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
-        var buildPath = FolderNames.GetMapBuildFolder(ctx.MapSceneName, Constants.GameVersion);
-        var wadPath = Path.Combine(binFolder, FolderNames.GetLevelWadFilename((int)mapConfig.DLBaseMap));
-        var soundPath = Path.Combine(binFolder, FolderNames.GetSoundWadFilename((int)mapConfig.DLBaseMap));
+        var buildPath = FolderNames.GetMapBuildFolder(ctx.MapSceneName, ctx.RacVersion);
+        var baseMap = ctx.RacVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap;
+        var wadPath = Path.Combine(binFolder, FolderNames.GetLevelWadFilename(baseMap, ctx.RacVersion));
+        var worldPath = ctx.RacVersion == RCVER.DL ? null : Path.Combine(binFolder, FolderNames.GetWorldWadFilename(baseMap, ctx.RacVersion));
+        var soundPath = Path.Combine(binFolder, FolderNames.GetSoundWadFilename(baseMap, ctx.RacVersion));
         var bgPngPath = AssetDatabase.GetAssetPath(mapConfig.DLLoadingScreen);
-        var minimapPngPath = AssetDatabase.GetAssetPath(mapConfig.DLMinimap);
+        var minimapPngPath = ctx.RacVersion == RCVER.DL ? AssetDatabase.GetAssetPath(mapConfig.DLMinimap) : AssetDatabase.GetAssetPath(mapConfig.UYAMinimap);
         var customModeDatas = GameObject.FindObjectsOfType<CustomModeData>()?.Where(x => x.IsEnabled)?.ToArray();
 
         if (!Directory.Exists(buildPath)) Directory.CreateDirectory(buildPath);
 
         // copy files
-        if (File.Exists(wadPath)) File.Copy(wadPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}.wad"), true);
-        if (File.Exists(soundPath)) File.Copy(soundPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}.sound"), true);
+        if (File.Exists(wadPath)) File.Copy(wadPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.wad"), true);
+        if (!string.IsNullOrEmpty(worldPath) && File.Exists(worldPath)) File.Copy(worldPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.world"), true);
+        if (File.Exists(soundPath)) File.Copy(soundPath, Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.sound"), true);
 
         // build version file
         using (var fs = File.Create(Path.Combine(buildPath, $"{mapConfig.MapFilename}.version")))
@@ -270,15 +345,26 @@ public static class ForgeBuilder
             using (var writer = new BinaryWriter(fs))
             {
                 // write header
-                writer.Write(mapConfig.MapVersion);
-                writer.Write((int)mapConfig.DLBaseMap);
-                writer.Write((int)mapConfig.DLForceCustomMode); // forced custom mode id
-                writer.Write((short)(customModeDatas?.Length ?? 0)); // extra data count
-                writer.Write((short)mapConfig.ShrubMinRenderDistance); // shrub min render distance
-                writer.WriteString(mapConfig.MapName, 32);
+                if (ctx.RacVersion == RCVER.DL)
+                {
+                    writer.Write(mapConfig.MapVersion);
+                    writer.Write((int)mapConfig.DLBaseMap);
+                    writer.Write((int)mapConfig.DLForceCustomMode); // forced custom mode id
+                    writer.Write((short)(customModeDatas?.Length ?? 0)); // extra data count
+                    writer.Write((short)mapConfig.ShrubMinRenderDistance); // shrub min render distance
+                    writer.WriteString(mapConfig.MapName, 32);
+                }
+                else
+                {
+                    writer.Write(mapConfig.MapVersion);
+                    writer.Write((int)mapConfig.UYABaseMap);
+                    writer.Write((int)0); // forced custom mode id
+                    writer.Write((int)0); // padding
+                    writer.WriteString(mapConfig.MapName, 32);
+                }
 
-                // write extra data
-                if (customModeDatas != null)
+                // write extra data (DL only)
+                if (customModeDatas != null && ctx.RacVersion == RCVER.DL)
                 {
                     // write table entries
                     foreach (var customModeData in customModeDatas)
@@ -308,26 +394,40 @@ public static class ForgeBuilder
         {
             var tempPngPath = Path.Combine(FolderNames.GetTempFolder(), $"{mapConfig.MapFilename}.png");
             var minimap = AssetDatabase.LoadAssetAtPath<Texture2D>(minimapPngPath);
+            var outPif2File = Path.Combine(buildPath, $"minimap.map");
             if (minimap)
             {
-                File.Copy(AssetDatabase.GetAssetPath(minimap), tempPngPath, true);
-
-                var result = PackerHelper.ConvertPngToPif4bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: true);
-                if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                if (ctx.RacVersion == RCVER.DL)
                 {
-                    Debug.LogError($"Failed to pack minimap. {result}");
-                    return;
+                    UnityHelper.SaveTexture(UnityHelper.ResizeTexture(minimap, 512, 512), tempPngPath, Color.white, hasAlpha: true);
+                    var result = PackerHelper.ConvertPngToPif4bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: true);
+                    if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                    {
+                        Debug.LogError($"Failed to pack minimap. {result}");
+                        return;
+                    }
+                }
+                else
+                {
+                    UnityHelper.SaveTexture(UnityHelper.ResizeTexture(minimap, 256, 256), tempPngPath, Color.white, hasAlpha: true);
+                    var result = PackerHelper.ConvertPngToPif8bpp(tempPngPath, buildPath, half_alpha: true, outSwizzle: false);
+                    if (result != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+                    {
+                        Debug.LogError($"Failed to pack minimap. {result}");
+                        return;
+                    }
+
+                    outPif2File = Path.Combine(buildPath, $"{Path.GetFileNameWithoutExtension(tempPngPath)}.pif2");
                 }
 
-                var outPif2File = Path.Combine(buildPath, $"minimap.map");
-                var outMapFile = Path.Combine(buildPath, $"{mapConfig.MapFilename}.map");
+                var outMapFile = Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.map");
                 if (File.Exists(outMapFile)) File.Delete(outMapFile);
                 if (File.Exists(outPif2File)) File.Move(outPif2File, outMapFile);
             }
         }
     
         // build loading screen
-        if (File.Exists(bgPngPath))
+        if (File.Exists(bgPngPath) && ctx.RacVersion == RCVER.DL)
         {
             var tempPngPath = Path.Combine(FolderNames.GetTempFolder(), $"{mapConfig.MapFilename}.png");
             var bg = UnityHelper.ResizeTexture(AssetDatabase.LoadAssetAtPath<Texture2D>(bgPngPath), 512, 512);
@@ -344,14 +444,14 @@ public static class ForgeBuilder
                 }
 
                 var outPif2File = Path.Combine(buildPath, $"converted.bg");
-                var outBgFile = Path.Combine(buildPath, $"{mapConfig.MapFilename}.bg");
+                var outBgFile = Path.Combine(buildPath, $"{mapConfig.MapFilename}{regionExt}.bg");
                 if (File.Exists(outBgFile)) File.Delete(outBgFile);
                 if (File.Exists(outPif2File)) File.Move(outPif2File, outBgFile);
             }
         }
     }
 
-    static async Task RebuildCollision(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static async Task RebuildCollision(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         if (!await CollisionBaker.BakeCollision())
         {
@@ -359,7 +459,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildSky(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildSky(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var skyMeshFile = Path.Combine(binFolder, FolderNames.BinarySkyMeshFile);
         var skyBinFolder = Path.Combine(binFolder, FolderNames.BinarySkyFolder + "2");
@@ -381,7 +481,7 @@ public static class ForgeBuilder
             return;
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0))
             return;
 
         // export as glb
@@ -393,7 +493,7 @@ public static class ForgeBuilder
             return;
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0.25f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0.25f))
             return;
 
         // export textures
@@ -425,7 +525,7 @@ public static class ForgeBuilder
             fxTextures.Add(outTexFileName);
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0.5f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0.5f))
             return;
 
         // build sky.asset
@@ -494,27 +594,27 @@ public static class ForgeBuilder
             }
         }
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Sky", 0.75f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Sky", 0.75f))
             return;
 
         // build
-        if (!WrenchHelper.ConvertToSky(skyBinFolder, skyBinFile, Constants.GameVersion))
+        if (!WrenchHelper.ConvertToSky(skyBinFolder, skyBinFile, ctx.RacVersion))
         {
             Debug.LogError($"Failed to pack sky.");
             return;
         }
     }
 
-    static void RebuildTfrags(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildTfrags(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var terrainAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryTerrainFolder);
         var terrainBinFile = Path.Combine(binFolder, FolderNames.BinaryTerrainBinFile);
-        var occlusionFolder = Path.Combine(binFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
+        var occlusionFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceOcclusionFolder(ctx.RacVersion));
         var tfragOcclusionBinFile = Path.Combine(occlusionFolder, "tfrag.bin");
         var materials = new List<Material>();
         var chunks = HierarchicalSorting.Sort(GameObject.FindObjectsOfType<TfragChunk>());
 
-        if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Tfrags", 0.5f))
+        if (RebuildLevelProgress(ctx, $"Rebuilding Tfrags", 0.5f))
             return;
 
         // clear tfrag assets dir
@@ -646,7 +746,7 @@ public static class ForgeBuilder
         //foreach (var file in Directory.EnumerateFiles(terrainAssetsFolder, "tex.*.palette")) File.Delete(file);
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(terrainAssetsFolder, mipmaps: true, outSwizzle: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(terrainAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert tfrag textures");
             ctx.Cancel = true;
@@ -677,7 +777,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildTies(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildTies(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var tieDb = mapConfig.GetTieDatabase();
@@ -695,7 +795,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var tieClass in tieClasses)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Ties", (float)i / tieClasses.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Ties", (float)i / tieClasses.Length))
                 return;
 
             var srcTieDir = Path.Combine(resourcesFolder, FolderNames.TieFolder, tieClass.ToString());
@@ -718,7 +818,7 @@ public static class ForgeBuilder
                 return;
             }
 
-            coreBinBytes = TieHelper.ConvertTie(sourceRacVersion, Constants.GameVersion, coreBinBytes);
+            coreBinBytes = TieHelper.ConvertTie(sourceRacVersion, ctx.RacVersion, coreBinBytes);
 
             // update LOD distances
             if (tieDb)
@@ -817,14 +917,14 @@ public static class ForgeBuilder
         }
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(tieAssetsFolder, mipmaps: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(tieAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert tie textures");
             ctx.Cancel = true;
         }
     }
 
-    static async Task RebuildShrubs(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static async Task RebuildShrubs(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var shrubAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryShrubFolder);
@@ -858,7 +958,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var shrubClass in shrubClasses)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Shrubs", (float)i / shrubClasses.Count))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Shrubs", (float)i / shrubClasses.Count))
                 return;
 
             var srcShrubDir = Path.Combine(resourcesFolder, FolderNames.ShrubFolder, shrubClass.ToString());
@@ -957,24 +1057,24 @@ public static class ForgeBuilder
         }
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(shrubAssetsFolder, mipmaps: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(shrubAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert shrub textures");
             ctx.Cancel = true;
         }
     }
 
-    static void RebuildMobys(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildMobys(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mobyAssetsFolder = Path.Combine(binFolder, FolderNames.BinaryMobyFolder);
-        var mobyResourcesFolder = Path.Combine(resourcesFolder, FolderNames.GetMapMobyFolder(4));
+        var mobyResourcesFolder = Path.Combine(resourcesFolder, FolderNames.GetMapMobyFolder(ctx.RacVersion));
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
 
         // build list of mobys to export
         // start with default list of mobys
         // then add the mobys in the scene that aren't already in the list
-        var mobysToExport = mapConfig.DLMobysIncludedInExport.ToList();
-        var mobys = mapConfig.GetMobys();
+        var mobysToExport = ctx.RacVersion == RCVER.DL ? mapConfig.DLMobysIncludedInExport.ToList() : mapConfig.UYAMobysIncludedInExport.ToList();
+        var mobys = mapConfig.GetMobys(ctx.RacVersion);
         foreach (var moby in mobys)
             if (!mobysToExport.Contains(moby.OClass))
                 mobysToExport.Add(moby.OClass);
@@ -989,7 +1089,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var mobyClass in mobyClasses)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Mobys", (float)i / mobyClasses.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Mobys", (float)i / mobyClasses.Length))
                 return;
 
             var srcMobyDir = Path.Combine(mobyResourcesFolder, mobyClass.ToString());
@@ -1091,17 +1191,17 @@ public static class ForgeBuilder
         }
 
         // convert textures to asset textures
-        if (PackerHelper.ConvertAssetTextures(mobyAssetsFolder, mipmaps: true) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
+        if (PackerHelper.ConvertAssetTextures(mobyAssetsFolder, mipmaps: true, outSwizzle: ctx.RacVersion == RCVER.DL) != PackerHelper.PACKER_STATUS_CODES.SUCCESS)
         {
             Debug.LogError($"Failed to convert moby textures");
             ctx.Cancel = true;
         }
     }
 
-    static void RebuildTieInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildTieInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
-        var tieInstancesFolder = Path.Combine(binFolder, FolderNames.BinaryWorldInstanceTieFolder);
-        var occlusionFolder = Path.Combine(binFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
+        var tieInstancesFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceTiesFolder(ctx.RacVersion));
+        var occlusionFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceOcclusionFolder(ctx.RacVersion));
         var tieOcclusionBinFile = Path.Combine(occlusionFolder, "tie.bin");
 
         // build list of ties in scene
@@ -1117,7 +1217,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var tie in ties)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Ties  ({i + 1}/{ties.Length})", (float)i / ties.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Ties  ({i + 1}/{ties.Length})", (float)i / ties.Length))
                 return;
 
             var classIdx = Array.IndexOf(tieClasses, tie.OClass);
@@ -1196,10 +1296,10 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildShrubInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildShrubInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
-        var shrubInstancesFolder = Path.Combine(binFolder, FolderNames.BinaryWorldInstanceShrubFolder);
+        var shrubInstancesFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceShrubsFolder(ctx.RacVersion));
         var db = mapConfig.GetConvertToShrubDatabase();
 
         // build list of shrubs in scene
@@ -1218,7 +1318,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var shrub in shrubs)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
                 return;
 
             var classIdx = shrubClasses.IndexOf(shrub.OClass);
@@ -1280,7 +1380,7 @@ public static class ForgeBuilder
         // build dynamic shrubs
         foreach (var shrub in dynamicShrubs)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Shrubs ({i + 1}/{totalShrubInstances})", (float)i / totalShrubInstances))
                 return;
 
             var children = shrub.GetChildren();
@@ -1350,15 +1450,16 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildMobyInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildMobyInstances(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var mobyInstancesFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayMobyFolder);
-        var occlusionFolder = Path.Combine(binFolder, FolderNames.BinaryWorldInstanceOcclusionFolder);
+        var occlusionFolder = Path.Combine(binFolder, FolderNames.GetWorldInstanceOcclusionFolder(ctx.RacVersion));
         var mobyOcclusionFile = Path.Combine(occlusionFolder, "moby.bin");
 
         // build list of mobys in scene
-        var mobys = mapConfig.GetMobys();
+        var mobys = mapConfig.GetMobys(ctx.RacVersion);
+        var mobysCount = mobys.Count();
 
         // clear moby instance dir
         if (Directory.Exists(mobyInstancesFolder)) Directory.Delete(mobyInstancesFolder, true);
@@ -1368,7 +1469,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var moby in mobys)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Mobys ({i+1}/{mobys.Length})", (float)i / mobys.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Mobys ({i+1}/{mobysCount})", (float)i / mobysCount))
                 return;
 
             var mobyDir = Path.Combine(mobyInstancesFolder, $"{i:D4}_{moby.OClass:00000}_{moby.OClass:X4}");
@@ -1381,6 +1482,18 @@ public static class ForgeBuilder
                 {
                     moby.MakeUidUnique();
                     moby.Write(writer);
+                }
+            }
+
+            // create group.bin
+            if (ctx.RacVersion == RCVER.UYA && moby.GroupId >= 0)
+            {
+                using (var fs = File.Create(Path.Combine(mobyDir, "group.bin")))
+                {
+                    using (var writer = new BinaryWriter(fs))
+                    {
+                        writer.Write(moby.GroupId);
+                    }
                 }
             }
 
@@ -1413,7 +1526,7 @@ public static class ForgeBuilder
         if (File.Exists(mobyOcclusionFile)) File.Delete(mobyOcclusionFile);
     }
 
-    static void RebuildCuboids(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildCuboids(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var cuboidsFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayCuboidFolder);
@@ -1429,7 +1542,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var cuboid in cuboids)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Cuboids ({i + 1}/{cuboids.Length})", (float)i / cuboids.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Cuboids ({i + 1}/{cuboids.Length})", (float)i / cuboids.Length))
                 return;
 
             // create cuboid .bin
@@ -1445,7 +1558,7 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildSplines(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildSplines(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var splinesFolder = Path.Combine(binFolder, FolderNames.BinaryGameplaySplineFolder);
@@ -1453,7 +1566,7 @@ public static class ForgeBuilder
         // build list of splines in scene
         var splines = mapConfig.GetSplines();
 
-        // clear cuboids instance dir
+        // clear splines instance dir
         if (Directory.Exists(splinesFolder)) Directory.Delete(splinesFolder, true);
         Directory.CreateDirectory(splinesFolder);
 
@@ -1461,7 +1574,7 @@ public static class ForgeBuilder
         int i = 0;
         foreach (var spline in splines)
         {
-            if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Splines ({i + 1}/{splines.Length})", (float)i / splines.Length))
+            if (RebuildLevelProgress(ctx, $"Rebuilding Splines ({i + 1}/{splines.Length})", (float)i / splines.Length))
                 return;
 
             // create cuboid .bin
@@ -1477,8 +1590,92 @@ public static class ForgeBuilder
         }
     }
 
-    static void RebuildAreas(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildCameras(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        var camerasFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayCameraFolder);
+
+        // build list of cameras in scene
+        var cameras = mapConfig.GetCameras(ctx.RacVersion);
+
+        // clear cameras instance dir
+        if (Directory.Exists(camerasFolder)) Directory.Delete(camerasFolder, true);
+        Directory.CreateDirectory(camerasFolder);
+
+        // build cameras
+        int i = 0;
+        foreach (var camera in cameras)
+        {
+            var cameraDir = Path.Combine(camerasFolder, $"{i:D4}");
+            if (RebuildLevelProgress(ctx, $"Rebuilding Cameras ({i + 1}/{cameras.Length})", (float)i / cameras.Length))
+                return;
+
+            // create camera .bin
+            Directory.CreateDirectory(cameraDir);
+            using (var fs = File.Create(Path.Combine(cameraDir, "camera.bin")))
+            {
+                using (var writer = new BinaryWriter(fs))
+                {
+                    camera.Write(writer);
+                }
+            }
+
+            // write pvars
+            if (camera.PVars != null && camera.PVars.Length > 0)
+            {
+                camera.UpdatePVars();
+                File.WriteAllBytes(Path.Combine(cameraDir, "pvar.bin"), camera.PVars);
+            }
+
+            ++i;
+        }
+    }
+
+    public static void RebuildAmbientSounds(RebuildContext ctx, string resourcesFolder, string binFolder)
+    {
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        var ambientSoundsFolder = Path.Combine(binFolder, FolderNames.BinaryGameplayAmbientSoundFolder);
+
+        // build list of cameras in scene
+        var ambientSounds = mapConfig.GetAmbientSounds(ctx.RacVersion);
+
+        // clear cameras instance dir
+        if (Directory.Exists(ambientSoundsFolder)) Directory.Delete(ambientSoundsFolder, true);
+        Directory.CreateDirectory(ambientSoundsFolder);
+
+        // build cameras
+        int i = 0;
+        foreach (var ambientSound in ambientSounds)
+        {
+            var ambientSoundDir = Path.Combine(ambientSoundsFolder, $"{i:D4}");
+            if (RebuildLevelProgress(ctx, $"Rebuilding Ambient Sounds ({i + 1}/{ambientSounds.Length})", (float)i / ambientSounds.Length))
+                return;
+
+            // create sound .bin
+            Directory.CreateDirectory(ambientSoundDir);
+            using (var fs = File.Create(Path.Combine(ambientSoundDir, "sound.bin")))
+            {
+                using (var writer = new BinaryWriter(fs))
+                {
+                    ambientSound.Write(writer);
+                }
+            }
+
+            // write pvars
+            if (ambientSound.PVars != null && ambientSound.PVars.Length > 0)
+            {
+                ambientSound.UpdatePVars();
+                File.WriteAllBytes(Path.Combine(ambientSoundDir, "pvar.bin"), ambientSound.PVars);
+            }
+
+            ++i;
+        }
+    }
+
+    public static void RebuildAreas(RebuildContext ctx, string resourcesFolder, string binFolder)
+    {
+        if (ctx.RacVersion != RCVER.DL) return; // dl only
+
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var areaFile = Path.Combine(binFolder, FolderNames.BinaryGameplayAreaFile);
 
@@ -1513,7 +1710,7 @@ public static class ForgeBuilder
                 int i = 0;
                 foreach (var area in areas)
                 {
-                    if (RebuildLevelProgress(ref ctx.Cancel, $"Rebuilding Areas ({i + 1}/{areas.Length})", (float)i / areas.Length))
+                    if (RebuildLevelProgress(ctx, $"Rebuilding Areas ({i + 1}/{areas.Length})", (float)i / areas.Length))
                         return;
 
                     // add splines + cuboids to indices arrays
@@ -1570,7 +1767,7 @@ public static class ForgeBuilder
 
     }
 
-    static void RebuildCode(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildCode(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         var mapRender = GameObject.FindObjectOfType<MapRender>();
@@ -1580,7 +1777,8 @@ public static class ForgeBuilder
         if (!mapConfig) return;
 
         // copy code
-        var files = Directory.EnumerateFiles(Path.Combine(resourcesFolder, FolderNames.GetMapCodeFolder(Constants.GameVersion, GameRegion.NTSC)), "code.*.*");
+        var codeFolder = Path.Combine(resourcesFolder, FolderNames.GetMapCodeFolder(ctx.RacVersion, ctx.Region));
+        var files = Directory.EnumerateFiles(codeFolder, "code.*.*");
         foreach (var file in files)
         {
             var ext = Path.GetExtension(file);
@@ -1598,19 +1796,12 @@ public static class ForgeBuilder
         {
             using (var writer = new BinaryWriter(fs))
             {
-                var mapIdx = (int)mapConfig.DLBaseMap - 41;
-                fs.Position = 0x175C8 + (0x10 * mapIdx);
-
-                // write map render pos/scale
-                writer.Write(mapRender.transform.position.x);
-                writer.Write(mapRender.transform.position.z);
-                writer.Write(mapRender.transform.localScale.x);
-                writer.Write(mapRender.transform.localScale.z);
+                mapRender.Write(writer, ctx.RacVersion == RCVER.DL ? (int)mapConfig.DLBaseMap : (int)mapConfig.UYABaseMap, ctx.RacVersion, ctx.Region);
             }
         }
     }
 
-    static void RebuildPostProcess(RebuildContext ctx, string resourcesFolder, string binFolder)
+    public static void RebuildWorldLighting(RebuildContext ctx, string resourcesFolder, string binFolder)
     {
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
@@ -1644,7 +1835,7 @@ public static class ForgeBuilder
         var worldLights = mapConfig.GetWorldLights();
         if (worldLights != null && worldLights.Any())
         {
-            var worldLightBinFile = Path.Combine(binFolder, FolderNames.BinaryWorldInstancesFolder, "0.bin");
+            var worldLightBinFile = Path.Combine(binFolder, FolderNames.GetWorldInstanceFolder(ctx.RacVersion), ctx.RacVersion == RCVER.DL ? "0.bin" : "4.bin");
             if (File.Exists(worldLightBinFile))
             {
                 using (var fs = File.OpenWrite(worldLightBinFile))
@@ -1688,9 +1879,10 @@ public static class ForgeBuilder
         }
     }
 
-    static async void BuildDZOFiles(UnityEngine.SceneManagement.Scene scene)
+    public static async void BuildDZOFiles(UnityEngine.SceneManagement.Scene scene)
     {
-        var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
+        // dzo is DL (rc4) only
+        var binFolder = FolderNames.GetMapBinFolder(scene.name, 4);
         var mapConfig = GameObject.FindObjectOfType<MapConfig>();
         if (!Directory.Exists(binFolder))
         {
@@ -1698,10 +1890,10 @@ public static class ForgeBuilder
             return;
         }
 
-        if (!scene.isLoaded || !mapConfig)
+        if (!scene.isLoaded || !mapConfig || !mapConfig.HasDeadlockedBaseMap())
             return;
 
-        var buildFolder = FolderNames.GetMapBuildFolder(scene.name, Constants.GameVersion);
+        var buildFolder = FolderNames.GetMapBuildFolder(scene.name, 4);
         var outGlbFile = Path.Combine(buildFolder, $"{mapConfig.MapFilename}.dzo.glb");
         var outMetadataFile = Path.Combine(buildFolder, $"{mapConfig.MapFilename}.dzo.json");
         if (!Directory.Exists(buildFolder)) Directory.CreateDirectory(buildFolder);
@@ -1715,11 +1907,11 @@ public static class ForgeBuilder
         Debug.Log("DZO build complete");
     }
 
-
-
-    class RebuildContext
+    public class RebuildContext
     {
         public string MapSceneName;
+        public int RacVersion;
+        public GameRegion Region;
         public bool Cancel;
     }
 }

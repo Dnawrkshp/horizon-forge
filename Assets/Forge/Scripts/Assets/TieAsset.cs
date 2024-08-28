@@ -8,7 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, AddComponentMenu("")]
 public class TieAsset : MonoBehaviour
 {
     private void Update()

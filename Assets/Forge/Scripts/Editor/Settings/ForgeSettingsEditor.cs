@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -12,6 +13,7 @@ public class ForgeSettingsEditor : Editor
     {
         var forgeSettings = target as ForgeSettings;
 
+        EditorGUI.BeginChangeCheck();
         GUILayout.Label("Clean ISO Paths");
         EditorGUI.BeginDisabledGroup(true);
         CreateBrowseFileGUI("Clean Deadlocked (NTSC) Iso", forgeSettings.PathToCleanDeadlockedIso);
@@ -27,8 +29,9 @@ public class ForgeSettingsEditor : Editor
 
         GUILayout.Space(20);
         GUILayout.Label("Output ISO Paths");
-        forgeSettings.PathToOutputDeadlockedIso = CreateBrowseFileGUI("Output Deadlocked Iso", forgeSettings.PathToOutputDeadlockedIso);
-        //forgeSettings.PathToOutputUYAISO = CreateBrowseFileGUI("Output UYA Iso", forgeSettings.PathToOutputUYAISO);
+        forgeSettings.PathToOutputDeadlockedIso = CreateSaveFileGUI("Output Deadlocked Iso", forgeSettings.PathToOutputDeadlockedIso);
+        forgeSettings.PathToOutputUyaNtscIso = CreateSaveFileGUI("Output UYA NTSC Iso", forgeSettings.PathToOutputUyaNtscIso);
+        forgeSettings.PathToOutputUyaPalIso = CreateSaveFileGUI("Output UYA PAL Iso", forgeSettings.PathToOutputUyaPalIso);
 
         GUILayout.Space(20);
         GUILayout.Label("Miscellaneous");
@@ -38,6 +41,8 @@ public class ForgeSettingsEditor : Editor
         // init build folders
         if (forgeSettings.DLBuildFolders == null)
             forgeSettings.DLBuildFolders = new string[0];
+        if (forgeSettings.UYABuildFolders == null)
+            forgeSettings.UYABuildFolders = new string[0];
 
         GUILayout.Space(20);
         GUILayout.Label("Deadlocked Build Folders");
@@ -67,7 +72,77 @@ public class ForgeSettingsEditor : Editor
         }
         GUILayout.EndHorizontal();
 
+        GUILayout.Space(20);
+        GUILayout.Label("UYA Build Folders");
+        for (int i = 0; i < forgeSettings.UYABuildFolders.Length; i++)
+        {
+            GUILayout.BeginHorizontal();
+
+            forgeSettings.UYABuildFolders[i] = CreateBrowseFolderGUI("", forgeSettings.UYABuildFolders[i], 30);
+
+            if (GUILayout.Button("-"))
+            {
+                Undo.RecordObject(forgeSettings, "Remove UYA Build Folder");
+                var newFolders = new string[forgeSettings.UYABuildFolders.Length - 1];
+                Array.Copy(forgeSettings.UYABuildFolders, 0, newFolders, 0, i);
+                Array.Copy(forgeSettings.UYABuildFolders, i + 1, newFolders, i, forgeSettings.UYABuildFolders.Length - i - 1);
+                forgeSettings.UYABuildFolders = newFolders;
+            }
+
+            GUILayout.EndHorizontal();
+        }
+
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("+"))
+        {
+            Undo.RecordObject(forgeSettings, "Add UYA Build Folder");
+            Array.Resize(ref forgeSettings.UYABuildFolders, forgeSettings.UYABuildFolders.Length + 1);
+        }
+        GUILayout.EndHorizontal();
+        
+        if (EditorGUI.EndChangeCheck())
+        {
+            EditorUtility.SetDirty(forgeSettings);
+            //AssetDatabase.SaveAssetIfDirty(forgeSettings);
+        }
+
         //base.OnInspectorGUI();
+    }
+
+    string CreateSaveFileGUI(string title, string path)
+    {
+        var width = 130;
+
+        GUILayout.BeginHorizontal();
+
+        // label
+        if (!String.IsNullOrEmpty(title))
+        {
+            GUILayout.Label(title, GUILayout.Width(200));
+            width += 200;
+        }
+
+        // path
+        var newPath = GUILayout.TextField(path, GUILayout.Width(Screen.width - width));
+
+        // browse
+        var openFileDialog = GUILayout.Button("Browse", GUILayout.Width(100));
+
+        GUILayout.EndHorizontal();
+
+        if (openFileDialog)
+        {
+            var dir = string.IsNullOrEmpty(newPath) ? "" : Path.GetDirectoryName(newPath);
+            var filename = string.IsNullOrEmpty(newPath) ? "" : Path.GetFileName(newPath);
+
+            var openPath = EditorUtility.SaveFilePanel(title, dir, filename, "iso");
+            if (!string.IsNullOrEmpty(openPath))
+                newPath = openPath;
+        }
+
+        if (newPath != path) EditorUtility.SetDirty(target);
+
+        return newPath;
     }
 
     string CreateBrowseFileGUI(string title, string path)
@@ -93,7 +168,9 @@ public class ForgeSettingsEditor : Editor
 
         if (openFileDialog)
         {
-            newPath = EditorUtility.OpenFilePanelWithFilters(title, newPath, new string[] { "ISO", "iso" });
+            var openPath = EditorUtility.OpenFilePanelWithFilters(title, newPath, new string[] { "ISO", "iso" });
+            if (!string.IsNullOrEmpty(openPath))
+                newPath = openPath;
         }
 
         if (newPath != path) EditorUtility.SetDirty(target);

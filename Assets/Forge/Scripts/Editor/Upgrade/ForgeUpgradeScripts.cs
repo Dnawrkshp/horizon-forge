@@ -37,7 +37,7 @@ public static class ForgeUpgradeScripts
             case 1: // Move global Resources/Mobys/ into Resources/Mobys/rc4
                 {
                     var srcMobyDir = $"{FolderNames.ResourcesFolder}/{FolderNames.MobyFolder}";
-                    var dstMobyDir = $"{FolderNames.GetGlobalAssetFolder(FolderNames.MobyFolder, 4)}";
+                    var dstMobyDir = $"{FolderNames.GetGlobalAssetFolder(FolderNames.MobyFolder, RCVER.DL)}";
 
                     // check if moby folder has mobys
                     var dirsToMove = new List<string>();

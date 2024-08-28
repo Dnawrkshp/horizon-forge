@@ -36,7 +36,7 @@ public class SNDModeData : CustomModeData
         var mapConfig = FindObjectOfType<MapConfig>();
         if (!mapConfig) return;
         
-        var mpConfigMoby = mapConfig.GetMobys().FirstOrDefault(x => x.OClass == 0x106a);
+        var mpConfigMoby = mapConfig.GetMobys(RCVER.DL).FirstOrDefault(x => x.OClass == 0x106a);
         if (mpConfigMoby)
         {
             CopyTransform(mpConfigMoby.PVarMobyRefs[384 / 4] ? mpConfigMoby.PVarMobyRefs[384 / 4].transform : null, sndData.BombSite1);
@@ -44,8 +44,8 @@ public class SNDModeData : CustomModeData
         }
 
         var cuboids = mapConfig.GetCuboids();
-        var blueSpawnCuboid = cuboids?.FirstOrDefault(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.BlueFlagSpawn);
-        var redSpawnCuboid = cuboids?.FirstOrDefault(x => (x.Type == CuboidType.Player || x.Type == CuboidType.None) && x.Subtype == CuboidSubType.RedFlagSpawn);
+        var blueSpawnCuboid = cuboids?.FirstOrDefault(x => x.CuboidType.HasFlag(CuboidMaskType.BlueFlagSpawn));
+        var redSpawnCuboid = cuboids?.FirstOrDefault(x => x.CuboidType.HasFlag(CuboidMaskType.RedFlagSpawn));
 
         CopyTransform(blueSpawnCuboid ? blueSpawnCuboid.transform : null, sndData.DefendTeamSpawn);
         CopyTransform(redSpawnCuboid ? redSpawnCuboid.transform : null, sndData.AttackTeamSpawn);

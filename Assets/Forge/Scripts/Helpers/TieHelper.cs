@@ -15,13 +15,13 @@ public static class TieHelper
         var fixedTieData = tieData.ToArray();
 
         // if gc tie, we need to fix the backface culling
-        if (fromRacVersion == 2)
+        if (fromRacVersion == RCVER.GC)
             FixTieGc(fixedTieData);
 
         // dl ties have 16 byte header at the top of the normals data block
-        if (toRacVersion == 4)
+        if (toRacVersion == RCVER.DL)
             FixTieNormals(fixedTieData, true);
-        else if (fromRacVersion == 4)
+        else if (fromRacVersion == RCVER.DL)
             FixTieNormals(fixedTieData, false);
 
         return fixedTieData;

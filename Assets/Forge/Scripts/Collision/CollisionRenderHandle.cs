@@ -56,7 +56,7 @@ public class CollisionRenderHandle
     private Action<Renderer, MaterialPropertyBlock> _updateRenderer;
     private Dictionary<Renderer, Material[]> _instancedMaterials = null;
     private Dictionary<Material, string> _instancedMaterialsNameBackup = null;
-    private int? _colliderGeneratedMaterialId = null;
+    private int[] _colliderGeneratedMaterialIds = null;
 
     public CollisionRenderHandle(Action<Renderer, MaterialPropertyBlock> updateRenderer)
     {
@@ -114,11 +114,11 @@ public class CollisionRenderHandle
         }
     }
 
-    public void Update(GameObject parent, Mesh mesh, int matId)
+    public void Update(GameObject parent, Mesh mesh, params int[] matIds)
     {
-        if (_colliderGeneratedMaterialId != matId)
+        if (!CollectionHelper.CollectionsEqual(_colliderGeneratedMaterialIds, matIds))
         {
-            _colliderGeneratedMaterialId = matId;
+            _colliderGeneratedMaterialIds = matIds.ToArray(); // make copy
             _regenerate = true;
         }
 
@@ -174,7 +174,7 @@ public class CollisionRenderHandle
             }
         }
 
-        if (_mesh && _colliderGeneratedMaterialId.HasValue)
+        if (_mesh && _colliderGeneratedMaterialIds != null && _colliderGeneratedMaterialIds.Any())
         {
             // generate instance
             var assetInstance = AssetInstance = new GameObject(CHILD_ASSET_COLLIDER_NAME);
@@ -195,8 +195,9 @@ public class CollisionRenderHandle
             for (int i = 0; i < mesh.subMeshCount; ++i)
             {
                 var mat = new Material(Shader.Find("Horizon Forge/Collider"));
-                mat.name = $"col_{_colliderGeneratedMaterialId.Value:x}";
-                mat.SetInteger("_ColId", _colliderGeneratedMaterialId.Value);
+                var colId = _colliderGeneratedMaterialIds[i % _colliderGeneratedMaterialIds.Length];
+                mat.name = $"col_{colId:x}";
+                mat.SetInteger("_ColId", colId);
                 materials[i] = mat;
             }
             meshRenderer.sharedMaterials = materials;
@@ -273,14 +274,12 @@ public class CollisionRenderHandle
             {
                 foreach (var idOverride in _idOverrides)
                 {
-                    if (int.TryParse(idOverride.OverrideId, System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var colIdInt))
+                    var mat = materials.FirstOrDefault(x => x.name == idOverride.MaterialName && !materialsAffected.Contains(x));
+                    if (mat)
                     {
-                        var mat = materials.FirstOrDefault(x => x.name == idOverride.MaterialName && !materialsAffected.Contains(x));
-                        if (mat)
-                        {
-                            mat.SetInteger("_ColId", colIdInt);
-                            materialsAffected.Add(mat);
-                        }
+                        var colId = CollisionHelper.ParseId(idOverride.OverrideId, CollisionHelper.ParseId(mat.name));
+                        mat.SetInteger("_ColId", colId);
+                        materialsAffected.Add(mat);
                     }
                 }
             }
@@ -493,7 +492,7 @@ public interface IInstancedCollider
 public class ColliderIdOverride
 {
     public string MaterialName;
-    public string OverrideId;
+    [CollisionId] public string OverrideId;
 
     public ColliderIdOverride() { }
     public ColliderIdOverride(string materialName, string overrideId) { this.MaterialName = materialName; this.OverrideId = overrideId; }

@@ -19,7 +19,6 @@ public static class FolderNames
     public static readonly string TempFolder = ".forgeartifacts";
 
     public static readonly string BinaryFolder = "levels";
-    public static readonly string BinaryWorldInstancesFolder = "world-instances";
     public static readonly string BinaryAssetsFolder = "assets";
     public static readonly string BinarySoundsFolder = "sounds";
     public static readonly string BinaryCodeFolder = "code";
@@ -30,11 +29,10 @@ public static class FolderNames
     public static readonly string BinaryGameplayMobyFolder = $"{BinaryGameplayFolder}/moby";
     public static readonly string BinaryGameplaySplineFolder = $"{BinaryGameplayFolder}/spline";
     public static readonly string BinaryGameplayCuboidFolder = $"{BinaryGameplayFolder}/cuboid";
+    public static readonly string BinaryGameplayCameraFolder = $"{BinaryGameplayFolder}/camera";
+    public static readonly string BinaryGameplayAmbientSoundFolder = $"{BinaryGameplayFolder}/ambient_sound";
     public static readonly string BinaryGameplayAreaFile = $"{BinaryGameplayFolder}/116.bin";
     public static readonly string BinaryOcclusionFile = $"{BinaryAssetsFolder}/occlusion.bin";
-    public static readonly string BinaryWorldInstanceOcclusionFolder = $"{BinaryWorldInstancesFolder}/occlusion";
-    public static readonly string BinaryWorldInstanceTieFolder = $"{BinaryWorldInstancesFolder}/tie";
-    public static readonly string BinaryWorldInstanceShrubFolder = $"{BinaryWorldInstancesFolder}/shrub";
     public static readonly string BinaryCollisionBinFile = $"{BinaryAssetsFolder}/collision.bin";
     public static readonly string BinaryCollisionColladaFile = $"{BinaryAssetsFolder}/collision.dae";
     public static readonly string BinaryCollisionAssetFile = $"{BinaryAssetsFolder}/collision.asset";
@@ -55,8 +53,9 @@ public static class FolderNames
     public static readonly string ForgeFolder = $"{AssetsFolder}/Forge";
     public static readonly string BlenderScriptFolder = $"{ForgeFolder}/Blender";
 
-    public static string GetLevelWadFilename(int levelId) => (Constants.GameVersion == 4) ? $"level{levelId}.1.wad" : $"level{levelId}.0.wad";
-    public static string GetSoundWadFilename(int levelId) => (Constants.GameVersion == 4) ? $"level{levelId}.2.wad" : $"level{levelId}.1.wad";
+    public static string GetLevelWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? $"level{levelId}.1.wad" : $"level{levelId}.0.wad";
+    public static string GetWorldWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? null : $"level{levelId}.2.wad";
+    public static string GetSoundWadFilename(int levelId, int racVersion) => (racVersion == RCVER.DL) ? $"level{levelId}.2.wad" : $"level{levelId}.1.wad";
 
     public static string GetGlobalPrefabFolder(string prefabType, int racVersion = 0)
     {
@@ -90,7 +89,7 @@ public static class FolderNames
 
     public static string GetMapMobyFolder(int racVersion)
     {
-        if (racVersion != 3 && racVersion != 4) throw new NotImplementedException();
+        if (racVersion != RCVER.UYA && racVersion != RCVER.DL) throw new NotImplementedException();
         return $"{MobyFolder}/rc{racVersion}";
     }
 
@@ -112,6 +111,29 @@ public static class FolderNames
     public static string GetScenePath(string map)
     {
         return $"{MapsFolder}/{map}/{map}.unity";
+    }
+
+    public static string GetWorldInstanceFolder(int racVersion)
+    {
+        if (racVersion == RCVER.DL) return "world-instances";
+        if (racVersion == RCVER.UYA || racVersion == RCVER.GC) return BinaryGameplayFolder;
+
+        throw new NotImplementedException();
+    }
+
+    public static string GetWorldInstanceTiesFolder(int racVersion)
+    {
+        return Path.Combine(GetWorldInstanceFolder(racVersion), "ties");
+    }
+
+    public static string GetWorldInstanceShrubsFolder(int racVersion)
+    {
+        return Path.Combine(GetWorldInstanceFolder(racVersion), "shrubs");
+    }
+
+    public static string GetWorldInstanceOcclusionFolder(int racVersion)
+    {
+        return Path.Combine(GetWorldInstanceFolder(racVersion), "occlusion");
     }
 
     public static string GetTempFolder()

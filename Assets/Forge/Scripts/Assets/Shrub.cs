@@ -7,12 +7,12 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-[ExecuteInEditMode, SelectionBase]
+[ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
 public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
 {
     [HideInInspector] public int OClass;
     public Matrix4x4 Reflection = Matrix4x4.identity;
-    public int GroupId;
+    public int GroupId = -1;
     public float RenderDistance = 64;
     [ColorUsage(false)] public Color Tint = Color.white;
     public float DZOBrightness = 1f;
@@ -78,7 +78,7 @@ public class Shrub : RenderSelectionBase, IAsset, IInstancedCollider
         }
         else
         {
-            collisionRenderHandle.Update(this.gameObject, null);
+            collisionRenderHandle.Update(this.gameObject, null, null);
         }
 
         UpdateMaterials();

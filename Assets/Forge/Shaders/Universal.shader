@@ -206,7 +206,7 @@ Shader "Horizon Forge/Universal"
                 FacingSign = lerp(FacingSign, 1, _Reflection);
 
                 // vertex colors
-                float4 vcolor = lerp(1, i.color * 2, _VertexColors);
+                float4 vcolor = lerp(1, i.color, _VertexColors);
 
                 // sample the texture
                 float4 col = tex2D(_MainTex, i.uv);

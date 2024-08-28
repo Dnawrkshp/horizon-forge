@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, AddComponentMenu("")]
 public class MapConfig : MonoBehaviour
 {
-    const int MAP_CONFIG_VERSION = 1;
+    public static bool HideFog = false;
+
+    const int MAP_CONFIG_VERSION = 2;
 
     [Header("Map Build")]
     [Min(0)] public int MapVersion = 0;
@@ -17,11 +20,16 @@ public class MapConfig : MonoBehaviour
     public string MapFilename;
 
     [Header("Deadlocked")]
-    [ReadOnly] public DLMapIds DLBaseMap = DLMapIds.MP_Battledome;
+    [ReadOnly] public DLMapIds DLBaseMap = DLMapIds.SP_Battledome;
     public DLCustomModeIds DLForceCustomMode = DLCustomModeIds.None;
     public Texture2D DLLoadingScreen;
     public Texture2D DLMinimap;
     public int[] DLMobysIncludedInExport;
+
+    [Header("UYA")]
+    [ReadOnly] public UYAMapIds UYABaseMap = UYAMapIds.SP_Veldin;
+    public Texture2D UYAMinimap;
+    public int[] UYAMobysIncludedInExport;
 
     [Header("Render Settings")]
     [Min(0)] public int ShrubMinRenderDistance = 0;
@@ -42,6 +50,13 @@ public class MapConfig : MonoBehaviour
 
     private int sceneCameraCount = -1;
     private ForgeSettings forgeSettings;
+
+    public bool HasDeadlockedBaseMap() => DLBaseMap >= DLMapIds.MP_Battledome;
+    public bool HasUYABaseMap() => UYABaseMap >= UYAMapIds.MP_Bakisi_Isles;
+    public int FirstRacVersion => HasDeadlockedBaseMap() ? 4 : (HasUYABaseMap() ? 3 : -1);
+    public int SecondRacVersion => (HasDeadlockedBaseMap() && HasUYABaseMap()) ? 3 : -1;
+    public int ImportDLBaseMapIdx { get; set; } = 0;
+    public int ImportUYABaseMapIdx { get; set; } = 0;
 
     private void OnEnable()
     {
@@ -80,8 +95,8 @@ public class MapConfig : MonoBehaviour
         Shader.SetGlobalColor("_FORGE_FOG_COLOR", FogColor);
         Shader.SetGlobalFloat("_FORGE_FOG_NEAR_DISTANCE", FogNearDistance);
         Shader.SetGlobalFloat("_FORGE_FOG_FAR_DISTANCE", FogFarDistance);
-        Shader.SetGlobalFloat("_FORGE_FOG_NEAR_INTENSITY", FogNearIntensity);
-        Shader.SetGlobalFloat("_FORGE_FOG_FAR_INTENSITY", FogFarIntensity);
+        Shader.SetGlobalFloat("_FORGE_FOG_NEAR_INTENSITY", HideFog ? 0 : FogNearIntensity);
+        Shader.SetGlobalFloat("_FORGE_FOG_FAR_INTENSITY", HideFog ? 0 : FogFarIntensity);
 
         // forge settings
         if (!forgeSettings) forgeSettings = ForgeSettings.Load();
@@ -190,21 +205,59 @@ public class MapConfig : MonoBehaviour
 
     #endregion
 
-    #region Mobys
+    #region Cameras
 
-    public Moby[] GetMobys()
+    public RatchetCamera[] GetCameras(int racVersion)
     {
-        return HierarchicalSorting.Sort(FindObjectsOfType<Moby>());
+        return HierarchicalSorting.Sort(FindObjectsOfType<RatchetCamera>().Where(x => x.RCVersion == racVersion).ToArray());
     }
 
-    public Moby GetMobyAtIndex(int idx)
+    public RatchetCamera GetCameraAtIndex(int racVersion, int idx)
     {
-        return HierarchicalSorting.Sort(FindObjectsOfType<Moby>())?.ElementAtOrDefault(idx);
+        return GetCameras(racVersion)?.ElementAtOrDefault(idx);
+    }
+
+    public int GetIndexOfCamera(RatchetCamera camera)
+    {
+        return Array.IndexOf(GetCameras(camera.RCVersion), camera);
+    }
+
+    #endregion
+
+    #region Ambient Sounds
+
+    public AmbientSound[] GetAmbientSounds(int racVersion)
+    {
+        return HierarchicalSorting.Sort(FindObjectsOfType<AmbientSound>().Where(x => x.RCVersion == racVersion).ToArray());
+    }
+
+    public AmbientSound GetAmbientSoundAtIndex(int racVersion, int idx)
+    {
+        return GetAmbientSounds(racVersion)?.ElementAtOrDefault(idx);
+    }
+
+    public int GetIndexOfAmbientSound(AmbientSound ambientSound)
+    {
+        return Array.IndexOf(GetAmbientSounds(ambientSound.RCVersion), ambientSound);
+    }
+
+    #endregion
+
+    #region Mobys
+
+    public Moby[] GetMobys(int racVersion)
+    {
+        return HierarchicalSorting.Sort(FindObjectsOfType<Moby>().Where(x => x.RCVersion == racVersion).ToArray());
+    }
+
+    public Moby GetMobyAtIndex(int racVersion, int idx)
+    {
+        return GetMobys(racVersion)?.ElementAtOrDefault(idx);
     }
 
     public int GetIndexOfMoby(Moby moby)
     {
-        return Array.IndexOf(HierarchicalSorting.Sort(FindObjectsOfType<Moby>()), moby);
+        return Array.IndexOf(GetMobys(moby.RCVersion), moby);
     }
 
     #endregion
@@ -224,6 +277,25 @@ public class MapConfig : MonoBehaviour
     public int GetIndexOfArea(Area area)
     {
         return Array.IndexOf(HierarchicalSorting.Sort(FindObjectsOfType<Area>()), area);
+    }
+
+    #endregion
+
+    #region Ties
+
+    public Tie[] GetTies()
+    {
+        return HierarchicalSorting.Sort(FindObjectsOfType<Tie>().ToArray());
+    }
+
+    public Tie GetTieAtIndex(int idx)
+    {
+        return HierarchicalSorting.Sort(FindObjectsOfType<Tie>())?.ElementAtOrDefault(idx);
+    }
+
+    public int GetIndexOfTie(Tie tie)
+    {
+        return Array.IndexOf(HierarchicalSorting.Sort(FindObjectsOfType<Tie>()), tie);
     }
 
     #endregion
@@ -269,6 +341,11 @@ public class MapConfig : MonoBehaviour
             }
 
             Debug.Log($"Map Config upgraded to v{_version}");
+            UnityHelper.MarkActiveSceneDirty();
+        }
+        else if (_version > MAP_CONFIG_VERSION)
+        {
+            _version = MAP_CONFIG_VERSION;
         }
     }
 
@@ -279,7 +356,7 @@ public class MapConfig : MonoBehaviour
             case 1: // USE Moby/rc# folder for map mobys
                 {
                     var srcMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.MobyFolder}";
-                    var dstMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.GetMapMobyFolder(4)}";
+                    var dstMobyDir = $"{FolderNames.GetMapFolder(SceneManager.GetActiveScene().name)}/{FolderNames.GetMapMobyFolder(RCVER.DL)}";
                     if (!Directory.Exists(dstMobyDir)) Directory.CreateDirectory(dstMobyDir);
 
                     // check if moby folder has mobys
@@ -318,6 +395,93 @@ public class MapConfig : MonoBehaviour
 
                     break;
                 }
+            case 2: // Import Cameras & Ambient Sounds
+                {
+                    GameObject rootGo = new GameObject($"MAPCONFIG MIGRATION V{version} DATA");
+
+                    if (this.HasDeadlockedBaseMap() && !GetCameras(RCVER.DL).Any())
+                        RunMigration_ImportCameras(rootGo, RCVER.DL);
+                    if (this.HasDeadlockedBaseMap() && !GetAmbientSounds(RCVER.DL).Any())
+                        RunMigration_ImportAmbientSounds(rootGo, RCVER.DL);
+
+                    if (this.HasUYABaseMap() && !GetCameras(RCVER.UYA).Any())
+                        RunMigration_ImportCameras(rootGo, RCVER.UYA);
+                    if (this.HasUYABaseMap() && !GetAmbientSounds(RCVER.UYA).Any())
+                        RunMigration_ImportAmbientSounds(rootGo, RCVER.UYA);
+                    break;
+                }
+        }
+    }
+
+    private void RunMigration_ImportCameras(GameObject rootGo, int racVersion)
+    {
+        var mapBinFolder = FolderNames.GetMapBinFolder(EditorSceneManager.GetActiveScene().name, racVersion);
+        var camerasFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayCameraFolder);
+        var camerasGo = new GameObject($"Cameras rc{racVersion}");
+        camerasGo.transform.SetParent(rootGo.transform, false);
+
+        int i = 0;
+        while (true)
+        {
+            var cameraFile = Path.Combine(camerasFolder, $"{i:D4}", "camera.bin");
+            if (!File.Exists(cameraFile)) break;
+
+            // import camera
+            var cameraGo = new GameObject(i.ToString());
+            cameraGo.transform.SetParent(camerasGo.transform, false);
+            var camera = cameraGo.AddComponent<RatchetCamera>();
+            camera.RCVersion = racVersion;
+
+            using (var fs = File.OpenRead(cameraFile))
+            {
+                using (var reader = new BinaryReader(fs))
+                {
+                    camera.Read(reader);
+                }
+            }
+
+            // import pvars
+            var cameraPVarFile = Path.Combine(camerasFolder, $"{i:D4}", "pvar.bin");
+            if (File.Exists(cameraPVarFile))
+                camera.PVars = File.ReadAllBytes(cameraPVarFile);
+
+            ++i;
+        }
+    }
+
+    private void RunMigration_ImportAmbientSounds(GameObject rootGo, int racVersion)
+    {
+        var mapBinFolder = FolderNames.GetMapBinFolder(EditorSceneManager.GetActiveScene().name, racVersion);
+        var ambientSoundsFolder = Path.Combine(mapBinFolder, FolderNames.BinaryGameplayAmbientSoundFolder);
+        var soundsGo = new GameObject($"Ambient Sounds rc{racVersion}");
+        soundsGo.transform.SetParent(rootGo.transform, false);
+
+        int i = 0;
+        while (true)
+        {
+            var ambientSoundFile = Path.Combine(ambientSoundsFolder, $"{i:D4}", "sound.bin");
+            if (!File.Exists(ambientSoundFile)) break;
+
+            // import camera
+            var ambientSoundGo = new GameObject(i.ToString());
+            ambientSoundGo.transform.SetParent(soundsGo.transform, false);
+            var ambientSound = ambientSoundGo.AddComponent<AmbientSound>();
+            ambientSound.RCVersion = racVersion;
+
+            using (var fs = File.OpenRead(ambientSoundFile))
+            {
+                using (var reader = new BinaryReader(fs))
+                {
+                    ambientSound.Read(reader);
+                }
+            }
+
+            // import pvars
+            var ambientSoundPVarFile = Path.Combine(ambientSoundsFolder, $"{i:D4}", "pvar.bin");
+            if (File.Exists(ambientSoundPVarFile))
+                ambientSound.PVars = File.ReadAllBytes(ambientSoundPVarFile);
+
+            ++i;
         }
     }
 

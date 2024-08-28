@@ -40,12 +40,12 @@ public class PackerImporterWindow : EditorWindow
         public string[] AdditionalTags;
     }
 
-    [MenuItem("Forge/Tools/Importers/Asset Importer")]
-    public static void CreateNewWindow()
-    {
-        var wnd = GetWindow<PackerImporterWindow>();
-        wnd.titleContent = new GUIContent("Asset Importer");
-    }
+    //[MenuItem("Forge/Tools/Importers/Asset Importer")]
+    //public static void CreateNewWindow()
+    //{
+    //    var wnd = GetWindow<PackerImporterWindow>();
+    //    wnd.titleContent = new GUIContent("Asset Importer");
+    //}
 
     public void CreateGUI()
     {
@@ -108,9 +108,9 @@ public class PackerImporterWindow : EditorWindow
 
         // output to current scene's resources path
         if (destDropdown.index == 1)
-            return FolderNames.GetLocalAssetFolder(assetType, Constants.GameVersion);
+            return FolderNames.GetLocalAssetFolder(assetType, RCVER.DL);
 
-        return FolderNames.GetGlobalAssetFolder(assetType, Constants.GameVersion);
+        return FolderNames.GetGlobalAssetFolder(assetType, RCVER.DL);
     }
 
     private void OnImport()

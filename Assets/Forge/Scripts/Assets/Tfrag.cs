@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[AddComponentMenu("")]
 public class Tfrag : MonoBehaviour
 {
     // Start is called before the first frame update

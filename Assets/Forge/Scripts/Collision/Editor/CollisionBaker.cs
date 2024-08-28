@@ -21,8 +21,13 @@ public static class CollisionBaker
         var scene = SceneManager.GetActiveScene();
         if (scene == null) return false;
 
+        var mapConfig = GameObject.FindObjectOfType<MapConfig>();
+        if (!mapConfig) return false;
+
+        var firstRacVersion = mapConfig.FirstRacVersion;
+        var secondRacVersion = mapConfig.SecondRacVersion;
         var resourcesFolder = FolderNames.GetMapFolder(scene.name);
-        var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
+        var binFolder = FolderNames.GetMapBinFolder(scene.name, mapConfig.FirstRacVersion);
         var collisionBlendFile = Path.Combine(resourcesFolder, "collision.blend");
         var collisionDaeFile = Path.Combine(binFolder, FolderNames.BinaryCollisionColladaFile);
         var collisionAssetFile = Path.Combine(binFolder, FolderNames.BinaryCollisionAssetFile);
@@ -153,6 +158,16 @@ public static class CollisionBaker
                 if (collisionResultsVisualizer) GameObject.DestroyImmediate(collisionResultsVisualizer.gameObject);
             }
 
+            // convert collision to expected version
+            PackerHelper.ConvertCollision(Path.Combine(Environment.CurrentDirectory, collisionBinFile), Path.Combine(Environment.CurrentDirectory, collisionBinFile), 4, firstRacVersion);
+
+            // copy to other rac build folder
+            if (secondRacVersion > 0)
+            {
+                var secondCollisionBinFile = Path.Combine(FolderNames.GetMapBinFolder(scene.name, secondRacVersion), FolderNames.BinaryCollisionBinFile);
+                PackerHelper.ConvertCollision(Path.Combine(Environment.CurrentDirectory, collisionBinFile), Path.Combine(Environment.CurrentDirectory, secondCollisionBinFile), 4, secondRacVersion);
+            }
+
             Debug.Log("Collision successfully baked!");
         }
         catch (Exception ex)
@@ -188,7 +203,6 @@ public static class CollisionBaker
         _lastSaveFilePath = savePath;
 
         var resourcesFolder = FolderNames.GetMapFolder(scene.name);
-        var binFolder = FolderNames.GetMapBinFolder(scene.name, Constants.GameVersion);
         var affectedInstancedColliders = new List<CollisionRenderHandle>();
         GameObject combinedRootGo = null;
 

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[AddComponentMenu("")]
 public class Area : MonoBehaviour
 {
     public float BSphereRadius;

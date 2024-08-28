@@ -5,7 +5,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, AddComponentMenu("")]
 public class WaterTriStripGroupMoby : MonoBehaviour, IRenderHandlePrefab
 {
     private MeshRenderer m_Renderer;
@@ -47,7 +47,7 @@ public class WaterTriStripGroupMoby : MonoBehaviour, IRenderHandlePrefab
         var overlayDirX = BitConverter.ToSingle(m_Moby.PVars, 548);
         var overlayDirY = BitConverter.ToSingle(m_Moby.PVars, 552);
 
-        var levelDir = FolderNames.GetMapBinFolder(SceneManager.GetActiveScene().name, Constants.GameVersion);
+        var levelDir = FolderNames.GetMapBinFolder(SceneManager.GetActiveScene().name, m_Moby.RCVersion);
         var overlayFxFile = Path.Combine(levelDir, FolderNames.AssetsFolder, "fx", $"tex.{overlayTexIdx:0000}.png");
         if (File.Exists(overlayFxFile))
         {

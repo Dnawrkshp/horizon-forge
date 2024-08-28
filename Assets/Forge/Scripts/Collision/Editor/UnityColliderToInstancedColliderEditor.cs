@@ -14,6 +14,7 @@ public class UnityColliderToInstancedColliderEditor : Editor
     private SerializedProperty m_ResolutionProperty;
     private SerializedProperty m_TfragSizeProperty;
     private SerializedProperty m_RenderProperty;
+    private SerializedProperty m_TerrainLayerCollisionIdsProperty;
 
     private void OnEnable()
     {
@@ -24,6 +25,7 @@ public class UnityColliderToInstancedColliderEditor : Editor
         m_ResolutionProperty = serializedObject.FindProperty("m_Resolution");
         m_TfragSizeProperty = serializedObject.FindProperty("m_TfragSize");
         m_RenderProperty = serializedObject.FindProperty("m_Render");
+        m_TerrainLayerCollisionIdsProperty = serializedObject.FindProperty("m_TerrainLayerCollisionIds");
     }
 
     public override void OnInspectorGUI()
@@ -35,8 +37,35 @@ public class UnityColliderToInstancedColliderEditor : Editor
         EditorGUILayout.PropertyField(m_ColliderProperty);
         EditorGUI.EndDisabledGroup();
 
-        // misc properties
+        // collision id
         EditorGUILayout.PropertyField(m_MaterialIdProperty);
+
+        // terrain
+        if (targets.Length == 1 && (target as UnityColliderToInstancedCollider).GetComponent<Collider>() is TerrainCollider terrainCollider)
+        {
+            var count = m_TerrainLayerCollisionIdsProperty.arraySize;
+            if (count > 0)
+            {
+                m_TerrainLayerCollisionIdsProperty.isExpanded = EditorGUILayout.BeginFoldoutHeaderGroup(m_TerrainLayerCollisionIdsProperty.isExpanded, "Terrain Layer Collision Id Overrides");
+                if (m_TerrainLayerCollisionIdsProperty.isExpanded)
+                {
+                    for (int i = 0; i < count; ++i)
+                    {
+                        var elem = m_TerrainLayerCollisionIdsProperty.GetArrayElementAtIndex(i);
+                        var layerProperty = elem.FindPropertyRelative("Layer");
+                        var collisionIdProperty = elem.FindPropertyRelative("CollisionId");
+                        var layer = layerProperty.objectReferenceValue as TerrainLayer;
+
+                        EditorGUI.indentLevel++;
+                        EditorGUILayout.PropertyField(collisionIdProperty, new GUIContent(layer ? layer.name : "NONE"));
+                        EditorGUI.indentLevel--;
+                    }
+                }
+                EditorGUILayout.EndFoldoutHeaderGroup();
+            }
+        }
+
+        // misc properties
         EditorGUILayout.PropertyField(m_NormalsProperty);
         if (m_NormalsProperty.enumValueIndex == (int)CollisionRenderHandleNormalMode.RecalculateOutside
             || m_NormalsProperty.enumValueIndex == (int)CollisionRenderHandleNormalMode.RecalculateInside)

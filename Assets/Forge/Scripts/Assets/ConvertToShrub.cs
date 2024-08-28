@@ -7,7 +7,7 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class ConvertToShrub : MonoBehaviour
 {
-    public int GroupId;
+    public int GroupId = -1;
     public float RenderDistance = 64;
     [ColorUsage(false)] public Color Tint = Color.white * 0.5f;
     [Tooltip("If true and Export Shrubs is enabled, the DZO exporter will automatically include this object.")] public bool DZOExportWithShrubs = true;

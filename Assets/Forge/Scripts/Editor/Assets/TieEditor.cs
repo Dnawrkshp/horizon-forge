@@ -283,16 +283,14 @@ public class TieEditor : Editor
         m_InstancedColliderIdOverridesProperty.isExpanded = EditorGUILayout.BeginFoldoutHeaderGroup(m_InstancedColliderIdOverridesProperty.isExpanded, "Collider ID Overrides");
         if (m_InstancedColliderIdOverridesProperty.isExpanded)
         {
-            var colIdOverrides = tie.InstancedColliderIdOverrides;
-            foreach (var colIdOverride in colIdOverrides)
+            var count = m_InstancedColliderIdOverridesProperty.arraySize;
+            for (int i = 0; i < count; ++i)
             {
-                var newColId = EditorGUILayout.TextField(colIdOverride.MaterialName, colIdOverride.OverrideId);
-                if (newColId != colIdOverride.OverrideId)
-                {
-                    if (!changed) Undo.RecordObjects(targets, "Update Collision Id Overrides");
-                    colIdOverride.OverrideId = newColId;
-                    changed = true;
-                }
+                var elem = m_InstancedColliderIdOverridesProperty.GetArrayElementAtIndex(i);
+                var overrideIdProperty = elem.FindPropertyRelative("OverrideId");
+                var materialName = elem.FindPropertyRelative("MaterialName").stringValue;
+
+                EditorGUILayout.PropertyField(overrideIdProperty, new GUIContent(materialName));
             }
 
             // copy/paste

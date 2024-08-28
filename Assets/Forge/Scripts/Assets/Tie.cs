@@ -8,14 +8,14 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-[ExecuteInEditMode, SelectionBase]
+[ExecuteInEditMode, SelectionBase, AddComponentMenu("")]
 public class Tie : RenderSelectionBase, IOcclusionData, IAsset, IInstancedCollider
 {
     public static bool RenderOctants;
     private static readonly Color TIE_COLOR = new Color(1, 1, 1, 1);
 
     [HideInInspector] public int OClass;
-    public int GroupId;
+    public int GroupId = -1;
 
     [SerializeField, HideInInspector, ColorUsage(showAlpha: false), Tooltip("Set all vertex colors to the given color. Vertex colors do not (yet) render in Forge.")]
     public Color ColorDataValue = new Color(0.5f, 0.5f, 0.5f, 1f);
@@ -115,7 +115,7 @@ public class Tie : RenderSelectionBase, IOcclusionData, IAsset, IInstancedCollid
         }
         else
         {
-            collisionRenderHandle.Update(this.gameObject, null);
+            collisionRenderHandle.Update(this.gameObject, null, null);
         }
 
         UpdateMaterials();

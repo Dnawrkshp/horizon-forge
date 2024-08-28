@@ -8,6 +8,13 @@ using UnityEngine.UIElements;
 
 public static class UIEHelper
 {
+    public static void BuildLabel(this VisualElement root, string label)
+    {
+        var titleLabel = new Label(label);
+        titleLabel.style.fontSize = 14;
+        root.Add(titleLabel);
+    }
+
     public static void BuildHeading(this VisualElement root, string heading)
     {
         var titleLabel = new Label(heading);

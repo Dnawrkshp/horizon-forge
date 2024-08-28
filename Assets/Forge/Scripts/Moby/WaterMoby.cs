@@ -5,7 +5,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, AddComponentMenu("")]
 public class WaterMoby : MonoBehaviour, IRenderHandlePrefab
 {
     private MeshRenderer m_Renderer;
@@ -83,7 +83,7 @@ public class WaterMoby : MonoBehaviour, IRenderHandlePrefab
         if (m_Moby.OClass != 0x0b37) return;
         if (m_Moby.PVars == null || m_Moby.PVars.Length != 112) return;
 
-        var levelDir = FolderNames.GetMapBinFolder(SceneManager.GetActiveScene().name, Constants.GameVersion);
+        var levelDir = FolderNames.GetMapBinFolder(SceneManager.GetActiveScene().name, m_Moby.RCVersion);
         var overlayTex = Texture2D.grayTexture;
         var underlayTex = Texture2D.whiteTexture;
 

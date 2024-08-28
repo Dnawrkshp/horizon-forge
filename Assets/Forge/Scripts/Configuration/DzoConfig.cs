@@ -27,6 +27,12 @@ public class DzoConfig : MonoBehaviour
     [Header("Post Processing")]
     public float PostExposure = 0f;
     public Color PostColorFilter = Color.white;
+
+    [Header("Export Fog")]
+    public bool FogOverride = false;
+    [ColorUsage(false)] public Color FogOverrideColor = Color.gray;
+    public float FogOverrideNearDistance = 0f;
+    public float FogOverrideFarDistance = 1000f;
 }
 
 [Serializable]

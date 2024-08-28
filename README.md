@@ -1,9 +1,9 @@
 # Horizon Forge
-A map editor for Ratchet: Deadlocked and Clank 3/UYA Multiplayer (PS2).
+A map editor for Ratchet: Deadlocked and Ratchet & Clank 3/UYA Multiplayer (PS2).
 
 ## Overview
 
-Forge is a tool to make custom maps for Ratchet: Deadlocked and Ratchet and Clank 3/UYA Multiplayer (PS2).
+Forge is a tool to make custom maps for Ratchet: Deadlocked and Ratchet & Clank 3/UYA Multiplayer (PS2).
 
 https://github.com/Horizon-Private-Server/horizon-forge/assets/2020854/c6561f28-258b-4f94-ac1a-32418d37458f
 

@@ -306,8 +306,8 @@ public static class ForgeBuilder
             var binFolder = FolderNames.GetMapBinFolder(scene.name, racVersion);
             var mapBuildFolder = FolderNames.GetMapBuildFolder(scene.name, racVersion);
             var buildFolders = racVersion == RCVER.DL ? settings.DLBuildFolders : settings.UYABuildFolders;
-            if (!Directory.Exists(mapBuildFolder)) return;
-            if (buildFolders == null) return;
+            if (!Directory.Exists(mapBuildFolder)) continue;
+            if (buildFolders == null) continue;
 
             foreach (var buildFolder in settings.DLBuildFolders)
             {

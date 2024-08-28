@@ -122,7 +122,10 @@ public static class MapExporter
             // save metadata
             if (!string.IsNullOrEmpty(outMetadataFilePath))
             {
-                var fogT = (mapConfig.FogFarDistance - mapConfig.FogNearDistance) / (mapConfig.FogFarIntensity - mapConfig.FogNearIntensity);
+                var fogT = mapConfig.FogFarIntensity - mapConfig.FogNearIntensity;
+                var fogRange = (mapConfig.FogFarDistance - mapConfig.FogNearDistance) / (mapConfig.FogFarIntensity - mapConfig.FogNearIntensity);
+                var fogNear = (mapConfig.FogNearDistance * (1 - fogT)) - (fogRange * mapConfig.FogNearIntensity);
+                var fogFar = fogNear + fogRange;
                 var shellData = new List<DzoMapMetadata.SkymeshShellMetadata>();
                 var lightData = new List<DzoMapMetadata.LightMetadata>(); 
 
@@ -166,9 +169,9 @@ public static class MapExporter
                     MinimapMeshName = minimapGo ? objectPathPrefix + minimapGo.name : null,
                     Lights = lightData.ToArray(),
                     BackgroundColor = mapConfig.BackgroundColor,
-                    FogColor = mapConfig.FogColor,
-                    FogNearDistance = mapConfig.FogNearDistance,
-                    FogFarDistance = mapConfig.FogNearDistance + fogT,
+                    FogColor = dzoConfig.FogOverride ? dzoConfig.FogOverrideColor : mapConfig.FogColor,
+                    FogNearDistance = dzoConfig.FogOverride ? dzoConfig.FogOverrideNearDistance : fogNear,
+                    FogFarDistance = dzoConfig.FogOverride ? dzoConfig.FogOverrideFarDistance : fogFar,
                     PostColorFilter = dzoConfig.PostColorFilter,
                     PostExposure = dzoConfig.PostExposure,
                     DefaultCameraPosition = dzoConfig.DefaultCameraPosition ? dzoConfig.DefaultCameraPosition.position : Vector3.zero,

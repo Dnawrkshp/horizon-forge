@@ -263,13 +263,13 @@ public static class MapExporter
             if (tie)
             {
                 reflectionMatrix = tie.Reflection;
-                var color = tie.GetBaseVertexColor().HalveRGB().ScaleRGB(dzoConfig.TieBrightness * tie.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
+                var color = tie.GetBaseVertexColor().ScaleRGB(dzoConfig.TieBrightness * tie.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
                 colors = Enumerable.Repeat(color, meshFilter.sharedMesh.vertexCount).ToArray();
             }
             else if (shrub)
             {
                 reflectionMatrix = shrub.Reflection;
-                var color = shrub.Tint.HalveRGB().ScaleRGB(dzoConfig.ShrubBrightness * shrub.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
+                var color = shrub.Tint.ScaleRGB(dzoConfig.ShrubBrightness * shrub.DZOBrightness); // dzo expect vertex color RGB to be same as game, but alpha to be corrected without bloom
                 colors = Enumerable.Repeat(color, meshFilter.sharedMesh.vertexCount).ToArray();
             }
             else if (tfrag)

@@ -431,7 +431,8 @@ public class Moby : RenderSelectionBase, IAsset, IPVarObject
             if (useDefault && !string.IsNullOrEmpty(pvarOverlay.Name))
                 this.name = pvarOverlay.Name;
 
-            UnityHelper.InitializePVars(mapConfig, this, useDefault: useDefault);
+            UnityHelper.InitializePVars(mapConfig, this, useDefault: useDefault); 
+            this.PVarPointers = pvarOverlay.PointersInts;
         }
     }
 
